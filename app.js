@@ -513,7 +513,8 @@ function pAna() {
       <button class="chip" data-p="all">ทั้งหมด</button><button class="chip" data-p="before">ก่อนตั้งมูลนิธิ</button><button class="chip" data-p="after">หลังตั้งมูลนิธิ</button>
       ${yrs.slice(-4).map((y) => `<button class="chip" data-p="${y}">ปี ${y + 543}</button>`).join("")}</div>
     <div class="frow"><label>กลุ่มบัญชี</label>${Object.keys(gAcc).map((g) => `<button class="chip" data-g="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])} (${gAcc[g].length})</button>`).join("")}</div>
-    <div class="frow"><label>รายบัญชี</label><div class="acclist">${DB.accounts.map((a, i) => `<label title="${esc(a.name)}"><input type="checkbox" data-a="${i}"> ${a.bank} ${a.acc} ${esc(a.name)}</label>`).join("")}</div></div>
+    <div class="frow"><label>รายบัญชี</label><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
+        ${gAcc[g].map((i) => { const a = DB.accounts[i]; return `<label title="${esc(a.name)}"><input type="checkbox" data-a="${i}"><span>${a.bank} ${a.acc}</span><small>${esc(a.name)}</small></label>`; }).join("")}</div>`).join("")}</div></div>
     <div class="frow"><label>ประเภทรายการ</label>${DB.kinds.map((k, i) => `<button class="chip" data-k="${i}"><span class="dot" style="background:${KCOL[i]}"></span>${k}</button>`).join("")}</div>
     <div class="frow"><label>กลุ่มคู่โอน</label>${usedCpg.map((g) => `<button class="chip" data-c="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div>
     <div class="frow"><label>ยอดขั้นต่ำ</label><input type="number" id="fMin" min="0" step="1000" value="${F.min || ""}" placeholder="บาท" style="width:130px">
@@ -583,6 +584,7 @@ function pAna() {
     $$("[data-c]", m).forEach((b) => b.classList.toggle("on", F.cpg.has(+b.dataset.c)));
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
     $$("[data-a]", m).forEach((b) => (b.checked = F.accs.has(+b.dataset.a)));
+    $$("[data-gn]", m).forEach((e) => { const ids = gAcc[e.dataset.gn]; e.textContent = `${ids.filter((i) => F.accs.has(i)).length}/${ids.length}`; });
     $$("[data-fm]", m).forEach((b) => b.classList.toggle("on", F.flm === b.dataset.fm));
     $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);

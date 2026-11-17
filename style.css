@@ -260,3 +260,16 @@ details.acc>summary .num{vertical-align:middle;margin-right:4px}
 .accs details.acc:first-child{margin-top:0}
 .pcard small .dot{width:8px;height:8px}
 @media (min-width:1100px){.accs{columns:2 420px;column-gap:14px}.accs details.acc:first-child{margin-top:0}.accs details.acc{margin-top:0;margin-bottom:8px}}
+
+/* v9 */
+.accgroups{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px;width:100%;max-height:360px;overflow:auto;align-items:start}
+.accg{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;padding:6px 8px;background:#fff;min-width:0}
+.ghead{display:flex;align-items:center;gap:6px;width:100%;border:0;background:#F3F5F9;border-radius:7px;padding:5px 8px;font-size:.86rem;color:var(--navy);text-align:left;margin-bottom:4px}
+.ghead b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ghead .n{font-size:.76rem;color:var(--mut);font-weight:600}
+.ghead:hover{background:#E4EAF3}
+.ghead.on{background:var(--navy);color:#fff}
+.ghead.on .n{color:var(--yel)}
+.accg label{display:flex;gap:6px;align-items:baseline;font-size:.84rem;padding:2px;white-space:nowrap;overflow:hidden;cursor:pointer}
+.accg label span{font-variant-numeric:tabular-nums;flex:none}
+.accg label small{color:var(--mut);overflow:hidden;text-overflow:ellipsis}
