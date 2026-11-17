@@ -118,13 +118,13 @@ $("#setBtn").onclick = () => {
 function download(name, text, type) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + text], { type: type + ";charset=utf-8" })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 
 /* ---------- โครงหน้า ---------- */
-const TABS = [["over", "ภาพรวม", "chart"], ["case", "คดี", "book"], ["charges", "ข้อหา", "scale"], ["defences", "ข้อต่อสู้", "shield"], ["work", "งาน", "list"], ["prog", "ความคืบหน้า", "cal"], ["asset", "ทรัพย์สิน", "coin"], ["ana", "วิเคราะห์", "flow"], ["acc", "บัญชี", "bank"], ["trace", "ไล่เส้นเงิน", "route"], ["img", "ภาพชาร์ต", "img"]];
+const TABS = [["over", "ภาพรวม", "chart"], ["case", "คดี", "book"], ["charges", "ข้อหา", "scale"], ["defences", "ข้อต่อสู้", "shield"], ["work", "งาน", "list"], ["prog", "ความคืบหน้า", "cal"], ["stm", "ขอ STM", "doc"], ["asset", "ทรัพย์สิน", "coin"], ["srch", "ตรวจค้น", "bag"], ["ppl", "บุคคล", "users"], ["ana", "วิเคราะห์", "flow"], ["acc", "บัญชี", "bank"], ["trace", "ไล่เส้นเงิน", "route"], ["img", "ภาพ", "img"]];
 let TAB = "over";
 function start() {
   $("#login").hidden = true; $("#app").hidden = false;
   $("#caseTitle").textContent = DB.case || "ข้อมูลคดี";
   $("#madeAt").textContent = "ข้อมูล ณ " + dTh(DB.made) + " " + DB.made.slice(11);
-  $("#tabs").innerHTML = TABS.map(([k, l, ic]) => `<button data-t="${k}">${IC(ic, 20)}<span>${l}</span></button>`).join("");
+  $("#tabs").innerHTML = TABS.map(([k, l, ic]) => `<button data-t="${k}">${IC(ic, 20)}<span class="tx"><span>${l}</span><small></small></span></button>`).join("");
   $("#tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) go(b.dataset.t); };
   prep();
   C = LS.get("cib_content") || JSON.parse(JSON.stringify(DB.content));
@@ -134,7 +134,7 @@ function start() {
 }
 function go(t) { PV = ""; AV = ""; TAB = TABS.some((x) => x[0] === t) ? t : "over"; history.replaceState(null, "", "#" + TAB); $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB)); render(); window.scrollTo(0, 0); }
 function killCharts() { Object.values(CH).forEach((c) => c.destroy()); CH = {}; }
-function render() { killCharts(); const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pProg, asset: pAsset, ana: pAna, acc: pAcc, trace: pTrace, img: pImg })[TAB](); }
+function render() { killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pProg, asset: pAsset, ppl: pPpl, stm: pStm, srch: pSrch, ana: pAna, acc: pAcc, trace: pTrace, img: pImg })[TAB](); navStats(); }
 const acts = (sec, id) => `<span class="acts"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></span>`;
 const addBtn = (sec) => `<button class="add" onclick="editItem('${sec}')">+ เพิ่ม</button>`;
 const badge = (s) => { if (!s) return ""; const c = /ค้าง|ต้อง|รอ/.test(s) ? "r" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s) ? "g" : /พัก|มติ/.test(s) ? "y" : ""; return `<span class="badge ${c}">${esc(s)}</span>`; };
@@ -151,17 +151,19 @@ function pOver() {
     <div class="card kpi"><div class="l">บัญชีที่มี statement</div><div class="v">${DB.accounts.length}</div><div class="s">${fmt0(ntx)} รายการ</div></div>
     <div class="card kpi g"><div class="l">ผู้ต้องหา / ข้อต่อสู้</div><div class="v">${C.charges.length} / ${C.defences.length}</div><div class="s">งานค้าง ${C.todo.filter((t) => !/เสร็จ/.test(t.status || "")).length} รายการ</div></div>
   </div>
+  ${overExtra()}
   <h2>เนื้อเรื่อง ${addBtn("story")}</h2>
   <div class="grid g3">${C.story.map((s, i) => `<div class="card item">${acts("story", s.id)}<span class="num">${i + 1}</span><div><h3>${esc(s.title)}</h3><p>${esc(s.detail)}</p></div></div>`).join("")}</div>
-  <h2>เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small>แถว 1 → แถว 2 (ทุกช่วงเวลา)</small></h2>
-  <div class="card"><div class="chartbox tall"><canvas id="cHop"></canvas></div></div>
-  <h2>เงินบริจาคเข้า – ออก รายปี <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
-  <div class="card"><div class="chartbox"><canvas id="cYear"></canvas></div></div>`;
+  <div class="grid g2w"><div><h2>เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small>แถว 1 → แถว 2 (ทุกช่วงเวลา)</small></h2>
+  <div class="card"><div class="chartbox tall"><canvas id="cHop"></canvas></div></div></div>
+  <div><h2>เงินบริจาคเข้า – ออก รายปี <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
+  <div class="card"><div class="chartbox tall"><canvas id="cYear"></canvas></div></div></div></div>`;
   const h = (o.hop1 || []).slice(0, 14);
   CH.hop = new Chart($("#cHop"), { type: "bar", data: { labels: h.map((r) => r[0].split(" (")[0]), datasets: [{ data: h.map((r) => r[1] / 1e6), backgroundColor: h.map((r) => r[3]) }] },
     options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.raw * 1e6)} บาท (${fmt0(h[c.dataIndex][2])} ครั้ง)` } } }, scales: { x: { title: { display: true, text: "ล้านบาท" } } } } });
   CH.year = new Chart($("#cYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] },
     options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)} บาท` } } } } });
+  $("#main").onclick = (e) => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); };
 }
 /* ---------- คดี / ข้อหา / ข้อต่อสู้ / งาน ---------- */
 function pCase() {
@@ -169,7 +171,7 @@ function pCase() {
   $("#main").innerHTML = `<h2>รายละเอียดคดี ${addBtn("case")}</h2>
   <div class="grid g2">${C.case.map((s) => `<div class="card">${acts("case", s.id)}<div class="lab" style="margin-top:0">${esc(s.title)}</div><div>${esc(s.detail)}</div></div>`).join("")}</div>
   <h2>ลำดับเหตุการณ์ ${addBtn("events")}</h2>
-  <div class="card"><div class="tl">${ev.map((e) => `<div class="ev" style="position:relative">${acts("events", e.id)}<div class="d">${dTh(e.date)}</div><b>${esc(e.title)}</b><div class="muted">${esc(e.detail)}</div></div>`).join("")}</div></div>`;
+  <div class="card"><div class="tl">${ev.map((e) => `<div class="ev" style="position:relative">${acts("events", e.id)}<div class="d">${dTh(e.date)}</div><b>${esc(e.title)}</b><div class="muted">${esc(e.detail)}</div></div>`).join("")}</div></div>${newsBlock()}`;
 }
 function pCharges() {
   $("#main").innerHTML = `<h2>ผู้ต้องหาและข้อหา ${addBtn("charges")}</h2>
@@ -316,7 +318,7 @@ function tsWit() {
 }
 const tsAnu = () => tsR("anu").filter((r) => r[0] && r[0] !== "หมายมายัง").map((r) => ({ name: r[0], prov: r[1], issued: r[2], meet: r[3] }));
 const tsCo = () => tsR("co").filter((r) => r[0] && !/ชื่อนิติบุคคล/.test(r[0])).map((r) => ({ name: r[0], type: r[1] }));
-const tsPpl = () => tsR("ppl").filter((r) => isNo(r[0]) && r[1]).map((r) => ({ name: r[1], note: r[2].replace(/https?:\/\/\S+/g, "").replace(/[\s\/]+$/, "").trim() }));
+const tsPpl = () => tsR("ppl").filter((r) => isNo(r[0]) && r[1]).map((r) => ({ name: r[1], note: noteClean(r[2]) }));
 
 /* ---------- ความคืบหน้าการทำคดี ---------- */
 const PST = { done: ["เสร็จ", "#1B7A4A"], wait: ["รอผล", "#E0A800"], doing: ["ดำเนินการ", "#1565C0"], none: ["ยังไม่ระบุ", "#9E9E9E"] };
@@ -327,7 +329,7 @@ function pProg() {
   const wAll = W.flatMap((s) => s.rows), came = (rs) => rs.filter((r) => /มาพบ/.test(r.st)).length;
   const cnt = (k) => T.filter((t) => t.st === k).length, got = AC.filter((r) => /ได้แล้ว/.test(r.data)).length;
   const head = (ic, t, s) => `${backBtn()}<h2>${IC(ic)} ${t} <small>${s || ""}</small></h2>`;
-  let h = "";
+  const det = (PV) => { let h = "";
   if (PV === "task") {
     const owners = [...new Set(T.map((t) => t.owner).filter(Boolean))];
     const show = T.filter((t) => (!PF.st.size || PF.st.has(t.st)) && (!PF.own.size || PF.own.has(t.owner)));
@@ -352,7 +354,9 @@ function pProg() {
     h = head("build", "นิติบุคคลที่ออกหมายเรียก", `${CO.length} ราย`) + `<div class="card">${CO.map((r) => li(esc(r.name), esc(r.type))).join("")}</div>`;
   } else if (PV === "ppl") {
     h = head("user", "บุคคล / นิติบุคคลที่เกี่ยวข้อง", `${PP.length} ราย`) + `<div class="card">${PP.map((r) => li(esc(r.name), esc(r.note))).join("")}</div>`;
-  } else {
+  }
+  return h; };
+  const mainH = () => { let h = "";
     const ev = [...T.map((t) => ({ d: t.date, k: "task", n: t.title })), ...S.map((r) => ({ d: pDate(r.date), k: "sus", n: r.name })), ...wAll.map((r) => ({ d: pDate(r.date), k: "wit", n: r.name })), ...A.map((r) => ({ d: pDate(r.meet), k: "anu", n: r.name }))].filter((e) => e.d);
     const days = [...new Set(ev.map((e) => e.d))].sort(), today = isoNow().slice(0, 10);
     const pct = T.length ? Math.round((cnt("done") / T.length) * 100) : 0;
@@ -370,9 +374,11 @@ function pProg() {
     ${days.map((d) => { const es = ev.filter((e) => e.d === d);
       return `<details class="acc tlr ${d < today ? "past" : d === today ? "now" : ""}"><summary><span class="t">${dTh(d)}${d === today ? ' <span class="badge y">วันนี้</span>' : ""}</span><span class="a">${Object.keys(KIND).map((k) => { const n = es.filter((e) => e.k === k).length; return n ? `<span class="cnt">${IC(KIND[k][0], 15)}${n}</span>` : ""; }).join("")}</span></summary>
       <div class="body">${Object.keys(KIND).map((k) => { const v = es.filter((e) => e.k === k); return v.length ? `<div class="lab">${IC(KIND[k][0], 14)} ${KIND[k][1]} ${v.length}</div><div class="pgd">${v.slice(0, 12).map((e) => esc(e.n)).join(" · ")}${v.length > 12 ? ` … อีก ${v.length - 12}` : ""}</div>` : ""; }).join("")}</div></details>`; }).join("") || '<p class="muted">ยังไม่มีข้อมูล</p>'}`;
-  }
-  const m = $("#main"); m.innerHTML = h;
-  if (PV === "task") {
+  return h; };
+  const wide = isWide(), v = wide ? (PV || "task") : PV;
+  const m = $("#main"); m.innerHTML = wide ? `<div class="md"><div class="md-l">${mainH()}</div><div class="md-r">${det(v)}</div></div>` : (v ? det(v) : mainH());
+  $$(".tile", m).forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  if (v === "task") {
     const allDays = [...new Set(T.map((t) => t.date || ""))].sort(), owners = [...new Set(T.map((t) => t.owner))];
     const ds = (f) => Object.entries(PST).map(([k, v]) => ({ label: v[0], data: f(k), backgroundColor: v[1], stack: "s" }));
     const op = (hz) => ({ indexAxis: hz ? "y" : "x", maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 12 } } }, scales: { x: { stacked: true, ticks: { precision: 0 } }, y: { stacked: true, ticks: { precision: 0 } } } });
@@ -382,7 +388,8 @@ function pProg() {
   m.onclick = (e) => {
     const b = e.target.closest("button"); if (!b || tsClick(b)) return;
     const tg = (s, v) => (s.has(v) ? s.delete(v) : s.add(v));
-    if (b.dataset.v != null) { PV = b.dataset.v; render(); window.scrollTo(0, 0); }
+    if (b.dataset.v === "acc") go("stm"); else if (b.dataset.v === "ppl") go("ppl");
+    else if (b.dataset.v != null) { PV = b.dataset.v; render(); if (!wide) window.scrollTo(0, 0); }
     else if (b.dataset.ps) { tg(PF.st, b.dataset.ps); render(); }
     else if (b.dataset.po) { tg(PF.own, b.dataset.po); render(); }
     else if (b.dataset.af != null) { AF = AF === b.dataset.af ? "" : b.dataset.af; render(); }
@@ -399,7 +406,7 @@ function pAsset() {
   const S = tsSum(), FZ = tsFrz(), own = S[0] ? S[0].own : ["", ""];
   const tot = [0, 1].map((o) => S.reduce((t, s) => t + s.tot[o], 0)), all = tot[0] + tot[1];
   const fz = FZ.secs.flatMap((s) => s.rows), fzSum = fz.reduce((t, r) => t + r.amt, 0);
-  let h = "";
+  const det = (AV) => { let h = "";
   const si = AV.startsWith("s") ? +AV.slice(1) : -1, sec = S[si];
   if (sec) {
     const st = sec.tot[0] + sec.tot[1], mx = Math.max(1, ...sec.items.map((x) => x[1]));
@@ -420,7 +427,9 @@ function pAsset() {
     h = `${backBtn()}<h2>${IC("lock")} เงินในบัญชีที่อายัด <small>${fz.length} บัญชี</small></h2>
     <div class="hero"><div class="l">ยอดรวม</div><div class="v">${M(fzSum)}</div><div class="l">${fmt(fzSum)} บาท${FZ.stated != null && Math.abs(FZ.stated - fzSum) > 0.01 ? ` · ชีตระบุ ${fmt(FZ.stated)}` : ""}</div></div>
     ${FZ.secs.map((s, i) => accd(esc(s.title || "บัญชี"), `${s.rows.length} บัญชี · ${M(s.rows.reduce((t, r) => t + r.amt, 0))}`, s.rows.map((r) => li(`${esc(r.bank)} ${esc(r.acc)}`, `${esc(r.name)}${r.note ? " · " + esc(r.note) : ""}`, fmt(r.amt))).join(""), i === 0)).join("")}`;
-  } else {
+  }
+  return h; };
+  const mainH = () => { let h;
     h = `<div class="hero"><div class="l">ทรัพย์สินที่ตรวจพบ · ${S.length} หมวด</div><div class="v">${M(all)}</div>
       <div class="split">${[0, 1].map((o) => `<i style="width:${all ? (tot[o] / all) * 100 : 0}%;background:${OC[o]}"></i>`).join("")}</div>
       <div class="leg">${[0, 1].map((o) => `<span style="--c:${OC[o]}">${esc(own[o])} ${M(tot[o])}</span>`).join("")}</div>
@@ -432,11 +441,13 @@ function pAsset() {
     <h2>${IC("chart")} แยกหมวด <small>ล้านบาท</small></h2>
     <div class="card"><div class="chartbox sm"><canvas id="cAs"></canvas></div></div>
     <p class="muted" style="font-size:.82rem">${IC("sync", 13)} ${tsStamp()} ${syncBtn()}</p>`;
-  }
-  const m = $("#main"); m.innerHTML = h;
-  if (!AV && S.length) CH.as = new Chart($("#cAs"), { type: "bar", data: { labels: S.map((s) => secNm(s.name)), datasets: [0, 1].map((o) => ({ label: own[o], data: S.map((s) => s.tot[o] / 1e6), backgroundColor: OC[o], stack: "s" })) },
+  return h; };
+  const wide = isWide(), v = wide ? (AV || "s0") : AV;
+  const m = $("#main"); m.innerHTML = wide ? `<div class="md"><div class="md-l">${mainH()}</div><div class="md-r">${det(v)}</div></div>` : (v ? det(v) : mainH());
+  $$(".tile", m).forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  if ((wide || !v) && S.length) CH.as = new Chart($("#cAs"), { type: "bar", data: { labels: S.map((s) => secNm(s.name)), datasets: [0, 1].map((o) => ({ label: own[o], data: S.map((s) => s.tot[o] / 1e6), backgroundColor: OC[o], stack: "s" })) },
     options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 12 } }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt0(c.raw * 1e6)} บาท` } } }, scales: { x: { stacked: true }, y: { stacked: true } } } });
-  m.onclick = (e) => { const b = e.target.closest("button"); if (!b || tsClick(b)) return; if (b.dataset.v != null) { AV = b.dataset.v; render(); window.scrollTo(0, 0); } };
+  m.onclick = (e) => { const b = e.target.closest("button"); if (!b || tsClick(b)) return; if (b.dataset.v != null) { AV = b.dataset.v; render(); if (!wide) window.scrollTo(0, 0); } };
 }
 
 /* ---------- วิเคราะห์เส้นเงิน ---------- */
@@ -453,7 +464,7 @@ function prep() {
   DB.lo = min2iso(lo).slice(0, 10); DB.hi = min2iso(hi).slice(0, 10);
   resetF();
 }
-function resetF() { F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto" }; SHOWN = 200; }
+function resetF() { F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", flm: "g", fln: innerWidth > 1100 ? 14 : 8 }; SHOWN = 200; }
 function filterTx() {
   const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
   const out = [];
@@ -488,16 +499,19 @@ function pAna() {
       <input type="search" id="fQ" value="${esc(F.q)}" placeholder="ค้นหาชื่อ / เลขบัญชีคู่โอน">
       <button class="btn o" id="fClear">ล้างตัวกรอง</button><button class="btn o" id="fCsv">ส่งออก CSV</button></div>
    </div></details>
-  <div class="grid g4" style="margin-top:12px" id="aKpi"></div>
+  <div class="grid g4 kp8" style="margin-top:12px" id="aKpi"></div>
   <p class="muted" style="font-size:.82rem;margin:.6em 0 0">ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
+  <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · เปลี่ยนทันทีเมื่อกรอง · กดกล่องเพื่อกรองต่อ</small>
+    <button class="chip" data-fm="g">กลุ่ม</button><button class="chip" data-fm="d">รายบัญชี</button><span class="muted" style="font-size:.8rem;font-weight:400">จำนวนกล่อง</span><button class="chip" data-fn="8">8</button><button class="chip" data-fn="14">14</button><button class="chip" data-fn="24">24</button></h2>
+  <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <h2>ตามเวลา <small id="granLab"></small> <button class="chip" id="gBtn">สลับ รายเดือน / รายปี</button></h2>
   <div class="card"><div class="chartbox"><canvas id="cTime"></canvas></div></div>
   <div class="grid g2" style="margin-top:12px">
     <div><h2>ตามกลุ่มคู่โอน <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cCpg"></canvas></div></div></div>
     <div><h2>ตามบัญชี <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cAcc"></canvas></div></div></div>
   </div>
-  <h2>คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small></h2><div class="tblwrap" id="tCp"></div>
-  <h2>รายการ <small id="txLab"></small></h2><div class="tblwrap" id="tTx"></div>
+  <div class="grid tb2"><div><h2>คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small></h2><div class="tblwrap" id="tCp"></div></div>
+  <div><h2>รายการ <small id="txLab"></small></h2><div class="tblwrap" id="tTx"></div></div></div>
   <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>`;
   const m = $("#main");
   m.onclick = (e) => {
@@ -510,6 +524,8 @@ function pAna() {
     else if (b.id === "fCsv") return csv();
     else if (b.id === "gBtn") F.gran = (F._g === "y") ? "m" : "y";
     else if (b.id === "more") { SHOWN += 300; return upd(true); }
+    else if (b.dataset.fm) F.flm = b.dataset.fm;
+    else if (b.dataset.fn) F.fln = +b.dataset.fn;
     else return;
     SHOWN = 200; upd();
   };
@@ -526,12 +542,13 @@ function pAna() {
   }
   function upd(tableOnly) {
     IDX = filterTx();
-    const K = DB.kinds.map(() => [0, 0]), byG = {}, byA = {}, byC = new Map(), byT = new Map();
+    const K = DB.kinds.map(() => [0, 0]), byG = {}, byA = {}, byC = new Map(), byT = new Map(), pair = new Map();
     const span = (+F.to.slice(0, 4) * 12 + +F.to.slice(5, 7)) - (+F.from.slice(0, 4) * 12 + +F.from.slice(5, 7));
     const gy = F.gran === "y" || (F.gran === "auto" && span > 47); F._g = gy ? "y" : "m";
     for (const i of IDX) {
       const r = DB.tx[i], k = r[2], amt = r[3], n = r[5] || 1, c = DB.cps[r[4]], inn = IN_K.includes(k) ? 0 : 1;
       K[k][0] += amt; K[k][1] += n;
+      const pk = r[4] * 64 + r[0]; let pv = pair.get(pk); if (!pv) pair.set(pk, (pv = [0, 0, 0, 0])); pv[inn] += amt; pv[2 + inn] += n;
       (byG[c[3]] = byG[c[3]] || [0, 0])[inn] += amt;
       (byA[r[0]] = byA[r[0]] || [0, 0])[inn] += amt;
       let o = byC.get(r[4]); if (!o) byC.set(r[4], (o = [0, 0, 0])); o[inn] += amt; o[2] += n;
@@ -545,6 +562,9 @@ function pAna() {
     $$("[data-c]", m).forEach((b) => b.classList.toggle("on", F.cpg.has(+b.dataset.c)));
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
     $$("[data-a]", m).forEach((b) => (b.checked = F.accs.has(+b.dataset.a)));
+    $$("[data-fm]", m).forEach((b) => b.classList.toggle("on", F.flm === b.dataset.fm));
+    $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
+    drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     // ตาราง
     const top = [...byC.entries()].sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1])).slice(0, 50);
     $("#tCp").innerHTML = `<table><tr><th>#</th><th>คู่โอน</th><th>บัญชี</th><th>กลุ่ม</th><th class="n">เงินเข้า (บาท)</th><th class="n">เงินออก (บาท)</th><th class="n">ครั้ง</th></tr>` +
@@ -570,6 +590,19 @@ function pAna() {
     const as = Object.entries(byA).sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1])).slice(0, 14);
     CH.acc = hb("#cAcc", as, (k) => { const a = DB.accounts[k[0]]; return `${a.bank} ${a.acc} ${a.name.slice(0, 22)}`; }, null, (a) => { tog(F.accs, +a); upd(); });
   }
+  const fb = $("#flow"), tip = $("#flTip");
+  fb.onmousemove = (e) => { const t = e.target.closest("[data-tip]"); if (!t) { tip.hidden = true; return; } tip.textContent = t.dataset.tip; tip.hidden = false; tip.style.left = Math.max(4, Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 14)) + "px"; tip.style.top = (e.clientY + 16) + "px"; };
+  fb.onmouseleave = () => (tip.hidden = true);
+  fb.onclick = (e) => {
+    const g = e.target.closest("[data-n]"); if (!g) { const t = e.target.closest("[data-tip]"); if (t) toast(t.dataset.tip); return; }
+    const id = g.dataset.n.slice(1), k = +id.slice(1);
+    if (id[0] === "g") tog(F.cpg, k);
+    else if (id[0] === "c") { const cp = DB.cps[k]; F.q = cp[0] || cp[1]; $("#fQ").value = F.q; }
+    else if (id[0] === "G") { const ids = gAcc[k] || [], all = ids.every((i) => F.accs.has(i)); ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i))); }
+    else if (id[0] === "a") tog(F.accs, k);
+    else return;
+    tip.hidden = true; upd();
+  };
   upd();
 }
 
@@ -605,17 +638,248 @@ function pTrace() {
     <div class="kpi" style="border:0;padding:6px 0 0"><span class="v">${s.total ? fmt(s.total) : "-"}</span> <span class="s">บาท${s.n ? ` · ${fmt0(s.n)} ครั้ง` : ""}</span></div>
     <div class="muted" style="font-size:.84rem">${esc(s.note)}</div>${bars(s.rows, s.total)}</div>`).join("")}</div>`;
 }
-/* ---------- ภาพชาร์ต ---------- */
+/* ---------- จอกว้าง / เมนู ---------- */
+Object.assign(ICP, {
+  search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  bag: '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+  zoom: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M8.5 11h5M11 8.5v5"/>',
+});
+const WIDE = matchMedia("(min-width:1100px)");
+const isWide = () => WIDE.matches;
+let ONRS = null, RST = 0;
+WIDE.addEventListener("change", () => DB && TAB && render());
+addEventListener("resize", () => { clearTimeout(RST); RST = setTimeout(() => ONRS && ONRS(), 180); });
+function navStats() {
+  try {
+    const S = tsSum(), fz = tsFrz().secs.flatMap((s) => s.rows), T = progTasks(), W = tsWit().flatMap((s) => s.rows), A = tsAcc(), SR = DB.search || { rows: [] };
+    const st = {
+      over: M(DB.over.donor_in) + " เงินบริจาค", case: `${(C.events || []).length} เหตุการณ์`, charges: `${C.charges.length} ราย`, defences: `${C.defences.length} ประเด็น`,
+      work: `ค้าง ${C.todo.filter((t) => !/เสร็จ/.test(t.status || "")).length} · เสร็จ ${C.done.length}`,
+      prog: `งาน ${T.filter((t) => t.st === "done").length}/${T.length} · พยาน ${W.filter((r) => /มาพบ/.test(r.st)).length}/${W.length}`,
+      asset: `${M(S.reduce((t, s) => t + s.tot[0] + s.tot[1], 0))} · อายัด ${M(fz.reduce((t, r) => t + r.amt, 0))}`,
+      ppl: `${people().length} ราย · ${imgBy((i) => i.cat === "บุคคล").length} ภาพ`,
+      stm: `ได้แล้ว ${A.filter((r) => /ได้แล้ว/.test(r.data)).length}/${A.length} บัญชี`,
+      srch: `${SR.rows.reduce((t, r) => t + (r.n || 0), 0)} รายการ · ${imgBy((i) => i.cat === "ตรวจค้น").length} ภาพ`,
+      ana: `${fmt0(DB.tx.length)} รายการ`, acc: `${DB.accounts.length} บัญชีมี statement`, trace: `${DB.sets.length} ชุด`, img: `${imgBy((i) => i.cat !== "บุคคล").length} ภาพ`,
+    };
+    $$("#tabs button").forEach((b) => { const s = $("small", b); if (s) s.textContent = st[b.dataset.t] || ""; });
+  } catch (e) { }
+}
+
+/* ---------- ภาพ: ภาพย่อ + ตัวเปิดภาพ (ถอดรหัสทีละภาพ ; ภาพใหญ่แบ่งท่อน) ---------- */
+const imgBy = (f) => (DB.images || []).filter(f);
+const thumbEl = (i, cls) => `<img class="${cls || "th"}" loading="lazy" alt="" src="data:image/jpeg;base64,${i.th}">`;
+const shot = (i, cap) => `<button class="shot" data-img="${i.id}">${thumbEl(i)}${cap === false ? "" : `<span>${esc(cap || i.title)}</span>`}</button>`;
+let VIM = null, VS = 1;
+function vZoom(d) {
+  if (!VIM) return;
+  const fit = Math.min(1, (innerWidth - 16) / VIM.w);
+  VS = d === 0 ? fit : d === 9 ? 1 : Math.min(2, Math.max(fit * 0.6, VS * (d > 0 ? 1.4 : 1 / 1.4)));
+  $("#viewerBox").style.width = Math.round(VIM.w * VS) + "px";
+}
 async function openImg(id) {
+  const im = (DB.images || []).find((x) => x.id === id); if (!im) return;
+  const box = $("#viewerBox"); box.innerHTML = ""; VIM = im; $("#viewerCap").textContent = im.title; $("#viewer").hidden = false; vZoom(0);
   toast("กำลังถอดรหัสภาพ…");
-  try { const f = await fetchEnc(`img/${id}.enc`); const u = URL.createObjectURL(new Blob([await decrypt(KEY, f)], { type: "image/jpeg" }));
-    $("#viewerImg").src = u; $("#viewer").hidden = false; $("#toast").hidden = true; }
-  catch (e) { toast("เปิดภาพไม่ได้: " + e.message); }
+  try {
+    const files = im.parts ? Array.from({ length: im.parts }, (_, k) => `img/${id}_${k}.enc`) : [`img/${id}.enc`];
+    for (const f of files) {
+      const e = await fetchEnc(f), el = new Image();
+      el.src = URL.createObjectURL(new Blob([await decrypt(KEY, e)], { type: "image/jpeg" }));
+      if (VIM !== im) break;
+      box.appendChild(el);
+    }
+    $("#toast").hidden = true;
+  } catch (e) { toast("เปิดภาพไม่ได้: " + e.message); }
 }
-$("#viewerClose").onclick = () => { $("#viewer").hidden = true; URL.revokeObjectURL($("#viewerImg").src); $("#viewerImg").src = ""; };
+$("#viewer").onclick = (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "viewerClose") { $$("#viewerBox img").forEach((i) => URL.revokeObjectURL(i.src)); $("#viewerBox").innerHTML = ""; $("#viewer").hidden = true; VIM = null; }
+  else if (b.dataset.z != null) vZoom(+b.dataset.z);
+};
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b && DB) openImg(b.dataset.img); });
 function pImg() {
-  const by = {}; DB.images.forEach((i) => (by[i.cat] = by[i.cat] || []).push(i));
-  $("#main").innerHTML = Object.keys(by).map((c) => `<h2>${esc(c)}</h2><div class="thumbs">${by[c].map((i) => `<button class="thumb" data-img="${i.id}"><b>${esc(i.title)}</b><span class="muted" style="font-size:.84rem">กดเพื่อเปิดภาพ (เลื่อน/ซูมได้)</span></button>`).join("")}</div>`).join("") +
-    `<p class="muted" style="font-size:.84rem">ภาพย่อจากไฟล์ A3 — ไฟล์เต็ม (.png / .anb) อยู่ในโฟลเดอร์คดี</p>`;
-  $("#main").onclick = (e) => { const b = e.target.closest("[data-img]"); if (b) openImg(b.dataset.img); };
+  const by = {}; imgBy((i) => i.cat !== "บุคคล").forEach((i) => (by[i.cat] = by[i.cat] || []).push(i));
+  $("#main").innerHTML = Object.keys(by).map((c) => `<h2>${IC("img")} ${esc(c)} <small>${by[c].length} ภาพ</small></h2><div class="shots">${by[c].map((i) => shot(i)).join("")}</div>`).join("") +
+    `<p class="muted" style="font-size:.84rem">กดภาพเพื่อเปิดภาพเต็ม (ซูมได้) — ไฟล์ต้นฉบับ (.png / .anb) อยู่ในโฟลเดอร์คดี</p>`;
 }
+
+/* ---------- ชาร์ตเส้นเงินตามตัวกรอง (เงินเข้า → บัญชี → เงินออก) ---------- */
+function flowBuild(pair) {
+  const det = F.flm === "d", N = F.fln, L = new Map(), R = new Map(), Mi = new Map();
+  const lid = (ci) => (det ? "c" + ci : "g" + DB.cps[ci][3]), mid = (ai) => (det ? "a" + ai : "G" + DB.accounts[ai].g);
+  const add = (m, k, v) => m.set(k, (m.get(k) || 0) + v);
+  for (const [key, v] of pair) { const ci = Math.floor(key / 64), ai = key % 64; if (v[0]) add(L, lid(ci), v[0]); if (v[1]) add(R, lid(ci), v[1]); add(Mi, mid(ai), v[0] + v[1]); }
+  const top = (m) => new Set([...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, N).map((x) => x[0]));
+  const kL = top(L), kR = top(R), kM = top(Mi), nodes = { L: new Map(), M: new Map(), R: new Map() }, links = new Map();
+  const nd = (c, id) => { let n = nodes[c].get(id); if (!n) nodes[c].set(id, (n = { id, c, in: 0, out: 0 })); return n; };
+  const lk = (a, b, v, n) => { const k = a + ">" + b; let o = links.get(k); if (!o) links.set(k, (o = { a, b, v: 0, n: 0 })); o.v += v; o.n += n; };
+  for (const [key, v] of pair) {
+    const ci = Math.floor(key / 64), ai = key % 64, m0 = mid(ai), m = kM.has(m0) ? m0 : "O", l0 = lid(ci);
+    if (v[0]) { const l = kL.has(l0) ? l0 : "o"; nd("L", l).out += v[0]; nd("M", m).in += v[0]; lk("L" + l, "M" + m, v[0], v[2]); }
+    if (v[1]) { const r = kR.has(l0) ? l0 : "o"; nd("R", r).in += v[1]; nd("M", m).out += v[1]; lk("M" + m, "R" + r, v[1], v[3]); }
+  }
+  return { nodes, links: [...links.values()] };
+}
+function flowInfo(id) {
+  const t = id[0], k = +id.slice(1);
+  if (id === "o" || id === "O") return { lab: "อื่นๆ (รวม)", sub: "", col: "#B0B8C4" };
+  if (t === "g" || t === "G") return { lab: DB.groups[k][1].split(" (")[0], sub: "", col: DB.groups[k][2] };
+  if (t === "c") { const c = DB.cps[k]; return { lab: c[1] || (c[0] ? `${c[2]} ${c[0]}` : DB.groups[c[3]][1].split(" (")[0]), sub: `${c[2]} ${c[0]}`.trim(), col: DB.groups[c[3]][2] }; }
+  const a = DB.accounts[k]; return { lab: `${a.bank} ${a.acc}`, sub: a.name, col: DB.groups[a.g][2] };
+}
+function drawFlow(box, pair) {
+  if (!box) return;
+  const { nodes, links } = flowBuild(pair);
+  if (!links.length) { box.innerHTML = '<p class="muted" style="padding:20px">ไม่มีรายการตามตัวกรอง</p>'; return; }
+  const cols = ["L", "M", "R"].map((c) => [...nodes[c].values()].map((n) => ({ ...n, v: c === "L" ? n.out : c === "R" ? n.in : Math.max(n.in, n.out) }))
+    .sort((a, b) => (a.id.length === 1) - (b.id.length === 1) || b.v - a.v));
+  const W = Math.max(720, box.clientWidth), wide = W > 1000, LW = wide ? 270 : 160, bw = 14, pad = 7, minH = 20, top = 26;
+  const H0 = Math.max(wide ? 520 : 420, Math.max(...cols.map((c) => c.length)) * 34);
+  const sc = Math.min(...cols.filter((c) => c.length).map((c) => (H0 - pad * (c.length - 1)) / c.reduce((t, n) => t + n.v, 0)));
+  const X = { L: LW, M: (W - bw) / 2, R: W - LW - bw }, pos = {};
+  let H = 0;
+  cols.forEach((c, i) => { let y = top; c.forEach((n) => { n.h = Math.max(minH, n.v * sc); n.y = y; n.x = X["LMR"[i]]; n.oi = y; n.oo = y; n.inf = flowInfo(n.id); pos["LMR"[i] + n.id] = n; y += n.h + pad; }); H = Math.max(H, y - pad); });
+  const cut = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s), mc = wide ? 30 : 17;
+  let svg = "";
+  links.sort((a, b) => pos[a.a].y - pos[b.a].y || pos[a.b].y - pos[b.b].y);
+  const paths = links.map((l) => {
+    const s = pos[l.a], t = pos[l.b], th = Math.max(1, l.v * sc), y0 = s.oo + th / 2, y1 = t.oi + th / 2, x0 = s.x + bw, x1 = t.x, mx = (x0 + x1) / 2;
+    s.oo += th; t.oi += th;
+    return `<path class="fl" d="M${x0.toFixed(1)},${y0.toFixed(1)} C${mx.toFixed(1)},${y0.toFixed(1)} ${mx.toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}" stroke="${(l.a[0] === "L" ? s : t).inf.col}" stroke-width="${th.toFixed(1)}" data-tip="${esc(s.inf.lab)} → ${esc(t.inf.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)"/>`;
+  });
+  svg += paths.join("");
+  cols.forEach((c, i) => c.forEach((n) => {
+    const col = "LMR"[i], f = n.inf, amt = col === "M" ? `เข้า ${M(n.in)} · ออก ${M(n.out)}` : M(n.v);
+    const tip = `${f.lab}${f.sub ? " " + f.sub : ""} : ` + (col === "M" ? `เงินเข้า ${fmt(n.in)} / เงินออก ${fmt(n.out)} บาท` : `${fmt(n.v)} บาท`);
+    const tx = col === "L" ? n.x - 6 : n.x + bw + 6, an = col === "L" ? "end" : "start", cy = n.y + n.h / 2, two = n.h >= 32;
+    svg += `<g class="fn" data-n="${col}${n.id}" data-tip="${esc(tip)}"><rect x="${n.x}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${f.col}"/>` +
+      (two ? `<text x="${tx}" y="${(cy - 3).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, mc))}</text><text x="${tx}" y="${(cy + 12).toFixed(1)}" text-anchor="${an}" class="fl2">${amt}${wide && f.sub ? " · " + esc(cut(f.sub, 24)) : ""}</text>`
+        : `<text x="${tx}" y="${(cy + 4).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, mc - 6))} <tspan class="fl2">${col === "M" ? M(n.v) : amt}</tspan></text>`) + `</g>`;
+  }));
+  const hd = (x, t, an) => `<text x="${x}" y="14" text-anchor="${an}" class="flh">${t}</text>`;
+  box.innerHTML = `<svg width="${W}" height="${Math.ceil(H + 8)}" viewBox="0 0 ${W} ${Math.ceil(H + 8)}">${hd(X.L + bw, "เงินเข้าจาก", "end")}${hd(X.M + bw / 2, "บัญชี (statement)", "middle")}${hd(X.R, "เงินออกไป", "start")}${svg}</svg>`;
+}
+
+/* ---------- บุคคล (ภาพ + บัญชี + เส้นเงิน) ---------- */
+const nk = (s) => String(s || "").replace(/^\s*(นางสาว|นาย|นาง|น\.ส\.|ว่าที่\s*ร\.ต\.หญิง|ว่าที่ร้อยตรีหญิง|ด\.ญ\.|ด\.ช\.|mr\.?|mrs\.?|miss)\s*/i, "").replace(/\s+/g, "");
+const noteClean = (s) => String(s || "").replace(/https?:\/\/\S+/g, "").replace(/0\d[\d-]{7,10}/g, "").replace(/[\s\/]+$/, "").replace(/\s{2,}/g, " ").trim();
+const dg = (s) => String(s || "").replace(/\D/g, "").replace(/^0+/, "");
+let PPL = null, PPV = -1, PPF = "", PPQ = "";
+function people() {
+  if (PPL && PPL.f === TEAM().fetched) return PPL.v;
+  const ph = {}; imgBy((i) => i.cat === "บุคคล").forEach((i) => (ph[nk(i.key)] = i));
+  const out = [], seen = {};
+  for (const r of tsR("chart")) {
+    if (!isNo(r[0]) || !r[1]) continue;
+    const b = r[3].split("\n"), a = r[4].split("\n"), n = r[5].split("\n");
+    const p = { name: r[1], eng: r[2], note: noteClean(r[6]), org: /บริษัท|บจก|บมจ|หจก|limited|s\.a\./i.test(r[1]),
+      accs: a.map((x, i) => ({ acc: x.trim(), bank: (b[i] || b[0] || "").trim(), name: (n[i] || "").replace(/^[\s\/]+/, "").trim() })).filter((x) => dg(x.acc)), img: ph[nk(r[1])] };
+    seen[nk(r[1])] = p; out.push(p);
+  }
+  for (const q of tsPpl()) { const k = nk(q.name); if (seen[k]) { if (q.note && !seen[k].note) seen[k].note = q.note; continue; } seen[k] = { name: q.name, eng: "", note: q.note, org: /บริษัท|บจก|บมจ|หจก|limited|s\.a\./i.test(q.name), accs: [], img: ph[k] }; out.push(seen[k]); }
+  const A = tsAcc();
+  for (const p of out) {
+    const core = nk(p.name).replace(/จำกัด|\(มหาชน\)|บริษัท|บจก\.?|บมจ\.?/g, ""); if (core.length < 6) continue;
+    const has = new Set(p.accs.map((a) => dg(a.acc))), hit = (nm) => String(nm || "").replace(/\s+/g, "").includes(core);
+    for (const r of A) if (hit(r.name) && !has.has(dg(r.acc))) { has.add(dg(r.acc)); p.accs.push({ acc: r.acc, bank: r.bank, name: r.name }); }
+    for (const a of DB.accounts) if (hit(a.name) && !has.has(dg(a.acc))) { has.add(dg(a.acc)); p.accs.push({ acc: a.acc, bank: a.bank, name: a.name }); }
+  }
+  PPL = { f: TEAM().fetched, v: out }; return out;
+}
+function pplFlow(p) { // เงินจาก/เข้า บัญชีที่มี statement กับบัญชีของบุคคลนี้ (ตามเลขบัญชี)
+  const set = new Set(p.accs.map((a) => dg(a.acc))), cis = new Set();
+  if (!set.size) return null;
+  DB.cps.forEach((c, i) => { if (c[0] && set.has(dg(c[0]))) cis.add(i); });
+  let rin = 0, rout = 0, n1 = 0, n2 = 0;
+  for (const r of DB.tx) if (cis.has(r[4])) { if (IN_K.includes(r[2])) { rout += r[3]; n2 += r[5] || 1; } else { rin += r[3]; n1 += r[5] || 1; } }
+  return { rin, rout, n1, n2 };
+}
+function pPpl() {
+  const P = people(), A = tsAcc(), have = new Set(DB.accounts.map((a) => dg(a.acc))), stOf = (acc) => (A.find((r) => dg(r.acc) === dg(acc)) || {}).data || "";
+  const q = PPQ.trim().toLowerCase();
+  const show = P.map((p, i) => [p, i]).filter(([p]) => (PPF === "img" ? p.img : PPF === "org" ? p.org : PPF === "per" ? !p.org : true) && (!q || (p.name + p.eng + p.note).toLowerCase().includes(q)));
+  const det = (i) => { const p = P[i]; if (!p) return ""; const f = pplFlow(p);
+    return `${backBtn()}<div class="card prof">${p.img ? `<button class="pf" data-img="${p.img.id}">${thumbEl(p.img)}</button>` : `<span class="pf ph">${IC(p.org ? "build" : "user", 44)}</span>`}
+      <div><h3>${esc(p.name)}</h3>${p.eng ? `<div class="muted">${esc(p.eng)}</div>` : ""}${p.note ? `<div style="margin-top:6px"><span class="badge y">${esc(p.note)}</span></div>` : ""}</div></div>
+    ${f ? `<div class="grid g2" style="margin-top:10px"><div class="card kpi r"><div class="l">รับเงินจากบัญชีที่มี statement</div><div class="v">${M(f.rin)}</div><div class="s">${fmt(f.rin)} บาท · ${fmt0(f.n1)} ครั้ง</div></div>
+      <div class="card kpi"><div class="l">โอนเข้าบัญชีที่มี statement</div><div class="v">${M(f.rout)}</div><div class="s">${fmt(f.rout)} บาท · ${fmt0(f.n2)} ครั้ง</div></div></div>` : ""}
+    <h2>${IC("bank")} บัญชี <small>${p.accs.length} บัญชี</small> ${p.accs.length ? `<button class="chip" data-flow="${i}">${IC("flow", 15)} ดูเส้นเงิน</button>` : ""}</h2>
+    <div class="card">${p.accs.map((a) => li(`${esc(a.bank)} ${esc(a.acc)}`, esc(a.name), `${have.has(dg(a.acc)) ? `<span class="badge g">${IC("check", 12)} มี statement</span>` : stBadge(stOf(a.acc)) || '<span class="badge">ยังไม่ขอ</span>'}`)).join("") || '<span class="muted">ชีตยังไม่ระบุบัญชี</span>'}</div>`; };
+  const list = `<h2>${IC("users")} บุคคลที่เกี่ยวข้อง <small>${show.length} / ${P.length} ราย</small></h2>
+    <div class="frow">${[["", "ทั้งหมด"], ["img", "มีภาพ"], ["per", "บุคคล"], ["org", "นิติบุคคล"]].map(([k, l]) => `<button class="chip ${PPF === k ? "on" : ""}" data-pf="${k}">${l}</button>`).join("")}<input type="search" id="ppQ" value="${esc(PPQ)}" placeholder="ค้นหาชื่อ"></div>
+    <div class="pgrid">${show.map(([p, i]) => `<button class="pcard ${i === PPV ? "on" : ""}" data-p="${i}">${p.img ? thumbEl(p.img) : `<span class="ph">${IC(p.org ? "build" : "user", 30)}</span>`}<b>${esc(p.name)}</b>${p.note ? `<small>${esc(p.note)}</small>` : ""}${p.accs.length ? `<span class="cnt">${IC("bank", 13)}${p.accs.length}</span>` : ""}</button>`).join("")}</div>`;
+  const wide = isWide(), v = wide ? (PPV >= 0 ? PPV : (show[0] || [0, -1])[1]) : PPV, m = $("#main");
+  m.innerHTML = wide ? `<div class="md"><div class="md-l wide">${list}</div><div class="md-r">${det(v)}</div></div>` : (v >= 0 ? det(v) : list);
+  $$(".pcard", m).forEach((b) => b.classList.toggle("on", +b.dataset.p === v));
+  m.onclick = (e) => { const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.p != null) { PPV = +b.dataset.p; render(); if (!wide) scrollTo(0, 0); }
+    else if (b.dataset.v != null) { PPV = -1; render(); }
+    else if (b.dataset.pf != null) { PPF = b.dataset.pf; render(); }
+    else if (b.dataset.flow != null) { const p = P[+b.dataset.flow]; resetF(); F.q = dg(p.accs[0].acc); F.flm = "d"; go("ana"); } };
+  let tm; m.oninput = (e) => { if (e.target.id !== "ppQ") return; clearTimeout(tm); tm = setTimeout(() => { PPQ = e.target.value; render(); const x = $("#ppQ"); if (x) { x.focus(); x.setSelectionRange(PPQ.length, PPQ.length); } }, 300); };
+}
+
+/* ---------- ตารางขอข้อมูล STM (ตามแท็บคุมบัญชี) ---------- */
+let SF = { st: "", bank: "", q: "", sys: "" };
+function pStm() {
+  const A = tsR("acc").filter((r) => isNo(r[0]) && r[1]).map((r) => ({ no: r[0], acc: r[1], name: r[2], bank: r[3], ref: r[4], data: r[5], wd: r[6], br: r[8], note: r[9] }));
+  const have = new Set(DB.accounts.map((a) => dg(a.acc))); A.forEach((r) => (r.sys = have.has(dg(r.acc))));
+  const sts = [...new Set(A.map((r) => r.data).filter(Boolean))], banks = [...new Set(A.map((r) => r.bank).filter(Boolean))];
+  const c = (f) => A.filter(f).length, q = SF.q.trim().toLowerCase();
+  const show = A.filter((r) => (!SF.st || r.data === SF.st) && (!SF.bank || r.bank === SF.bank) && (!SF.sys || (SF.sys === "y" ? r.sys : !r.sys && /ได้แล้ว/.test(r.data))) && (!q || (r.acc + r.name + r.ref + r.note).toLowerCase().includes(q)));
+  const k = (key, val, ic, v, l, cls) => `<button class="tile ${SF[key] === val && (val || key === "all") ? "on" : ""}" data-sk="${key}" data-sv="${esc(val)}"><span class="ico ${cls || ""}">${IC(ic)}</span><span class="v">${v}</span><span class="l">${l}</span></button>`;
+  const m = $("#main");
+  m.innerHTML = `<h2>${IC("doc")} การขอข้อมูล statement <small>${tsStamp()}</small> ${syncBtn()}</h2>
+  <div class="tiles">${k("all", "", "list", A.length, "บัญชีทั้งหมด")}${sts.map((s) => k("st", s, /ได้แล้ว/.test(s) ? "check" : "clock", c((r) => r.data === s), esc(s), /ได้แล้ว/.test(s) ? "g" : "y")).join("")}
+    ${k("sys", "y", "chart", c((r) => r.sys), "อยู่ในระบบวิเคราะห์แล้ว", "g")}${k("sys", "n", "warn", c((r) => !r.sys && /ได้แล้ว/.test(r.data)), "ได้แล้ว รอนำเข้าระบบ", "r")}</div>
+  <div class="grid g2w" style="margin-top:12px"><div class="card"><div class="chartbox sm"><canvas id="cStB"></canvas></div></div>
+    <div class="card"><div class="lab" style="margin-top:0">ความคืบหน้า</div>${sts.map((s) => { const n = c((r) => r.data === s); return `<div class="row"><span>${esc(s)}</span><span>${n} บัญชี · ${(n / A.length * 100).toFixed(0)}%</span></div><div class="bar"><i style="width:${n / A.length * 100}%;background:${/ได้แล้ว/.test(s) ? "var(--green)" : "#E0A800"}"></i></div>`; }).join("")}
+      <div class="row"><span>อยู่ในระบบวิเคราะห์เส้นเงินแล้ว</span><span>${c((r) => r.sys)} บัญชี</span></div><div class="bar"><i style="width:${c((r) => r.sys) / A.length * 100}%;background:var(--navy)"></i></div></div></div>
+  <div class="frow" style="margin-top:12px"><label>ธนาคาร</label>${banks.map((b) => `<button class="chip ${SF.bank === b ? "on" : ""}" data-sk="bank" data-sv="${esc(b)}">${esc(b)} ${c((r) => r.bank === b)}</button>`).join("")}
+    <input type="search" id="stQ" value="${esc(SF.q)}" placeholder="ค้นหาเลขบัญชี / ชื่อ / เลขหนังสือ"></div>
+  <h2>${IC("list")} รายบัญชี <small>${show.length} / ${A.length} บัญชี</small></h2>
+  <div class="tblwrap tall"><table><tr><th>#</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>ชื่อบัญชี</th><th>สถานะ</th><th>ในระบบ</th><th>เลขที่หนังสือ</th><th>รายการถอนเงิน</th><th>สาขา</th><th>หมายเหตุ</th></tr>
+    ${show.map((r) => `<tr><td>${esc(r.no)}</td><td>${esc(r.bank)}</td><td>${esc(r.acc)}</td><td>${esc(r.name)}</td><td>${stBadge(r.data)}</td><td>${r.sys ? `<span class="badge g">${IC("check", 12)} มี</span>` : ""}</td><td>${esc(r.ref)}</td><td>${esc(r.wd)}</td><td>${esc(r.br)}</td><td>${esc(r.note)}</td></tr>`).join("")}</table></div>
+  <p class="muted" style="font-size:.82rem">สถานะตามแท็บ "คุมบัญชี" ของชีตชุดทำคดี (อ่านอย่างเดียว) · "ในระบบ" = บัญชีที่มี statement อยู่ในระบบวิเคราะห์เส้นเงินนี้แล้ว</p>`;
+  const col = (s) => (/ได้แล้ว/.test(s) ? "#1B7A4A" : /ขอแล้ว/.test(s) ? "#E0A800" : "#9E9E9E");
+  CH.stB = new Chart($("#cStB"), { type: "bar", data: { labels: banks, datasets: sts.map((s) => ({ label: s, data: banks.map((b) => c((r) => r.bank === b && r.data === s)), backgroundColor: col(s), stack: "s" })) },
+    options: { maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 12 } } }, scales: { x: { stacked: true }, y: { stacked: true, ticks: { precision: 0 }, title: { display: true, text: "บัญชี" } } } } });
+  m.onclick = (e) => { const b = e.target.closest("button"); if (!b || tsClick(b)) return; const kk = b.dataset.sk; if (!kk) return;
+    if (kk === "all") SF = { st: "", bank: "", q: "", sys: "" }; else SF[kk] = SF[kk] === b.dataset.sv ? "" : b.dataset.sv; render(); };
+  let tm; m.oninput = (e) => { if (e.target.id !== "stQ") return; clearTimeout(tm); tm = setTimeout(() => { SF.q = e.target.value; render(); const x = $("#stQ"); if (x) { x.focus(); x.setSelectionRange(SF.q.length, SF.q.length); } }, 300); };
+}
+
+/* ---------- ผลการตรวจค้น / ของกลาง ---------- */
+function pSrch() {
+  const S = DB.search || { rows: [], sites: {}, report: "" }, ims = imgBy((i) => i.cat === "ตรวจค้น");
+  const sites = [...new Set([...Object.keys(S.sites || {}), ...S.rows.map((r) => String(r.site))])].sort();
+  const tot = S.rows.reduce((t, r) => t + (r.n || 0), 0), pr = S.rows.filter((r) => r.used_lo != null);
+  const sm = (rs, k) => rs.reduce((t, r) => t + (r[k] || 0) * (r.n || 1), 0), rng = (rs) => (rs.length ? `${M(sm(rs, "used_lo"))} – ${M(sm(rs, "used_hi"))}` : "–");
+  const kinds = [...new Set(S.rows.map((r) => r.item))];
+  $("#main").innerHTML = `<div class="hero"><div class="l">${IC("search", 16)} ของกลางที่ตรวจยึด · ${esc(S.made)}</div><div class="v">${tot} รายการ</div>
+    <div class="leg">${kinds.map((k) => `<span style="--c:#FFD403">${esc(k)} ${S.rows.filter((r) => r.item === k).reduce((t, r) => t + r.n, 0)}</span>`).join("")}</div>
+    <div class="l" style="margin-top:8px">ประเมินราคามือสองเบื้องต้นจากภาพถ่าย <b style="color:#fff">${rng(pr)}</b> (เฉพาะ ${pr.reduce((t, r) => t + r.n, 0)} รายการที่ประเมินได้ — ไม่ใช่ราคาประเมินทางการ)</div></div>
+  ${ims.length ? `<div class="shots big" style="margin-top:12px">${ims.filter((i) => /ภาพรวม/.test(i.title)).map((i) => shot(i)).join("")}</div>` : ""}
+  <div class="grid g2w" style="margin-top:4px">${sites.map((s) => { const rs = S.rows.filter((r) => String(r.site) === s), ph = ims.filter((i) => i.key === "s" + s && !/ภาพรวม/.test(i.title));
+    return `<div><h2>${IC("bag")} จุดที่ ${s} <small>${rs.reduce((t, r) => t + r.n, 0)} รายการ</small></h2><div class="muted" style="font-size:.86rem;margin:-4px 0 8px">${esc((S.sites || {})[s] || "")}</div>
+    ${ph.length ? `<div class="shots">${ph.map((i) => shot(i, false)).join("")}</div>` : ""}
+    <div class="card" style="margin-top:8px">${rs.map((r) => li(`${esc(r.item)}${r.n > 1 ? " × " + r.n : ""}`, `${esc(r.model || r.look || "")}${r.conf ? ` · ความมั่นใจ ${esc(r.conf)}` : ""}`, r.used_lo != null ? `${fmt0(r.used_lo)}–${fmt0(r.used_hi)}` : "–")).join("")}</div></div>`; }).join("")}</div>
+  ${S.report ? accd(`${IC("doc", 16)} รายงานผลการตรวจค้น (ฉบับเต็ม)`, "", `<div class="pgd" style="white-space:pre-wrap">${esc(S.report)}</div>`) : ""}
+  <p class="muted" style="font-size:.82rem">ราคาต่อชิ้น (บาท) เป็นช่วงราคามือสองโดยประมาณจากภาพถ่าย ต้องให้ผู้เชี่ยวชาญ / ตัวแทนเจ้าของเครื่องหมายการค้าตรวจยืนยัน</p>`;
+}
+
+function overExtra() {
+  const S = tsSum(), fz = tsFrz().secs.flatMap((s) => s.rows), W = tsWit().flatMap((s) => s.rows), A = tsAcc(), SR = DB.search || { rows: [] }, big = imgBy((i) => i.key === "big")[0];
+  const k = (t, ic, v, l, s) => `<button class="tile" data-go="${t}"><span class="ico">${IC(ic)}</span><span class="v">${v}</span><span class="l">${l}</span>${s ? `<span class="s">${s}</span>` : ""}<span class="go">${IC("next", 16)}</span></button>`;
+  return `<div class="tiles" style="margin-top:12px">
+    ${k("asset", "coin", M(S.reduce((t, s) => t + s.tot[0] + s.tot[1], 0)), "ทรัพย์สินที่ตรวจพบ", `${S.length} หมวด`)}
+    ${k("asset", "lock", M(fz.reduce((t, r) => t + r.amt, 0)), "เงินในบัญชีที่อายัด", `${fz.length} บัญชี`)}
+    ${k("stm", "doc", `${A.filter((r) => /ได้แล้ว/.test(r.data)).length}<small>/${A.length}</small>`, "statement ได้แล้ว", "")}
+    ${k("prog", "users", `${W.filter((r) => /มาพบ/.test(r.st)).length}<small>/${W.length}</small>`, "พยานมาพบแล้ว", "")}
+    ${k("srch", "bag", SR.rows.reduce((t, r) => t + (r.n || 0), 0), "ของกลางที่ตรวจยึด", "รายการ")}
+    ${k("ppl", "user", people().length, "บุคคลที่เกี่ยวข้อง", "")}</div>
+  ${big ? `<button class="banner" data-img="${big.id}">${thumbEl(big)}<span><b>${IC("zoom", 18)} ${esc(big.title)}</b><small>กดเพื่อเปิดภาพเต็ม — เลื่อนและซูมได้</small></span></button>` : ""}`;
+}
+const newsBlock = () => { const v = imgBy((i) => i.cat === "ภาพข่าว"); return v.length ? `<h2>${IC("img")} ภาพข่าว / ภาพประกอบ <small>${v.length} ภาพ</small></h2><div class="shots big">${v.map((i) => shot(i)).join("")}</div>` : ""; };
