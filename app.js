@@ -131,6 +131,7 @@ function start() {
   Object.keys(SEC).forEach((k) => (C[k] = C[k] || []));
   go((location.hash || "#over").slice(1));
   loadContent();
+  if (window.aiMount) window.aiMount();
 }
 function go(t) { PV = ""; AV = ""; TAB = TABS.some((x) => x[0] === t) ? t : "over"; history.replaceState(null, "", "#" + TAB); $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB)); render(); window.scrollTo(0, 0); }
 function killCharts() { Object.values(CH).forEach((c) => c.destroy()); CH = {}; }
@@ -714,7 +715,7 @@ function navStats() {
       ppl: `${people().length} ราย · ${imgBy((i) => i.cat === "บุคคล").length} ภาพ`,
       stm: `ได้แล้ว ${A.filter((r) => /ได้แล้ว/.test(r.data)).length}/${A.length} บัญชี`,
       srch: `${SR.rows.reduce((t, r) => t + (r.n || 0), 0)} รายการ · ${imgBy((i) => i.cat === "ตรวจค้น").length} ภาพ`,
-      ana: `${fmt0(DB.tx.length)} รายการ`, acc: `${DB.accounts.length} บัญชีมี statement`, trace: `${DB.sets.length} ชุด`, img: `${imgBy((i) => i.cat !== "บุคคล").length} ภาพ`,
+      ana: `${fmt0(DB.tx.length)} รายการ`, acc: `${DB.accounts.length} บัญชีมี statement`, trace: `${DB.sets.length} ชุด`, img: `${imgBy((i) => i.cat !== "บุคคล" && i.cat !== "นิติบุคคล").length} ภาพ`,
     };
     $$("#tabs button").forEach((b) => { const s = $("small", b); if (s) s.textContent = st[b.dataset.t] || ""; });
   } catch (e) { }
@@ -722,7 +723,7 @@ function navStats() {
 
 /* ---------- ภาพ: ภาพย่อ + ตัวเปิดภาพ (ถอดรหัสทีละภาพ ; ภาพใหญ่แบ่งท่อน) ---------- */
 const imgBy = (f) => (DB.images || []).filter(f);
-const thumbEl = (i, cls) => `<img class="${cls || "th"}" loading="lazy" alt="" src="data:image/jpeg;base64,${i.th}">`;
+const thumbEl = (i, cls) => `<img class="${cls || (i.cat === "นิติบุคคล" ? "th lg" : "th")}" loading="lazy" alt="" src="data:image/jpeg;base64,${i.th}">`;
 const shot = (i, cap) => `<button class="shot" data-img="${i.id}">${thumbEl(i)}${cap === false ? "" : `<span>${esc(cap || i.title)}</span>`}</button>`;
 let VIM = null, VS = 1;
 function vZoom(d) {
@@ -753,7 +754,7 @@ $("#viewer").onclick = (e) => {
 };
 document.addEventListener("click", (e) => { const b = e.target.closest("[data-img]"); if (b && DB) openImg(b.dataset.img); });
 function pImg() {
-  const by = {}; imgBy((i) => i.cat !== "บุคคล").forEach((i) => (by[i.cat] = by[i.cat] || []).push(i));
+  const by = {}; imgBy((i) => i.cat !== "บุคคล" && i.cat !== "นิติบุคคล").forEach((i) => (by[i.cat] = by[i.cat] || []).push(i));
   $("#main").innerHTML = Object.keys(by).map((c) => `<h2>${IC("img")} ${esc(c)} <small>${by[c].length} ภาพ</small></h2><div class="shots">${by[c].map((i) => shot(i)).join("")}</div>`).join("") +
     `<p class="muted" style="font-size:.84rem">กดภาพเพื่อเปิดภาพเต็ม (ซูมได้) — ไฟล์ต้นฉบับ (.png / .anb) อยู่ในโฟลเดอร์คดี</p>`;
 }
@@ -843,7 +844,8 @@ function people() {
     for (const r of A) if (hit(r.name) && !has.has(dg(r.acc))) { has.add(dg(r.acc)); p.accs.push({ acc: r.acc, bank: r.bank, name: r.name }); }
     for (const a of DB.accounts) if (hit(a.name) && !has.has(dg(a.acc))) { has.add(dg(a.acc)); p.accs.push({ acc: a.acc, bank: a.bank, name: a.name }); }
   }
-  out.forEach((p) => (p.links = p.links || []));
+  const og = imgBy((i) => i.cat === "นิติบุคคล").map((i) => [nk(i.key).toUpperCase(), i]);
+  out.forEach((p) => { p.links = p.links || []; if (!p.img && p.org) { const n = nk(p.name).toUpperCase(), h = og.find(([k]) => k.length >= 4 && n.includes(k)); if (h) p.img = h[1]; } });
   PPL = { f: TEAM().fetched, v: out }; return out;
 }
 function pplFlow(p) { // เงินจาก/เข้า บัญชีที่มี statement กับบัญชีของบุคคลนี้ (ตามเลขบัญชี)
@@ -868,7 +870,7 @@ function pPpl() {
       <div class="card kpi"><div class="l">โอนเข้าบัญชีที่มี statement</div><div class="v">${M(f.rout)}</div><div class="s">${fmt(f.rout)} บาท · ${fmt0(f.n2)} ครั้ง</div></div></div>` : ""}
     <h2>${IC("bank")} บัญชี <small>${p.accs.length} บัญชี</small> ${p.accs.length ? `<button class="chip" data-flow="${i}">${IC("flow", 15)} ดูเส้นเงิน</button>` : ""}</h2>
     <div class="card">${p.accs.map((a) => li(`${esc(a.bank)} ${esc(a.acc)}`, esc(a.name), `${have.has(dg(a.acc)) ? `<span class="badge g">${IC("check", 12)} มี statement</span>` : stBadge(stOf(a.acc)) || '<span class="badge">ยังไม่ขอ</span>'}`)).join("") || '<span class="muted">ชีตยังไม่ระบุบัญชี</span>'}</div>`; };
-  const list = `<h2>${IC("users")} บุคคลที่เกี่ยวข้อง <small>${show.length} / ${P.length} ราย</small></h2>
+  const list = `<h2>${IC("users")} บุคคล / นิติบุคคลที่เกี่ยวข้อง <small>${show.length} / ${P.length} ราย</small></h2>
     <div class="frow">${[["", "ทั้งหมด"], ["img", "มีภาพ"], ["lnk", "มีลิงก์"], ["per", "บุคคล"], ["org", "นิติบุคคล"]].map(([k, l]) => `<button class="chip ${PPF === k ? "on" : ""}" data-pf="${k}">${l}</button>`).join("")}<button class="chip ${PPG ? "on" : ""}" data-pg="1" title="สลับ แยกประเภท / รวมทั้งหมด">${IC("list", 14)} แยกประเภท</button><input type="search" id="ppQ" value="${esc(PPQ)}" placeholder="ค้นหาชื่อ"></div>
     ${PPG ? CAT.map((c) => { const v = show.filter(([p]) => p.cat === c[0]); return v.length ? `<h3 class="pch"><span class="dot" style="background:${c[2]}"></span>${esc(c[1])} <small>${v.length}</small></h3><div class="pgrid">${v.map(card).join("")}</div>` : ""; }).join("") : `<div class="pgrid">${show.map(card).join("")}</div>`}`;
   const wide = isWide(), v = wide ? (PPV >= 0 ? PPV : (ord[0] || [0, -1])[1]) : PPV, m = $("#main");
