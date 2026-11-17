@@ -543,8 +543,10 @@ function pAna() {
   const gAcc = {}; DB.accounts.forEach((a, i) => (gAcc[a.g] = gAcc[a.g] || []).push(i));
   const usedCpg = [...new Set(DB.cps.map((c) => c[3]))].sort((x, y) => x - y);
   const yrs = []; for (let y = +DB.lo.slice(0, 4); y <= +DB.hi.slice(0, 4); y++) yrs.push(y);
+  // ลำดับหน้า (ผู้สั่งงาน 17 พ.ย. 69): ตัวเลขในกล่องบนสุด → แถบตัวกรอง → ชาร์ตเส้นเงิน → ตารางคู่โอนรายใหญ่ → ตารางรายการ (เต็มความกว้าง ไม่วางคู่กัน) → ชาร์ตอื่น
   $("#main").innerHTML = `
-  <details class="fbox" ${innerWidth > 760 ? "open" : ""}><summary>ตัวกรอง <span id="fSum" class="muted" style="font-weight:400"></span></summary>
+  <div class="grid g4 kp8" id="aKpi"></div>
+  <details class="fbox" style="margin-top:12px" ${innerWidth > 760 ? "open" : ""}><summary>ตัวกรอง <span id="fSum" class="muted" style="font-weight:400"></span></summary>
    <div class="filters" style="margin-top:10px">
     <div class="frow"><label>ช่วงเวลา</label><input type="date" id="fFrom" value="${F.from}"> – <input type="date" id="fTo" value="${F.to}">
       <button class="chip" data-p="all">ทั้งหมด</button><button class="chip" data-p="before">ก่อนตั้งมูลนิธิ</button><button class="chip" data-p="after">หลังตั้งมูลนิธิ</button>
@@ -558,20 +560,22 @@ function pAna() {
       <input type="search" id="fQ" value="${esc(F.q)}" placeholder="ค้นหาชื่อ / เลขบัญชีคู่โอน">
       <button class="btn o" id="fClear">ล้างตัวกรอง</button><button class="btn o" id="fCsv">ส่งออก CSV</button></div>
    </div></details>
-  <div class="grid g4 kp8" style="margin-top:12px" id="aKpi"></div>
   <p class="muted" style="font-size:.82rem;margin:.6em 0 0">ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
   <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · เปลี่ยนทันทีเมื่อกรอง · กดกล่องเพื่อกรองต่อ</small>
     <button class="chip" data-fm="g">กลุ่ม</button><button class="chip" data-fm="d">รายบัญชี</button><span class="muted" style="font-size:.8rem;font-weight:400">จำนวนกล่อง</span><button class="chip" data-fn="8">8</button><button class="chip" data-fn="14">14</button><button class="chip" data-fn="24">24</button></h2>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
+  <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small> <span class="muted" style="font-size:.8rem;font-weight:400">เรียงตาม</span>${[["t", "ยอดรวม"], ["i", "เงินเข้า"], ["o", "เงินออก"], ["n", "จำนวนครั้ง"]].map(([k, l]) => `<button class="chip" data-cs="${k}">${l}</button>`).join("")}</h2>
+  <div class="tblwrap tbl1" id="tCp"></div>
+  <h2>${IC("list")} รายการ <small id="txLab"></small></h2>
+  <div class="tblwrap tbl1" id="tTx"></div>
+  <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>
   <h2>ตามเวลา <small id="granLab"></small> <button class="chip" id="gBtn">สลับ รายเดือน / รายปี</button></h2>
   <div class="card"><div class="chartbox"><canvas id="cTime"></canvas></div></div>
   <div class="grid g2" style="margin-top:12px">
     <div><h2>ตามกลุ่มคู่โอน <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cCpg"></canvas></div></div></div>
     <div><h2>ตามบัญชี <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cAcc"></canvas></div></div></div>
   </div>
-  <div class="grid tb2"><div><h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small> <span class="muted" style="font-size:.8rem;font-weight:400">เรียงตาม</span>${[["t", "ยอดรวม"], ["i", "เงินเข้า"], ["o", "เงินออก"], ["n", "จำนวนครั้ง"]].map(([k, l]) => `<button class="chip" data-cs="${k}">${l}</button>`).join("")}</h2><div class="tblwrap" id="tCp"></div></div>
-  <div><h2>รายการ <small id="txLab"></small></h2><div class="tblwrap" id="tTx"></div></div></div>
-  <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>`;
+  `;
   const m = $("#main");
   m.onclick = (e) => {
     const b = e.target.closest("button"); if (!b) return;
