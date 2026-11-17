@@ -328,3 +328,14 @@ a.chip.lnk:hover{background:var(--navy);color:#fff}
 .ai-form .btn:disabled{opacity:.5}
 .ai-foot{font-size:.7rem;color:var(--mut);text-align:center;padding:0 8px 6px;background:#fff}
 @media (max-width:640px){.ai-panel{right:0;bottom:0;width:100vw;height:100dvh;border-radius:0;border:0}}
+
+/* v15 */
+.cmx th.c,.cmx td.c{text-align:center}
+.ck{display:inline-flex;width:24px;height:24px;border-radius:50%;align-items:center;justify-content:center;color:#fff}
+.ck.no{color:#B8C2CF;background:transparent}
+.cmx td{white-space:normal}
+
+.ai-share{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.ai-share summary{cursor:pointer;font-weight:700;color:var(--navy);font-size:.86rem}
+.ai-share ol{margin:.5em 0;padding-left:1.2em;font-size:.84rem}
+.ai-share .muted{font-size:.78rem}

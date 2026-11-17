@@ -140,6 +140,7 @@ const acts = (sec, id) => `<span class="acts"><button onclick="editItem('${sec}'
 const addBtn = (sec) => `<button class="add" onclick="editItem('${sec}')">+ เพิ่ม</button>`;
 const badge = (s) => { if (!s) return ""; const c = /ค้าง|ต้อง|รอ/.test(s) ? "r" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s) ? "g" : /พัก|มติ/.test(s) ? "y" : ""; return `<span class="badge ${c}">${esc(s)}</span>`; };
 window.editItem = editItem;
+window.closeModal = closeModal;
 
 /* ---------- ภาพรวม ---------- */
 function pOver() {
@@ -165,7 +166,7 @@ const acts2 = (sec, id) => `<div class="acts in"><button onclick="editItem('${se
 const icFor = (t) => (/มูลนิธิ|บริษัท|นิติบุคคล/.test(t) ? "build" : /บัญชี|ธนาคาร/.test(t) ? "bank" : /วัน|ช่วง|เวลา|ลำดับ/.test(t) ? "cal" : /ผู้ต้องหา|บุคคล|กรรมการ|ผู้เสียหาย|ผู้บริจาค/.test(t) ? "users" : /ข้อหา|กฎหมาย|มาตรา|ศาล|หมาย/.test(t) ? "scale" : /เงิน|ยอด|บริจาค|ทรัพย์/.test(t) ? "coin" : /หน่วย|สอบสวน|ตำรวจ/.test(t) ? "shield" : "doc");
 const stDot = (s) => `<span class="dot" style="background:${/ค้าง|ต้อง|รอ|ยัง/.test(s || "") ? "var(--red)" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s || "") ? "var(--green)" : s ? "#E0A800" : "#B8C2CF"}"></span>`;
 const sico = (ic, cls) => `<span class="ico s ${cls || ""}">${IC(ic, 18)}</span>`;
-let EVY = "", CHV = -1, DFF = "", WKF = "todo";
+let EVY = "", CHV = -1, DFF = "", WKF = "todo", CHF = [];
 function pCase() {
   const ev = [...C.events].sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const yrs = [...new Set(ev.map((e) => String(e.date).slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))];
@@ -178,19 +179,43 @@ function pCase() {
   $("#main").onclick = (e) => { const b = e.target.closest("[data-ey]"); if (b) { EVY = b.dataset.ey; render(); } };
 }
 function pCharges() {
+  // ผู้ต้องหาและข้อหา: หมวดข้อหา (กดกรอง) + ตารางใครถูกแจ้งข้อหาใด + การ์ดรายบุคคล (ผู้สั่งงาน 17 พ.ย. 69)
+  const CATS = [["fraud", "ฉ้อโกงประชาชน", /ฉ้อโกง/, "scale", "#B3261E"], ["com", "พ.ร.บ.คอมพิวเตอร์", /คอมพิวเตอร์|ข้อมูล(อัน)?เป็นเท็จ/, "doc", "#1565C0"], ["aml", "ฟอกเงิน", /ฟอกเงิน/, "coin", "#6A1B9A"]];
   const ph = {}; imgBy((i) => i.cat === "บุคคล").forEach((i) => (ph[nk(i.key)] = i));
   const pic = (s) => { const k = nk(String(s.title).split("(")[0]); if (ph[k]) return ph[k]; const f = Object.keys(ph).find((n) => n.length >= 6 && k.length >= 6 && (k.includes(n) || n.includes(k))); return f ? ph[f] : null; };
-  const parts = (s) => String(s.detail || "").split(" / ").map((x) => x.trim()).filter(Boolean);
-  const list = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${C.charges.length} ราย</small> ${addBtn("charges")}</h2>
-    <div class="pgrid">${C.charges.map((s, i) => { const im = pic(s); return `<button class="pcard" data-c="${i}">${im ? thumbEl(im) : `<span class="ph">${IC("user", 30)}</span>`}<b>${esc(s.title)}</b><small>${esc(s.extra1)}</small><span class="cnt">${IC("scale", 13)}${parts(s).length}</span>${s.status ? `<small>${stDot(s.status)} ${esc(s.status)}</small>` : ""}</button>`; }).join("")}</div>`;
-  const det = (i) => { const s = C.charges[i]; if (!s) return ""; const im = pic(s), p = parts(s);
-    return `${backBtn()}<div class="card prof">${acts("charges", s.id)}${im ? `<button class="pf" data-img="${im.id}">${thumbEl(im)}</button>` : `<span class="pf ph">${IC("user", 44)}</span>`}
-      <div><h3>${esc(s.title)}</h3><div class="muted">${esc(s.extra1)}</div><div style="margin-top:6px">${badge(s.status)}</div></div></div>
-    <h2>${IC("scale")} ข้อหา <small>${p.length} ข้อ</small></h2>${p.map((c, k) => `<div class="card item" style="margin-top:8px"><span class="num">${k + 1}</span><div><p style="color:var(--ink)">${esc(c)}</p></div></div>`).join("")}`; };
-  const wide = isWide(), v = wide ? (CHV >= 0 ? CHV : 0) : CHV, m = $("#main");
-  m.innerHTML = wide ? `<div class="md"><div class="md-l wide">${list}</div><div class="md-r">${det(v)}</div></div>` : (v >= 0 ? det(v) : list);
-  $$(".pcard", m).forEach((b) => b.classList.toggle("on", +b.dataset.c === v));
-  m.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.c != null) { CHV = +b.dataset.c; render(); if (!wide) scrollTo(0, 0); } else if (b.dataset.v != null) { CHV = -1; render(); } };
+  const SUS = tsSus();
+  const sheet = (s) => { const k = nk(String(s.title).split("(")[0]).slice(0, 6); return SUS.find((r) => nk(r.name).replace(/^สาว/, "").slice(0, 6) === k || nk(r.name).includes(k)); };
+  const P = C.charges.map((s, i) => {
+    const parts = String(s.detail || "").split(" / ").map((x) => x.trim()).filter(Boolean);
+    const cats = new Set(), other = [];
+    parts.forEach((x) => { const head = x.split(" — ")[0]; let hit = false; CATS.forEach(([k, , rx]) => { if (rx.test(head)) { cats.add(k); hit = true; } }); if (!hit) other.push(head); });
+    return { s, i, parts, cats, other, img: pic(s), sh: sheet(s) };
+  });
+  const sel = CHF.filter((k) => CATS.some((c) => c[0] === k));
+  const show = P.filter((p) => !sel.length || sel.every((k) => p.cats.has(k)));
+  const tile = (k, l, ic, col) => { const n = P.filter((p) => p.cats.has(k)).length; return `<button class="tile ${sel.includes(k) ? "on" : ""}" data-cf="${k}"><span class="ico" style="background:${col};color:#fff">${IC(ic)}</span><span class="v">${n}<small> ราย</small></span><span class="l">${esc(l)}</span></button>`; };
+  const tick = (on, col) => (on ? `<span class="ck" style="background:${col}">${IC("check", 15)}</span>` : `<span class="ck no">–</span>`);
+  const stat = (p) => { const st = p.s.status || ""; const sh = p.sh; return `${st ? badge(st) : ""}${sh ? ` <span class="badge y">${IC("cal", 12)} ${esc(sh.issue.replace(/\s+/g, " ").replace(/^แจ้งข้อกล่าวหา\s*/, "นัดแจ้งข้อกล่าวหา "))} ${esc(sh.date)}${sh.time ? " " + esc(sh.time) : ""}${sh.st ? " · " + esc(sh.st) : ""}</span>` : ""}`; };
+  const m = $("#main");
+  m.innerHTML = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย · กดหมวดข้อหาเพื่อกรอง (เลือกหลายหมวด = ต้องมีครบทุกข้อหาที่เลือก)</small> ${addBtn("charges")}</h2>
+  <div class="tiles">${CATS.map(([k, l, , ic, col]) => tile(k, l, ic, col)).join("")}<button class="tile ${!sel.length ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ทั้งหมด</span></button></div>
+  <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย</small></h2>
+  <div class="tblwrap"><table class="cmx"><tr><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
+    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
+  </table></div>
+  ${CATS.map(([k, l, , ic, col]) => { const v = show.filter((p) => p.cats.has(k)); return v.length ? `<h3 class="pch"><span class="dot" style="background:${col}"></span>${IC(ic, 16)} ${esc(l)} <small>${v.length}</small></h3>
+    <div class="pgrid">${v.map((p) => `<button class="pcard" data-c="${p.i}" style="--c:${col}">${p.img ? thumbEl(p.img) : `<span class="ph">${IC("user", 30)}</span>`}<b>${esc(p.s.title)}</b><small>${esc(p.s.extra1)}</small></button>`).join("")}</div>` : ""; }).join("")}
+  <p class="muted" style="font-size:.82rem">ข้อหาตามเนื้อหาที่บันทึกในเว็บ (ตามข่าว / มติ) ; วันนัดแจ้งข้อกล่าวหาจากแท็บ "คุมหมายเรียกผู้ต้องหา" ของชีตชุดทำคดี — กดชื่อเพื่อดูข้อหารายข้อ</p>`;
+  m.onclick = (e) => {
+    const b = e.target.closest("[data-cf],[data-c],.back"); if (!b) return;
+    if (b.dataset.cf != null) { const k = b.dataset.cf; CHF = !k ? [] : CHF.includes(k) ? CHF.filter((x) => x !== k) : [...CHF, k]; render(); return; }
+    if (b.dataset.c != null) {
+      const p = P[+b.dataset.c];
+      openModal(`<div class="prof">${p.img ? `<span class="pf">${thumbEl(p.img)}</span>` : `<span class="pf ph">${IC("user", 44)}</span>`}<div><h3>${esc(p.s.title)}</h3><div class="muted">${esc(p.s.extra1)}</div><div style="margin-top:6px">${stat(p)}</div></div></div>
+        <h3 style="margin-top:14px">${IC("scale", 18)} ข้อหา ${p.parts.length} ข้อ</h3>${p.parts.map((c, k) => `<div class="item" style="margin-top:8px"><span class="num">${k + 1}</span><div><p style="color:var(--ink)">${esc(c)}</p></div></div>`).join("")}
+        <div class="modal-foot">${document.body.classList.contains("edit") ? `<button class="btn o" onclick="closeModal();editItem('charges','${p.s.id}')">แก้ไข</button>` : ""}<button class="btn" onclick="closeModal()">ปิด</button></div>`);
+    }
+  };
 }
 function pDef() {
   const who = [...new Set(C.defences.map((s) => s.extra1).filter(Boolean))], show = C.defences.filter((s) => !DFF || s.extra1 === DFF);
@@ -708,7 +733,7 @@ function navStats() {
   try {
     const S = tsSum(), fz = tsFrz().secs.flatMap((s) => s.rows), T = progTasks(), W = tsWit().flatMap((s) => s.rows), A = tsAcc(), SR = DB.search || { rows: [] };
     const st = {
-      over: M(DB.over.donor_in) + " เงินบริจาค", case: `${(C.events || []).length} เหตุการณ์`, charges: `${C.charges.length} ราย`, defences: `${C.defences.length} ประเด็น`,
+      over: M(DB.over.donor_in) + " เงินเข้า 3 บัญชี", case: `${(C.events || []).length} เหตุการณ์`, charges: `${C.charges.length} ราย`, defences: `${C.defences.length} ประเด็น`,
       work: `ค้าง ${C.todo.filter((t) => !/เสร็จ/.test(t.status || "")).length} · เสร็จ ${C.done.length}`,
       prog: `งาน ${T.filter((t) => t.st === "done").length}/${T.length} · พยาน ${W.filter((r) => /มาพบ/.test(r.st)).length}/${W.length}`,
       asset: `${M(S.reduce((t, s) => t + s.tot[0] + s.tot[1], 0))} · อายัด ${M(fz.reduce((t, r) => t + r.amt, 0))}`,
@@ -938,7 +963,7 @@ function overExtra(o, ntx) {
   const S = tsSum(), fz = tsFrz().secs.flatMap((s) => s.rows), W = tsWit().flatMap((s) => s.rows), A = tsAcc(), SR = DB.search || { rows: [] }, big = imgBy((i) => i.key === "big")[0];
   const k = (t, ic, v, l, s, cls) => `<button class="tile" data-go="${t}"><span class="ico ${cls || ""}">${IC(ic)}</span><span class="v">${v}</span><span class="l">${l}</span>${s ? `<span class="s">${s}</span>` : ""}<span class="go">${IC("next", 16)}</span></button>`;
   return `<div class="tiles">
-    ${k("ana", "coin", M(o.donor_in), "เงินบริจาคเข้า 3 บัญชี", `${fmt0(o.donor_n)} ครั้ง`, "y")}
+    ${k("ana", "coin", M(o.donor_in), "เงินเข้าจากภายนอก 3 บัญชี", o.back_in != null ? `บริจาค ${M(o.donor_in - o.back_in)} · ตัวละครโอนคืน ${M(o.back_in)}` : `${fmt0(o.donor_n)} ครั้ง`, "y")}
     ${k("ana", "route", M(o.t1_out), "เงินออกจากบัญชีรับบริจาค", "ตั้งแต่ 29 ม.ค. 2558", "r")}
     ${k("acc", "bank", DB.accounts.length, "บัญชีที่มี statement", `${fmt0(ntx)} รายการ`)}
     ${k("charges", "scale", C.charges.length, "ผู้ต้องหา", `ข้อต่อสู้ ${C.defences.length} ประเด็น`)}

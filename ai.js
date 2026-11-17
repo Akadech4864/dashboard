@@ -8,7 +8,22 @@
   const AI_VERSION = "2026-10-21";
   const MODELS = [["claude-opus-5-5", "Claude Opus 5.5 (แนะนำ)"], ["claude-sonnet-5-5", "Claude Sonnet 5.5 (เร็ว / ประหยัดกว่า)"], ["claude-haiku-5-5", "Claude Haiku 5.5 (เร็วที่สุด)"]];
   const MAX_TURNS = 10, MAX_RESULT = 60000;
-  const conf = () => LS.get("cib_ai") || {};
+  let SHARED = null;                                                     // key กลางของหน่วย (ถอดรหัสจาก ai.enc หลังล็อกอิน)
+  const own = () => LS.get("cib_ai") || {};
+  const conf = () => { const o = own(); return o.key ? { ...o, src: "own" } : SHARED ? { key: SHARED.key, model: o.model || SHARED.model, src: "shared" } : o; };
+  async function makeSharedFile(key, model) {                           // เข้ารหัส key ด้วยกุญแจเดียวกับข้อมูลคดี (รูปแบบเดียวกับ encrypt.js) แล้วให้ดาวน์โหลด
+    const raw = await crypto.subtle.exportKey("raw", KEY);
+    const ek = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt"]);
+    const salt = (await fetchEnc("data.enc")).salt, iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, ek, new TextEncoder().encode(JSON.stringify({ key, model }))));
+    const out = new Uint8Array(4 + 16 + 12 + ct.length);
+    out.set(new TextEncoder().encode("CIB1"), 0); out.set(salt, 4); out.set(iv, 20); out.set(ct, 32);
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([out], { type: "application/octet-stream" })); a.download = "ai.enc"; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+  }
+  async function loadShared() {
+    try { const f = await fetchEnc("ai.enc"); const s = JSON.parse(new TextDecoder().decode(await decrypt(KEY, f))); if (s && s.key) SHARED = s; } catch (e) { SHARED = null; }
+  }
   Object.assign(ICP, {
     chat: '<path d="M4 5h16v11H10l-5 4v-4H4z"/><path d="M8 9h8M8 12h5"/>',
     send: '<path d="M4 12l16-8-6 16-3-6z"/><path d="M11 14l9-10"/>',
@@ -39,8 +54,14 @@
     get_overview() {
       const o = DB.over || {};
       return { case: DB.case, data_from: DB.lo, data_to: DB.hi, foundation_cutoff_date: DB.cut, statement_accounts: DB.accounts.length, transaction_rows: DB.tx.length,
-        donations_into_donation_accounts: { amount: r2(o.donor_in || 0), count: o.donor_n },
+        money_in_from_outside: { amount: r2(o.donor_in || 0), count: o.donor_n, note: "เงินเข้าจากภายนอกทั้งหมดของ 3 บัญชี = เงินบริจาค (รวมทุกยอด และที่ไม่ระบุบัญชีต้นทาง) + เงินที่ตัวละครโอนคืน ; ไม่นับโอนระหว่าง 3 บัญชี" },
+        money_in_by_source: (o.src || []).map((r) => ({ source: r[0], amount: r2(r[1]), count: r[2] })),
+        returned_by_related_people: r2(o.back_in || 0),
         outflow_from_donation_accounts: r2(o.t1_out || 0),
+        outflow_definitions: { total_used_in_reports: r2(o.t1_out || 0), from_donation_account_statements_only: r2(o.out_sender || 0), added_from_recipient_statements: r2((o.t1_out || 0) - (o.out_sender || 0)), transfers_between_the_3_accounts_not_counted: r2(o.intra || 0),
+          note: "รายงานและชาร์ตใช้ยอดฝั่งที่มากกว่าเมื่อเห็นทั้ง statement ผู้โอนและผู้รับ จึงรวมเงินที่ statement ผู้รับเห็นแต่ statement บัญชีรับบริจาคไม่ครอบคลุม (ส่วนใหญ่บัญชี 197 ก่อนช่วง statement) ; query_transactions ใช้เฉพาะรายการใน statement บัญชีรับบริจาค จึงได้ยอดเงินออกต่ำกว่าเท่ากับ added_from_recipient_statements" },
+        cash_withdrawals_from_donation_accounts: o.cash ? { all_withdrawals: r2(o.cash.all || 0), all_count: o.cash.all_n, deposited_into_related_accounts_within_minutes: r2(o.cash.matched || 0), deposited_count: o.cash.matched_n, recipient_unknown: r2(o.cash.unknown || 0), recipient_unknown_count: o.cash.unknown_n,
+          note: "กลุ่มผู้รับ 'ถอนเงินสด' ใน outflow_by_recipient_group = เฉพาะส่วนที่ไม่ทราบผู้รับ ส่วนที่จับคู่ได้ว่าฝากเข้าบัญชีตัวละครภายในไม่กี่นาที นับเป็นเงินเข้ากลุ่มตัวละครนั้น ; query_transactions ประเภท cash_withdraw = ยอดถอนทั้งหมด" } : undefined,
         outflow_from_donation_accounts_by_recipient_group: (o.hop1 || []).map((r) => ({ group: r[0], amount: r2(r[1]), count: r[2] })),
         yearly_donation_accounts: (o.yearly || []).map((r) => ({ year_be: r[0], part: r[1] || "", money_in: r2(r[2]), money_out: r2(r[4]) })),
         cash_matching: DB.cash, trace_sets: (DB.sets || []).map((s) => ({ name: s.name, kind: s.kind, total: s.total, count: s.n, note: s.note })) };
@@ -179,7 +200,8 @@
 
 ข้อควรรู้เกี่ยวกับข้อมูล
 - ยอดมาจาก statement ของบัญชีที่มีในระบบ การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า จึงไม่ควรนำยอดเข้าของทุกบัญชีมารวมกันเป็น "เงินทั้งหมด"
-- เงินบริจาคเข้าบัญชีรับบริจาคเก็บเป็นยอดรวมรายเดือน (ประเภท donation) ไม่มีรายผู้บริจาค
+- เงินบริจาคเข้าบัญชีรับบริจาคเก็บเป็นยอดรวมรายเดือน (ประเภท donation) ไม่มีรายผู้บริจาค และรวมทุกยอด (ไม่แยกผู้บริจาครายใหญ่) ; เงินที่ตัวละครโอนคืนเข้าบัญชีรับบริจาคอยู่ในประเภท transfer_in
+- ตัวเลขภาพรวม (get_overview) เป็นชุดเดียวกับรายงานและชาร์ต ส่วน query_transactions คำนวณจากรายการ statement ทีละรายการ นิยามอาจต่างกัน: ยอดเงินออกของรายงานรวมเงินที่เห็นจาก statement ฝั่งผู้รับด้วย และกลุ่ม "ถอนเงินสด" ของรายงานหักส่วนที่จับคู่ได้ว่าฝากเข้าบัญชีตัวละครแล้ว — เมื่อยอดสองแหล่งไม่ตรงกัน ให้อธิบายด้วย outflow_definitions / cash_withdrawals_from_donation_accounts ใน get_overview ก่อนสรุปว่าข้อมูลขัดกัน
 - ข้อมูลทรัพย์สิน การอายัด หมายเรียก และความคืบหน้า มาจากชีตของชุดทำคดี ไม่ได้เทียบกับ statement
 - วันที่ในตัวกรองใช้ ค.ศ. รูปแบบ YYYY-MM-DD (พ.ศ. ลบ 543)
 
@@ -234,19 +256,25 @@ ${DB.accounts.map((a) => `- ${a.bank} ${a.acc} ${a.name} [${DB.groups[a.g][0]}] 
   }
 
   /* ---------- หน้าจอ ---------- */
-  let NOTES = [], LAST_Q = "";
+  let NOTES = [], LAST_Q = "", SETUP = false;            // SETUP = เปิดหน้าตั้งค่า key ส่วนตัวขณะมี key กลาง
   const note = (t) => NOTES.push({ at: MSGS.length, t });
   const md = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/^\s*[-•]\s+(.*)$/gm, '<span class="ai-li">$1</span>').replace(/^#{1,4}\s*(.*)$/gm, "<b>$1</b>").replace(/<\/span>\n+/g, "</span>").replace(/\n/g, "<br>");
   const SUG = ["สรุปภาพรวมเงินเข้า-ออกของบัญชีรับบริจาค", "ผู้รับเงินจากบัญชีรับบริจาคมากที่สุด 10 อันดับ หลังตั้งมูลนิธิ", "ถอนเงินสดรวมเท่าไร แยกรายปี", "สถานะการขอ statement ตอนนี้", "ทรัพย์สินที่ตรวจพบมีอะไรบ้าง"];
   function draw(tools) {
     const box = $("#aiMsgs"); if (!box) return;
     const c = conf(), out = [];
-    if (!c.key) {
+    if (!c.key || SETUP) {
       box.innerHTML = `<div class="ai-set"><b>${IC("key", 18)} ตั้งค่าก่อนใช้งาน</b>
-        <p>ใส่ API key ของ Claude (Anthropic) ที่ออกจาก Console ของท่านเอง — key จะเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่อยู่ในไฟล์ของเว็บ</p>
+        <p>${SHARED ? "ขณะนี้ใช้ key กลางของหน่วย — ใส่ key ส่วนตัวด้านล่างหากต้องการใช้ key ของท่านเอง (เว้นว่าง = ใช้ key กลาง และเปลี่ยนเฉพาะโมเดล)" : "ใส่ API key ของ Claude (Anthropic) ที่ออกจาก Console ของท่านเอง — key จะเก็บในเบราว์เซอร์เครื่องนี้เท่านั้น ไม่อยู่ในไฟล์ของเว็บ"}</p>
         <label>API key</label><input id="aiKey" type="password" autocomplete="off" placeholder="sk-ant-…">
         <label>โมเดล</label><select id="aiModel">${MODELS.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select>
-        <button class="btn" id="aiSave">บันทึก</button>
+        <button class="btn" id="aiSave">บันทึก (ใช้ในเครื่องนี้)</button>
+        <details class="ai-share"><summary>${IC("key", 14)} ใช้ key นี้เป็น key กลางของหน่วย (ทุกคนไม่ต้องกรอก)</summary>
+          <ol><li>กรอก API key ด้านบน แล้วกด "สร้างไฟล์ ai.enc" — ไฟล์เข้ารหัสด้วยรหัสเข้าเว็บ (key ไม่ถูกส่งไปที่ใด)</li>
+          <li>เปิด github.com/Akadech4864/dashboard → Add file → Upload files → เลือกไฟล์ ai.enc → Commit changes</li>
+          <li>รอ 1–2 นาที แล้วเปิดเว็บใหม่ ทุกคนที่ล็อกอินจะใช้ผู้ช่วย AI ได้ทันที</li></ol>
+          <button class="btn o" id="aiMakeShared" style="width:100%">สร้างไฟล์ ai.enc</button>
+          <p class="muted">ผู้ที่ล็อกอินได้ทุกคนดึง key นี้ออกได้ — ใช้ key แยกเฉพาะเว็บนี้และตั้งวงเงินใช้จ่ายไว้ใน Console</p></details>${SHARED ? '<button class="btn o" id="aiUseShared" style="margin-top:6px;width:100%">ใช้ key กลางของหน่วยต่อ</button>' : ""}
         <p class="muted">คำถามและผลการค้นข้อมูลที่ผู้ช่วยเรียกดู (เช่น ชื่อบุคคล เลขบัญชี ยอดเงิน) จะถูกส่งไปประมวลผลที่ผู้ให้บริการ AI ผ่าน key นี้ และมีค่าใช้จ่ายตามการใช้งานของ key</p></div>`;
       $("#aiForm").hidden = true; return;
     }
@@ -277,21 +305,28 @@ ${DB.accounts.map((a) => `- ${a.bank} ${a.acc} ${a.name} [${DB.groups[a.g][0]}] 
         <div class="ai-foot">คำตอบจาก AI ต้องตรวจทานกับหน้า "วิเคราะห์" ก่อนนำไปอ้างอิง</div>
       </section>`;
     $("#app").appendChild(d);
-    const lab = () => ($("#aiModelLab").textContent = conf().key ? ((MODELS.find((m) => m[0] === (conf().model || MODELS[0][0])) || [0, ""])[1].split(" (")[0]) : "");
+    const lab = () => { const c = conf(); $("#aiModelLab").textContent = c.key ? ((MODELS.find((m) => m[0] === (c.model || MODELS[0][0])) || [0, ""])[1].split(" (")[0]) + (c.src === "shared" ? " · key กลางของหน่วย" : " · key ส่วนตัว") : ""; };
     $("#aiFab").onclick = () => { $("#aiPanel").hidden = false; $("#aiFab").hidden = true; lab(); draw(); const i = $("#aiIn"); if (i && conf().key) i.focus(); };
     $("#aiClose").onclick = () => { $("#aiPanel").hidden = true; $("#aiFab").hidden = false; };
     $("#aiNew").onclick = () => { if (BUSY) return; MSGS = []; NOTES = []; draw(); };
-    $("#aiCfg").onclick = () => { if (BUSY) return; const c = conf(); if (c.key && !confirm("ลบ API key ที่บันทึกไว้ในเครื่องนี้ แล้วตั้งค่าใหม่?")) return; LS.set("cib_ai", { model: c.model }); lab(); draw(); };
+    $("#aiCfg").onclick = () => {
+      if (BUSY) return; const o = own();
+      if (o.key) { if (!confirm(SHARED ? "ลบ API key ส่วนตัวในเครื่องนี้ แล้วกลับไปใช้ key กลางของหน่วย?" : "ลบ API key ที่บันทึกไว้ในเครื่องนี้ แล้วตั้งค่าใหม่?")) return; LS.set("cib_ai", { model: o.model }); }
+      else if (SHARED) { SETUP = true; }                                  // มี key กลาง: เปิดหน้าตั้งค่าเพื่อใส่ key ส่วนตัว / เลือกโมเดล
+      lab(); draw();
+    };
     $("#aiForm").onsubmit = (e) => { e.preventDefault(); const t = $("#aiIn").value.trim(); if (!t || BUSY) return; $("#aiIn").value = ""; $("#aiIn").style.height = ""; ask(t); };
     $("#aiIn").onkeydown = (e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#aiForm").requestSubmit(); } };
     $("#aiIn").oninput = (e) => { e.target.style.height = ""; e.target.style.height = Math.min(140, e.target.scrollHeight) + "px"; };
     $("#aiMsgs").onclick = (e) => {
       const b = e.target.closest("button"); if (!b) return;
-      if (b.id === "aiSave") { const k = $("#aiKey").value.trim(); if (!k) return toast("ยังไม่ได้ใส่ API key"); LS.set("cib_ai", { key: k, model: $("#aiModel").value }); lab(); draw(); $("#aiIn").focus(); }
+      if (b.id === "aiSave") { const k = $("#aiKey").value.trim(); if (!k && !SHARED) return toast("ยังไม่ได้ใส่ API key"); LS.set("cib_ai", k ? { key: k, model: $("#aiModel").value } : { model: $("#aiModel").value }); SETUP = false; lab(); draw(); $("#aiIn").focus(); }
+      else if (b.id === "aiMakeShared") { const k = $("#aiKey").value.trim(); if (!/^sk-ant-/.test(k)) return toast("กรอก API key (ขึ้นต้นด้วย sk-ant-) ก่อน"); makeSharedFile(k, $("#aiModel").value).then(() => toast("ดาวน์โหลด ai.enc แล้ว — อัปโหลดขึ้น GitHub ตามขั้นตอน")).catch((e) => toast("สร้างไฟล์ไม่ได้: " + e.message)); }
+      else if (b.id === "aiUseShared") { const o = own(); LS.set("cib_ai", { model: $("#aiModel").value || o.model }); SETUP = false; lab(); draw(); }
       else if (b.dataset.sug) ask(b.dataset.sug);
       else if (b.id === "aiStop" && ABORT) ABORT.abort();
     };
   }
-  window.aiMount = mount;
+  window.aiMount = () => { mount(); loadShared().then(() => { const l = $("#aiModelLab"); if (l && !$("#aiPanel").hidden) { draw(); } }); };
   window.__aiTest = { TOOL_FN, TOOLS, runTool };      // สำหรับทดสอบเครื่องมือจากคอนโซล
 })();
