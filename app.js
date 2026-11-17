@@ -485,7 +485,7 @@ function prep() {
   DB.lo = min2iso(lo).slice(0, 10); DB.hi = min2iso(hi).slice(0, 10);
   resetF();
 }
-function resetF() { F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", flm: "g", fln: innerWidth > 1100 ? 14 : 8 }; SHOWN = 200; }
+function resetF() { F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8 }; SHOWN = 200; }
 function filterTx() {
   const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
   const out = [];
@@ -532,7 +532,7 @@ function pAna() {
     <div><h2>ตามกลุ่มคู่โอน <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cCpg"></canvas></div></div></div>
     <div><h2>ตามบัญชี <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cAcc"></canvas></div></div></div>
   </div>
-  <div class="grid tb2"><div><h2>คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small></h2><div class="tblwrap" id="tCp"></div></div>
+  <div class="grid tb2"><div><h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small> <span class="muted" style="font-size:.8rem;font-weight:400">เรียงตาม</span>${[["t", "ยอดรวม"], ["i", "เงินเข้า"], ["o", "เงินออก"], ["n", "จำนวนครั้ง"]].map(([k, l]) => `<button class="chip" data-cs="${k}">${l}</button>`).join("")}</h2><div class="tblwrap" id="tCp"></div></div>
   <div><h2>รายการ <small id="txLab"></small></h2><div class="tblwrap" id="tTx"></div></div></div>
   <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>`;
   const m = $("#main");
@@ -546,6 +546,7 @@ function pAna() {
     else if (b.id === "fCsv") return csv();
     else if (b.id === "gBtn") F.gran = (F._g === "y") ? "m" : "y";
     else if (b.id === "more") { SHOWN += 300; return upd(true); }
+    else if (b.dataset.cs) F.cps = b.dataset.cs;
     else if (b.dataset.fm) F.flm = b.dataset.fm;
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
     else return;
@@ -585,14 +586,16 @@ function pAna() {
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
     $$("[data-a]", m).forEach((b) => (b.checked = F.accs.has(+b.dataset.a)));
     $$("[data-gn]", m).forEach((e) => { const ids = gAcc[e.dataset.gn]; e.textContent = `${ids.filter((i) => F.accs.has(i)).length}/${ids.length}`; });
+    $$("button[data-cs]", m).forEach((b) => b.classList.toggle("on", F.cps === b.dataset.cs));
     $$("[data-fm]", m).forEach((b) => b.classList.toggle("on", F.flm === b.dataset.fm));
     $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     // ตาราง
-    const top = [...byC.entries()].sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1])).slice(0, 50);
-    $("#tCp").innerHTML = `<table><tr><th>#</th><th>คู่โอน</th><th>บัญชี</th><th>กลุ่ม</th><th class="n">เงินเข้า (บาท)</th><th class="n">เงินออก (บาท)</th><th class="n">ครั้ง</th></tr>` +
+    const ck = { t: (v) => v[0] + v[1], i: (v) => v[0], o: (v) => v[1], n: (v) => v[2] }[F.cps] || ((v) => v[0] + v[1]);
+    const top = [...byC.entries()].filter((x) => ck(x[1]) > 0).sort((x, y) => ck(y[1]) - ck(x[1])).slice(0, 50);
+    $("#tCp").innerHTML = `<table><tr><th>#</th><th>คู่โอน</th><th>บัญชี</th><th>กลุ่ม</th><th class="n srt ${F.cps === "i" ? "on" : ""}" data-cs="i">เงินเข้า (บาท)</th><th class="n srt ${F.cps === "o" ? "on" : ""}" data-cs="o">เงินออก (บาท)</th><th class="n srt ${F.cps === "n" ? "on" : ""}" data-cs="n">ครั้ง</th></tr>` +
       top.map(([ci, v], i) => { const c = DB.cps[ci]; return `<tr class="click" data-q="${esc(c[0] || c[1])}"><td>${i + 1}</td><td>${esc(c[1]) || "<span class=muted>ไม่ระบุชื่อ</span>"}</td><td>${c[2]} ${c[0]}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[c[3]][2]}"></span> ${esc(DB.groups[c[3]][1].split(" (")[0])}</td><td class="n">${v[0] ? fmt(v[0]) : ""}</td><td class="n">${v[1] ? fmt(v[1]) : ""}</td><td class="n">${fmt0(v[2])}</td></tr>`; }).join("") + "</table>";
-    $("#tCp").onclick = (e) => { const tr = e.target.closest("tr[data-q]"); if (tr) { F.q = tr.dataset.q; $("#fQ").value = F.q; upd(); } };
+    $("#tCp").onclick = (e) => { const th = e.target.closest("th[data-cs]"); if (th) { F.cps = F.cps === th.dataset.cs ? "t" : th.dataset.cs; upd(true); return; } const tr = e.target.closest("tr[data-q]"); if (tr) { F.q = tr.dataset.q; $("#fQ").value = F.q; upd(); } };
     const big = [...IDX].sort((x, y) => DB.tx[y][3] - DB.tx[x][3]).slice(0, SHOWN);
     $("#txLab").textContent = `เรียงตามยอด — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว`;
     $("#more").hidden = big.length >= IDX.length;
@@ -804,11 +807,12 @@ function drawFlow(box, pair) {
 const nk = (s) => String(s || "").replace(/^\s*(นางสาว|นาย|นาง|น\.ส\.|ว่าที่\s*ร\.ต\.หญิง|ว่าที่ร้อยตรีหญิง|ด\.ญ\.|ด\.ช\.|mr\.?|mrs\.?|miss)\s*/i, "").replace(/\s+/g, "");
 const noteClean = (s) => String(s || "").replace(/https?:\/\/\S+/g, "").replace(/0\d[\d-]{7,10}/g, "").replace(/[\s\/]+$/, "").replace(/\s{2,}/g, " ").trim();
 const dg = (s) => String(s || "").replace(/\D/g, "").replace(/^0+/, "");
-let PPL = null, PPV = -1, PPF = "", PPQ = "";
+let PPL = null, PPV = -1, PPF = "", PPQ = "", PPG = true;
 function people() {
   if (PPL && PPL.f === TEAM().fetched) return PPL.v;
   const ph = {}; imgBy((i) => i.cat === "บุคคล").forEach((i) => (ph[nk(i.key)] = i));
   const out = [], seen = {};
+  DB.accounts.forEach((a) => { const c = DB.groups[a.g][0]; if (c === "t1" || c === "pco") out.push({ name: a.name, eng: "", note: `${a.bank} ${a.acc}`, org: true, acct: true, cat: c, accs: [{ acc: a.acc, bank: a.bank, name: a.name }], img: null }); });
   for (const r of tsR("chart")) {
     if (!isNo(r[0]) || !r[1]) continue;
     const b = r[3].split("\n"), a = r[4].split("\n"), n = r[5].split("\n");
@@ -817,8 +821,11 @@ function people() {
     seen[nk(r[1])] = p; out.push(p);
   }
   for (const q of tsPpl()) { const k = nk(q.name); if (seen[k]) { if (q.note && !seen[k].note) seen[k].note = q.note; continue; } seen[k] = { name: q.name, eng: "", note: q.note, org: /บริษัท|บจก|บมจ|หจก|limited|s\.a\./i.test(q.name), accs: [], img: ph[k] }; out.push(seen[k]); }
+  for (const q of tsSus()) { const k = nk(q.name); if (!seen[k]) { seen[k] = { name: q.name, eng: "", note: noteClean(q.issue), org: false, accs: [], img: ph[k] }; out.push(seen[k]); } }
   const A = tsAcc();
   for (const p of out) {
+    if (p.acct) continue;
+    p.cat = (DB.pmap || {})[nk(p.name)] || "oth";
     const core = nk(p.name).replace(/จำกัด|\(มหาชน\)|บริษัท|บจก\.?|บมจ\.?/g, ""); if (core.length < 6) continue;
     const has = new Set(p.accs.map((a) => dg(a.acc))), hit = (nm) => String(nm || "").replace(/\s+/g, "").includes(core);
     for (const r of A) if (hit(r.name) && !has.has(dg(r.acc))) { has.add(dg(r.acc)); p.accs.push({ acc: r.acc, bank: r.bank, name: r.name }); }
@@ -838,23 +845,27 @@ function pPpl() {
   const P = people(), A = tsAcc(), have = new Set(DB.accounts.map((a) => dg(a.acc))), stOf = (acc) => (A.find((r) => dg(r.acc) === dg(acc)) || {}).data || "";
   const q = PPQ.trim().toLowerCase();
   const show = P.map((p, i) => [p, i]).filter(([p]) => (PPF === "img" ? p.img : PPF === "org" ? p.org : PPF === "per" ? !p.org : true) && (!q || (p.name + p.eng + p.note).toLowerCase().includes(q)));
+  const CAT = DB.pcats || [], cOf = (k) => CAT.find((c) => c[0] === k) || ["oth", "อื่นๆ", "#757575"];
+  const ord = PPG ? CAT.flatMap((c) => show.filter(([p]) => p.cat === c[0])).concat(show.filter(([p]) => !CAT.some((c) => c[0] === p.cat))) : show;
+  const card = ([p, i]) => `<button class="pcard ${i === PPV ? "on" : ""}" data-p="${i}" style="--c:${cOf(p.cat)[2]}">${p.img ? thumbEl(p.img) : `<span class="ph">${IC(p.acct ? "bank" : p.org ? "build" : "user", 30)}</span>`}<b>${esc(p.name)}</b>${p.note ? `<small>${esc(p.note)}</small>` : ""}${p.accs.length && !p.acct ? `<span class="cnt">${IC("bank", 13)}${p.accs.length}</span>` : ""}</button>`;
   const det = (i) => { const p = P[i]; if (!p) return ""; const f = pplFlow(p);
     return `${backBtn()}<div class="card prof">${p.img ? `<button class="pf" data-img="${p.img.id}">${thumbEl(p.img)}</button>` : `<span class="pf ph">${IC(p.org ? "build" : "user", 44)}</span>`}
-      <div><h3>${esc(p.name)}</h3>${p.eng ? `<div class="muted">${esc(p.eng)}</div>` : ""}${p.note ? `<div style="margin-top:6px"><span class="badge y">${esc(p.note)}</span></div>` : ""}</div></div>
+      <div><h3>${esc(p.name)}</h3>${p.eng ? `<div class="muted">${esc(p.eng)}</div>` : ""}<div style="margin-top:6px"><span class="badge"><span class="dot" style="background:${cOf(p.cat)[2]};width:9px;height:9px;margin-right:5px"></span>${esc(cOf(p.cat)[1])}</span> ${p.note ? `<span class="badge y">${esc(p.note)}</span>` : ""}</div></div></div>
     ${f ? `<div class="grid g2" style="margin-top:10px"><div class="card kpi r"><div class="l">รับเงินจากบัญชีที่มี statement</div><div class="v">${M(f.rin)}</div><div class="s">${fmt(f.rin)} บาท · ${fmt0(f.n1)} ครั้ง</div></div>
       <div class="card kpi"><div class="l">โอนเข้าบัญชีที่มี statement</div><div class="v">${M(f.rout)}</div><div class="s">${fmt(f.rout)} บาท · ${fmt0(f.n2)} ครั้ง</div></div></div>` : ""}
     <h2>${IC("bank")} บัญชี <small>${p.accs.length} บัญชี</small> ${p.accs.length ? `<button class="chip" data-flow="${i}">${IC("flow", 15)} ดูเส้นเงิน</button>` : ""}</h2>
     <div class="card">${p.accs.map((a) => li(`${esc(a.bank)} ${esc(a.acc)}`, esc(a.name), `${have.has(dg(a.acc)) ? `<span class="badge g">${IC("check", 12)} มี statement</span>` : stBadge(stOf(a.acc)) || '<span class="badge">ยังไม่ขอ</span>'}`)).join("") || '<span class="muted">ชีตยังไม่ระบุบัญชี</span>'}</div>`; };
   const list = `<h2>${IC("users")} บุคคลที่เกี่ยวข้อง <small>${show.length} / ${P.length} ราย</small></h2>
-    <div class="frow">${[["", "ทั้งหมด"], ["img", "มีภาพ"], ["per", "บุคคล"], ["org", "นิติบุคคล"]].map(([k, l]) => `<button class="chip ${PPF === k ? "on" : ""}" data-pf="${k}">${l}</button>`).join("")}<input type="search" id="ppQ" value="${esc(PPQ)}" placeholder="ค้นหาชื่อ"></div>
-    <div class="pgrid">${show.map(([p, i]) => `<button class="pcard ${i === PPV ? "on" : ""}" data-p="${i}">${p.img ? thumbEl(p.img) : `<span class="ph">${IC(p.org ? "build" : "user", 30)}</span>`}<b>${esc(p.name)}</b>${p.note ? `<small>${esc(p.note)}</small>` : ""}${p.accs.length ? `<span class="cnt">${IC("bank", 13)}${p.accs.length}</span>` : ""}</button>`).join("")}</div>`;
-  const wide = isWide(), v = wide ? (PPV >= 0 ? PPV : (show[0] || [0, -1])[1]) : PPV, m = $("#main");
+    <div class="frow">${[["", "ทั้งหมด"], ["img", "มีภาพ"], ["per", "บุคคล"], ["org", "นิติบุคคล"]].map(([k, l]) => `<button class="chip ${PPF === k ? "on" : ""}" data-pf="${k}">${l}</button>`).join("")}<button class="chip ${PPG ? "on" : ""}" data-pg="1" title="สลับ แยกประเภท / รวมทั้งหมด">${IC("list", 14)} แยกประเภท</button><input type="search" id="ppQ" value="${esc(PPQ)}" placeholder="ค้นหาชื่อ"></div>
+    ${PPG ? CAT.map((c) => { const v = show.filter(([p]) => p.cat === c[0]); return v.length ? `<h3 class="pch"><span class="dot" style="background:${c[2]}"></span>${esc(c[1])} <small>${v.length}</small></h3><div class="pgrid">${v.map(card).join("")}</div>` : ""; }).join("") : `<div class="pgrid">${show.map(card).join("")}</div>`}`;
+  const wide = isWide(), v = wide ? (PPV >= 0 ? PPV : (ord[0] || [0, -1])[1]) : PPV, m = $("#main");
   m.innerHTML = wide ? `<div class="md"><div class="md-l wide">${list}</div><div class="md-r">${det(v)}</div></div>` : (v >= 0 ? det(v) : list);
   $$(".pcard", m).forEach((b) => b.classList.toggle("on", +b.dataset.p === v));
   m.onclick = (e) => { const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.p != null) { PPV = +b.dataset.p; render(); if (!wide) scrollTo(0, 0); }
     else if (b.dataset.v != null) { PPV = -1; render(); }
     else if (b.dataset.pf != null) { PPF = b.dataset.pf; render(); }
+    else if (b.dataset.pg != null) { PPG = !PPG; render(); }
     else if (b.dataset.flow != null) { const p = P[+b.dataset.flow]; resetF(); F.q = dg(p.accs[0].acc); F.flm = "d"; go("ana"); } };
   let tm; m.oninput = (e) => { if (e.target.id !== "ppQ") return; clearTimeout(tm); tm = setTimeout(() => { PPQ = e.target.value; render(); const x = $("#ppQ"); if (x) { x.focus(); x.setSelectionRange(PPQ.length, PPQ.length); } }, 300); };
 }
