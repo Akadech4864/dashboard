@@ -285,3 +285,8 @@ th.srt{cursor:pointer}
 th.srt::after{content:" ↕";opacity:.5;font-size:.8em}
 th.srt.on{background:var(--yel);color:var(--navy)}
 th.srt.on::after{content:" ▼";opacity:1}
+
+/* v11 */
+a.chip.lnk{display:inline-flex;align-items:center;gap:5px;text-decoration:none;color:var(--navy);border-color:var(--navy);font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+a.chip.lnk:hover{background:var(--navy);color:#fff}
+.pcard .cnt.lk{left:6px;right:auto}
