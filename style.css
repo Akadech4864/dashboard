@@ -248,3 +248,15 @@ button.tile{font:inherit;cursor:pointer}
   .chartbox{height:340px}
 }
 @media (min-width:1500px){.kp8{grid-template-columns:repeat(8,minmax(0,1fr))}.kp8 .kpi .v{font-size:1.3rem}}
+
+/* v8 */
+.ico.s{display:inline-flex;width:30px;height:30px;border-radius:9px;align-items:center;justify-content:center;background:var(--navy);color:var(--yel);vertical-align:middle;margin-right:4px;flex:none}
+.ico.s.g{background:var(--green);color:#fff}.ico.s.r{background:var(--red);color:#fff}
+.ico.s .ic{vertical-align:0}
+details.acc>summary .num{vertical-align:middle;margin-right:4px}
+.dt{display:inline-block;min-width:72px;color:var(--mut);font-size:.82rem;font-weight:600}
+.acts.in{position:static;justify-content:flex-end;margin-top:6px}
+.accs details.acc{break-inside:avoid}
+.accs details.acc:first-child{margin-top:0}
+.pcard small .dot{width:8px;height:8px}
+@media (min-width:1100px){.accs{columns:2 420px;column-gap:14px}.accs details.acc:first-child{margin-top:0}.accs details.acc{margin-top:0;margin-bottom:8px}}
