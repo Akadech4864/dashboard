@@ -495,12 +495,15 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
   const S = tsSum(), FZ = tsFrz(), fz = FZ.secs.flatMap((s) => s.rows), fzSum = fz.reduce((t, r) => t + r.amt, 0);
   const OWNS = (DB.own || []).map(([rx, lab]) => [new RegExp(rx), lab]);
   const OWN = (o) => { const h = OWNS.find(([rx]) => rx.test(o || "")); return h ? h[1] : o || "-"; };
-  const AST = { seized: ["ยึดแล้ว", "r"], frozen: ["อายัดแล้ว", "r"], doing: ["อยู่ระหว่างดำเนินการ", "y"], none: ["ยังไม่มีข้อมูลยึด/อายัด", ""] };
+  const AST = { seized: ["ยึดแล้ว", "r"], frozen: ["อายัดแล้ว", "r"], prop: ["เสนออายัด (ยังไม่อายัด)", "y"], doing: ["อยู่ระหว่างดำเนินการ", "y"], none: ["ยังไม่มีข้อมูลยึด/อายัด", ""] };
   const R = [];
   tsLand().forEach((r) => R.push({ type: "ที่ดิน / สิ่งปลูกสร้าง", ic: "home", own: OWN(r.own), name: `${r.loc}${r.deed ? " (เลขที่ " + r.deed + ")" : ""}`, sub: [r.area, r.bld && !/ไม่พบ/.test(r.bld) ? r.bld : "", r.date ? "ได้มา " + r.date : "", /จำนอง/.test(r.mort) ? "ติดจำนอง" : ""].filter(Boolean).join(" · "), val: r.price, st: /ดำเนินการ/.test(r.act) && !/^การดำเนินการ$/.test(r.act) ? "doing" : "none", note: r.act || "" }));
   S.filter((s) => !/ที่ดิน/.test(s.name)).forEach((s) => s.items.forEach((x) => R.push({ type: secNm(s.name), ic: secIc(s.name), own: OWN(s.own[x[2]]), name: x[0], sub: "", val: x[1], st: "none", note: "" })));
   (DB.search?.rows || []).forEach((r) => R.push({ type: "ของกลางจากการค้น", ic: "bag", own: "จุดที่ " + r.site, name: `${r.item} ${r.model || ""}`.trim(), sub: r.look || "", val: ((r.used_lo || 0) + (r.used_hi || 0)) / 2 * (r.n || 1), st: "seized", note: `ประเมินมือสอง ${fmt0(r.used_lo)}–${fmt0(r.used_hi)} บาท${r.n > 1 ? " × " + r.n : ""}` }));
   FZ.secs.forEach((s) => R.push({ type: "เงินในบัญชี", ic: "lock", n: s.rows.length, own: /มูลนิธิ/.test(s.title) ? "บัญชีมูลนิธิ" : (OWNS.find(([rx]) => rx.test(s.title)) || [0, "อื่น ๆ"])[1], name: `${s.title || "บัญชีที่อายัด"} (${s.rows.length} บัญชี)`, sub: "รายบัญชีดูที่หน้า ขอ STM", val: s.rows.reduce((t, r) => t + r.amt, 0), st: "frozen", note: "", go: "stm" }));
+  ((DB.cc && DB.cc.card_info) || []).filter((c) => c.bal < -0.005).forEach((c) => R.push({ type: "เงินชำระเกินในบัตรเครดิต", ic: "card", own: OWN(DB.cc.holder), name: `บัตรเครดิต KBANK ${c.full}`,
+    sub: `บัญชีบัตรใน statement ธนาคาร ${c.acc} · ยอดคงค้างติดลบ (ชำระเกิน) ณ รอบบิล ${dTh(c.bal_date)}`, val: -c.bal, st: "prop",
+    note: `เงินชำระเข้าบัตรจากบัญชีรับบริจาค ${fmt(c.pay_t1)} บาท · ยังไม่อยู่ในรายการอายัด — เสนออายัดยอดเงินเกิน + ระงับการคืนเงิน/การใช้บัตร (ขอยอดปัจจุบันจากธนาคารก่อน)`, go: "cc" }));
   const types = [...new Set(R.map((r) => r.type))], owners = [...new Set(R.map((r) => r.own))];
   const q = ASF.q.trim().toLowerCase();
   const show = R.filter((r) => (!ASF.st || r.st === ASF.st) && (!ASF.type || r.type === ASF.type) && (!ASF.own || r.own === ASF.own) && (!q || (r.name + r.sub + r.note + r.own).toLowerCase().includes(q)));
@@ -510,7 +513,7 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
   const mine = (r) => r.own !== "บัญชีมูลนิธิ";
   const CARDS = [["ที่ดิน / สิ่งปลูกสร้าง", "ที่ดิน / สิ่งปลูกสร้าง", "home"], ["รถยนต์", "รถยนต์", "car"], ["ของกลางจากการค้น", "ของกลางจากการค้น", "bag"], ["เงินในบัญชี", "เงินในบัญชี (อายัดแล้ว)", "lock"]];
   const known = new Set(CARDS.map((c) => c[0])), others = types.filter((t) => !known.has(t));
-  others.forEach((t) => CARDS.push([t, t === "ทรัพย์สินอื่น" ? "ทรัพย์สินอื่น (ประกัน / กองทุน-หุ้น / สลาก)" : t, "shield"]));
+  others.forEach((t) => CARDS.push([t, t === "ทรัพย์สินอื่น" ? "ทรัพย์สินอื่น (ประกัน / กองทุน-หุ้น / สลาก)" : t, /บัตรเครดิต/.test(t) ? "card" : "shield"]));
   const stLine = (rs) => Object.entries(AST).map(([k, v]) => { const n = rs.filter((r) => r.st === k).length; return n && k !== "none" ? `${v[0]} ${n}` : ""; }).filter(Boolean).join(" · ");
   const tcard = ([t, lab, ic], no) => { const rs = R.filter((r) => r.type === t && mine(r)), fnd = R.filter((r) => r.type === t && !mine(r)), v = rs.reduce((a, r) => a + (r.val || 0), 0);
     return `<button class="tile ${ASF.type === t ? "on" : ""}" data-ak="type" data-av="${esc(t)}"><span class="ico">${IC(ic)}</span><span class="v">${M(v)}</span><span class="l">${no}. ${esc(lab)}</span>
@@ -543,6 +546,7 @@ function pCc() {                                                        // เ�
   ccCharts(DB.cc);
 }
 const NATC = { per: "#B3261E", chr: "#1B7A4A", fin: "#9E9E9E" };
+const ccTm = (t) => (String(t).length > 10 ? `${dTh(String(t).slice(0, 10))} ${String(t).slice(11)}` : dTh(t));
 function ccBlock(C) {
   const nat = Object.fromEntries(C.nature.map((x) => [x.k, x])), t1 = C.pay.src.filter((s) => s.t1).reduce((t, s) => t + s.amt, 0);
   const CI = C.card_info || [], RF = C.card_refunds || [], rfSum = RF.reduce((t, r) => t + r.amt, 0), over = CI.reduce((t, c) => t + (c.bal < 0 ? -c.bal : 0), 0);
@@ -563,6 +567,14 @@ function ccBlock(C) {
   <div class="tblwrap"><table><tr><th>บัญชีต้นทาง</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th class="n">ก่อนตั้งมูลนิธิ</th><th class="n">หลังตั้งมูลนิธิ</th></tr>
     ${C.pay.src.map((s) => `<tr><td>${s.t1 ? `<b style="color:var(--red)">${esc(s.name.replace(/^KBNK /, "KBANK "))}</b> <span class="badge r">บัญชีรับบริจาค</span>` : esc(s.name.replace(/^KBNK /, "KBANK "))}</td><td class="n">${fmt(s.amt)}</td><td class="n">${fmt0(s.n)}</td><td class="n">${fmt(s.before)}</td><td class="n">${fmt(s.after)}</td></tr>`).join("")}
     ${(C.pay.bank_unmatched.by || []).map((r) => `<tr><td>${esc(r[0].replace(/^KBNK /, "KBANK "))} <small class="muted">(ไม่อยู่ใน statement บัตรชุดนี้)</small></td><td class="n">${fmt(r[1])}</td><td class="n">${fmt0(r[2])}</td><td></td><td></td></tr>`).join("")}</table></div>
+  ${(C.pay.how || []).length ? `<p class="muted" style="font-size:.84rem;margin:.5em 0 0">วิธีจับคู่: ${C.pay.how.map((h) => `${esc(h.how)} <b>${fmt(h.amt)}</b> บาท (${fmt0(h.n)} ครั้ง)`).join(" · ")}</p>` : ""}
+  ${(C.pay.cash || []).map((c) => `<p style="font-size:.9rem;margin:.4em 0 0">${IC("warn", 14)} ชำระบัตร x${c.card} ที่เคาน์เตอร์ <b>${fmt(c.amt)}</b> บาท เมื่อ ${dTh(c.d)} ตรงกับการถอนเงินสดยอดเท่ากันจาก <b style="color:var(--red)">${esc(c.name.replace(/^KBNK /, "KBANK "))}</b> เวลา ${esc(c.time)}</p>`).join("")}
+  ${(C.pay_big || []).length || (C.trace || []).length ? `<h2>${IC("clock")} ตารางเวลาเส้นเงินที่ใช้ชำระค่าบัตร <small>ส่วนสืบสวน · เวลาจาก statement ธนาคาร (รายการในบัตรมีเฉพาะวันที่)</small></h2>` : ""}
+  ${(C.pay_big || []).length ? accd(`${IC("list", 16)} รายการชำระค่าบัตรตั้งแต่ 300,000 บาท เรียงตามเวลา`, `${C.pay_big.length} รายการ · ${M(C.pay_big.reduce((t, x) => t + x.amt, 0))}`,
+    `<div class="tblwrap"><table><tr><th>วันเวลาโอน (ธนาคาร)</th><th>บัญชีต้นทาง</th><th>บัตร</th><th class="n">ยอดชำระ (บาท)</th><th>วิธีจับคู่</th><th>รายการใช้บัตรวันเดียวกัน / ใกล้เคียง</th></tr>${C.pay_big.map((x) => `<tr><td>${ccTm(x.t)}</td><td>${x.t1 ? `<b style="color:var(--red)">${esc(x.src.replace(/^KBNK /, "KBANK "))}</b>` : esc(x.src.replace(/^KBNK /, "KBANK "))}</td><td>x${esc(x.card)}</td><td class="n"><b>${fmt(x.amt)}</b></td><td>${["", "เลขบัญชีบัตร", "ยอด + วันที่", "ถอนเงินสด → เคาน์เตอร์", "ไม่พบ"][x.how] || ""}</td><td>${esc(x.use || "")}</td></tr>`).join("")}</table></div>`) : ""}
+  ${(C.trace || []).map((t) => accd(`${IC("route", 16)} ${esc(t.title)}`, `${t.rows.length} แถว`,
+    `<p class="muted" style="font-size:.84rem;margin:0 0 6px">${esc(t.note)}</p>${(t.leads || []).length ? `<div class="lab" style="color:var(--red)">${IC("search", 14)} เบาะแสที่พบ</div><ul style="margin:.2em 0 .6em 1.1em;padding:0;font-size:.9rem">${t.leads.map((l) => `<li>${esc(l.replace(/KBNK /g, "KBANK "))}</li>`).join("")}</ul>` : ""}
+    <div class="tblwrap"><table><tr><th>วันเวลา</th><th>บัญชี / บัตร</th><th>รายการ / คู่โอน</th><th class="n">เงินเข้า</th><th class="n">เงินออก / ใช้บัตร</th><th class="n">คงเหลือ</th><th>หมายเหตุ</th></tr>${t.rows.map((r) => `<tr${r.note ? ' style="background:#FFF4CC"' : ""}><td>${ccTm(r.t)}</td><td>${r.t1 ? `<b style="color:var(--red)">${esc(r.src.replace(/^KBNK /, "KBANK "))}</b>` : esc(r.src.replace(/^KBNK /, "KBANK "))}</td><td>${esc(r.desc.replace(/KBNK /g, "KBANK "))}</td><td class="n">${r.in ? fmt(r.in) : ""}</td><td class="n">${r.out ? fmt(r.out) : ""}</td><td class="n">${r.bal == null ? "" : fmt(r.bal)}</td><td><b>${esc(r.note || "")}</b></td></tr>`).join("")}</table></div>`)).join("")}
   <h2>${IC("list")} ประเภทการใช้จ่าย</h2>
   <div class="tblwrap"><table><tr><th>ประเภท</th><th>ลักษณะ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th class="n">ก่อนตั้ง</th><th class="n">หลังตั้ง</th></tr>
     ${C.types.map((t) => `<tr><td>${esc(t.label)}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${NATC[t.nat]}"></span> ${esc({ per: "ใช้ส่วนตัว", chr: "บริจาค/ทำบุญ" }[t.nat] || t.nat)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td class="n">${fmt(t.before)}</td><td class="n">${fmt(t.after)}</td></tr>`).join("")}</table></div>
@@ -597,6 +609,9 @@ function workRows() {
   tsSus().forEach((r) => R.push({ type: "หมายเรียกผู้ต้องหา", ic: "scale", title: r.name, detail: [r.issue, r.off, r.note].filter(Boolean).join(" · "), own: r.off || "", date: pDate(r.date) || "", stx: r.st, st: stOf(r.st, pDate(r.date) > today ? "wait" : "none") }));
   tsWit().forEach((s) => s.rows.forEach((r) => R.push({ type: "หมายเรียกพยาน", ic: "users", title: r.name, detail: [s.title, r.sub, r.note].filter(Boolean).join(" · "), own: r.off || "", date: pDate(r.date) || "", stx: r.st, st: stOf(r.st, pDate(r.date) > today ? "wait" : "none") })));
   tsAnu().forEach((r) => R.push({ type: "หมายเรียกเอกสาร / รถ", ic: "doc", title: r.name, detail: r.prov, own: "", date: pDate(r.meet) || "", stx: r.meet ? "นัด " + r.meet : "", st: pDate(r.meet) && pDate(r.meet) > today ? "wait" : "none" }));
+  ((DB.cc && DB.cc.card_info) || []).filter((c) => c.bal < -0.005).forEach((c) => R.push({ type: "เสนออายัดทรัพย์สิน", ic: "lock", title: `เสนออายัดยอดชำระเกินในบัตรเครดิต ${c.full} จำนวน ${fmt(-c.bal)} บาท`,
+    detail: `ยอดคงค้างติดลบ ณ รอบบิล ${dTh(c.bal_date)} · เงินชำระเข้าบัตรมาจากบัญชีรับบริจาค ${fmt(c.pay_t1)} บาท · ขอยอดปัจจุบันและรายการหลังรอบบิลจากธนาคารก่อน แล้วเสนอ พงส. อายัด + ระงับการคืนเงิน`,
+    own: "", date: "", stx: "ยังไม่อยู่ในรายการอายัด", st: "todo", go: "asset" }));
   accRows().rows.forEach((r) => R.push({ type: "ขอข้อมูลบัญชี (STM)", ic: "bank", title: `${r.bank} ${r.acc} ${r.name}`.trim(),
     detail: [r.sheet && r.sheet.ref ? "หนังสือ " + r.sheet.ref : "", r.sheet && r.sheet.wd ? "ถอนเงิน: " + r.sheet.wd : "", r.sheet ? r.sheet.note : "", r.fz ? `อายัด ${fmt(r.fz.amt)} บาท` : ""].filter(Boolean).join(" · "),
     own: "", date: "", stx: r.st, st: r.ai >= 0 || r.cc ? "done" : /รอนำเข้า/.test(r.st) ? "doing" : /ขอแล้ว|รอ/.test(r.st) ? "wait" : "todo", go: "acct" }));
@@ -1399,7 +1414,7 @@ function pAccTable() {                                                 // ตา
     return !rs.length ? "" : `<button class="gcard ${AXF.g === String(g) ? "on" : ""}" data-axk="g" data-axv="${g}" style="--c:${gcol(g)}">${coverH(g, rs, 64)}
       <span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · มี STM ${u.stm}</small><small>${isT1 ? `เงินเข้า ${M(u.inn)} · ออก ${M(u.out)}` : `รับจากบัญชีมูลนิธิ ${M(u.t1)}`}</small>${u.fzn ? `<small class="fz">${IC("lock", 11)} อายัด ${u.fzn} บัญชี ${M(u.fz)}</small>` : ""}</span></button>`; };
   const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}${r.card ? `<br><small class="muted">บัตรเครดิต ${esc(r.card)}</small>` : ""}</td><td>${esc(r.name)}</td>
-      <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : ""}</td>
+      <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : r.cc && r.cc.bal < -0.005 ? `<span class="badge y" title="ยอดชำระเกินค้างในบัตร ณ รอบบิล ${dTh(r.cc.bal_date)} — ยังไม่อายัด">เสนออายัด ${fmt(-r.cc.bal)}</span>` : ""}</td>
       <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
       <td>${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
   const sect = (g) => { const rs = rows.filter((r) => r.g === g && pass(r)).sort(ord); if (!rs.length) return ""; const u = gsum(rs), ais = rs.filter((r) => r.ai >= 0).map((r) => r.ai);
