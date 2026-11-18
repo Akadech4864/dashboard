@@ -545,16 +545,20 @@ function pCc() {                                                        // เ�
 const NATC = { per: "#B3261E", chr: "#1B7A4A", fin: "#9E9E9E" };
 function ccBlock(C) {
   const nat = Object.fromEntries(C.nature.map((x) => [x.k, x])), t1 = C.pay.src.filter((s) => s.t1).reduce((t, s) => t + s.amt, 0);
-  const x4260 = (C.pay.bank_unmatched.by || []).filter((r) => /4417704260/.test(r[0])).reduce((t, r) => t + r[1], 0);
+  const CI = C.card_info || [], RF = C.card_refunds || [], rfSum = RF.reduce((t, r) => t + r.amt, 0), over = CI.reduce((t, c) => t + (c.bal < 0 ? -c.bal : 0), 0);
   const trips = C.trips.reduce((t, x) => t + x.amt, 0);
   return `<div id="ccBlk"></div><h2>${IC("card")} การใช้บัตรเครดิต ${esc(C.holder || "")} <small>KBANK VISA x${C.cards.map((c) => c.card).join(" / x")} · ${dTh(C.range[0])} – ${dTh(C.range[1])} · statement ${C.files} ฉบับ</small></h2>
   <div class="grid g4 kp8">${[["ยอดใช้จ่ายสุทธิ", C.total, `${fmt0(C.n)} รายการ`, ""], ["ใช้ส่วนตัว", nat.per?.amt || 0, `${((nat.per?.amt || 0) / C.total * 100).toFixed(1)}%`, "r"], ["บริจาค / ทำบุญ", nat.chr?.amt || 0, `${((nat.chr?.amt || 0) / C.total * 100).toFixed(2)}% · ${(C.chr || []).length} รายการ`, "g"],
     ["สินค้าแบรนด์เนม / เครื่องประดับ", (C.types.find((t) => t.k === "lux") || {}).amt || 0, `${(C.types.find((t) => t.k === "lux") || {}).n || 0} รายการ`, ""],
-    ["ชำระค่าบัตรจากบัญชีรับบริจาค", t1, `${(t1 / C.pay.total * 100).toFixed(1)}% ของยอดชำระ`, "r"], ["บัญชีรับบริจาคชำระบัตร x4260 (ยังไม่มี statement)", x4260, "บัญชีบัตร 4417704260", "x"],
+    ["ชำระค่าบัตรจากบัญชีรับบริจาค", t1, `${(t1 / C.pay.total * 100).toFixed(1)}% ของยอดชำระ`, "r"], ["เงินชำระเกินในบัตร โอนคืนเข้าบัญชีส่วนตัว", rfSum, RF.length ? `${RF.length} ครั้ง · ยังค้างในบัตรอีก ${M(over)}` : "ไม่พบ", "x"],
     ["เดินทางต่างประเทศ", trips, `${C.trips.length} ทริป`, ""], ["หลังตั้งมูลนิธิ (25 มิ.ย. 65)", C.period["หลังตั้งมูลนิธิ"]?.[0] || 0, `${fmt0(C.period["หลังตั้งมูลนิธิ"]?.[1] || 0)} รายการ`, ""]]
     .map(([l, v, s, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${s}</div></div>`).join("")}</div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><div class="lab" style="margin-top:0">ตามประเภทร้านค้า</div><div class="chartbox tall"><canvas id="cCcT"></canvas></div></div>
     <div class="card"><div class="lab" style="margin-top:0">รายปี (พ.ศ.)</div><div class="chartbox tall"><canvas id="cCcY"></canvas></div></div></div>
+  ${CI.length ? `<h2>${IC("card")} บัตรแต่ละใบ <small>เลขบัญชีบัตรใน statement ธนาคาร = 6 หลักแรก + 4 หลักท้ายของเลขบัตร</small></h2>
+  <div class="tblwrap"><table><tr><th>เลขบัตร</th><th>บัญชีบัตร (statement ธนาคาร)</th><th>ประเภท</th><th>ช่วงรายการ</th><th class="n">ใช้จ่ายสุทธิ</th><th class="n">ชำระเข้าบัตร</th><th class="n">จากบัญชีรับบริจาค</th><th class="n">ยอดคงค้างล่าสุด</th></tr>
+    ${CI.map((c) => `<tr><td><b>${esc(c.full)}</b></td><td>KBANK ${esc(c.acc)}</td><td>${esc(c.ctype)}</td><td>${dTh(c.first)} – ${dTh(c.last)} <small class="muted">(${c.stmts} ฉบับ)</small></td><td class="n">${fmt(c.amt)}</td><td class="n">${fmt(c.pay)}</td><td class="n">${c.pay_t1 ? `<b style="color:var(--red)">${fmt(c.pay_t1)}</b>` : ""}</td><td class="n">${c.bal < 0 ? `<b>${fmt(c.bal)}</b><br><small class="muted">ชำระเกิน</small>` : fmt(c.bal || 0)}</td></tr>`).join("")}</table></div>
+  ${RF.length ? `<p class="muted" style="font-size:.86rem;margin:.5em 0 0">${IC("warn", 14)} ยอดเงินเกินในบัตรที่โอนคืนเข้าบัญชีเงินฝาก: ${RF.map((r) => `บัตร x${r.card} ${dTh(r.d)} <b>${fmt(r.amt)}</b> บาท → ${esc((r.name || "ไม่พบใน statement ธนาคาร").replace(/^KBNK /, "KBANK "))}${r.time ? " (" + esc(r.time) + ")" : ""}`).join(" ; ")}</p>` : ""}` : ""}
   <h2>${IC("bank")} เงินที่ใช้ชำระค่าบัตรมาจากบัญชีใด <small>จับคู่ statement ธนาคาร ยอดเท่ากัน ห่าง ≤ 3 วัน</small></h2>
   <div class="tblwrap"><table><tr><th>บัญชีต้นทาง</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th class="n">ก่อนตั้งมูลนิธิ</th><th class="n">หลังตั้งมูลนิธิ</th></tr>
     ${C.pay.src.map((s) => `<tr><td>${s.t1 ? `<b style="color:var(--red)">${esc(s.name.replace(/^KBNK /, "KBANK "))}</b> <span class="badge r">บัญชีรับบริจาค</span>` : esc(s.name.replace(/^KBNK /, "KBANK "))}</td><td class="n">${fmt(s.amt)}</td><td class="n">${fmt0(s.n)}</td><td class="n">${fmt(s.before)}</td><td class="n">${fmt(s.after)}</td></tr>`).join("")}
@@ -595,7 +599,7 @@ function workRows() {
   tsAnu().forEach((r) => R.push({ type: "หมายเรียกเอกสาร / รถ", ic: "doc", title: r.name, detail: r.prov, own: "", date: pDate(r.meet) || "", stx: r.meet ? "นัด " + r.meet : "", st: pDate(r.meet) && pDate(r.meet) > today ? "wait" : "none" }));
   accRows().rows.forEach((r) => R.push({ type: "ขอข้อมูลบัญชี (STM)", ic: "bank", title: `${r.bank} ${r.acc} ${r.name}`.trim(),
     detail: [r.sheet && r.sheet.ref ? "หนังสือ " + r.sheet.ref : "", r.sheet && r.sheet.wd ? "ถอนเงิน: " + r.sheet.wd : "", r.sheet ? r.sheet.note : "", r.fz ? `อายัด ${fmt(r.fz.amt)} บาท` : ""].filter(Boolean).join(" · "),
-    own: "", date: "", stx: r.st, st: r.ai >= 0 ? "done" : /รอนำเข้า/.test(r.st) ? "doing" : /ขอแล้ว|รอ/.test(r.st) ? "wait" : "todo", go: "acct" }));
+    own: "", date: "", stx: r.st, st: r.ai >= 0 || r.cc ? "done" : /รอนำเข้า/.test(r.st) ? "doing" : /ขอแล้ว|รอ/.test(r.st) ? "wait" : "todo", go: "acct" }));
   tsCo().forEach((r) => R.push({ type: "หมายเรียกนิติบุคคล", ic: "build", title: r.name, detail: r.type, own: "", date: "", stx: "", st: "none" }));
   return R;
 }
@@ -663,7 +667,7 @@ function prep() {
 }
 let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
 const fSnap = () => ({ ...F, accs: new Set(F.accs), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: [...(F.chain || [])] });
-function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
+function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: true, chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
 function filterTx() {
   const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
   const out = [];
@@ -715,12 +719,13 @@ function pAna() {
   </div>
   <div id="dnRes" class="dnres"></div>
   <details class="fnote"><summary>วิธีอ่านยอด / วิธีใช้ชาร์ต</summary><p>ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
-   <p>ชาร์ตเส้นเงิน: กล่องที่มี ▶ (คอลัมน์เงินออก/ทอดถัดไป) = บัญชีที่มี statement — กดเพื่อคลี่ว่าเงินโอนต่อไปที่ใด กดต่อไปได้เรื่อยๆ ; กล่องอื่นกดเพื่อกรอง ; ค้นหาผู้บริจาคแล้วชาร์ตจะไล่เงินของผู้บริจาครายนั้นตามเวลา</p></details>
+   <p>ชาร์ตเส้นเงิน: กล่องที่มี ▶ (คอลัมน์เงินออก/ทอดถัดไป) = บัญชีที่มี statement — กดเพื่อคลี่ว่าเงินโอนต่อไปที่ใด กดต่อไปได้เรื่อยๆ ; กล่องอื่นกดเพื่อกรอง ; "ทอดถัดไป: ไล่ตามเวลา" = เงินที่เข้ากล่องที่กด ณ วัน-เวลาใด จะจับกับรายการเงินออกของบัญชีนั้นที่เกิดตั้งแต่เวลานั้นเป็นต้นไป เรียงตามเวลาจนครบยอดที่รับ (ส่วนที่ไม่พบรายการออกแสดงเป็นกล่อง "ยังไม่พบรายการโอนออกต่อ") เป็นการไล่ตามลำดับเวลา ไม่ใช่การระบุตัวเงิน ; "ทุกรายการในช่วง" = รวมเงินออกทั้งหมดของบัญชีนั้นในช่วงเวลาที่กรอง ; ค้นหาผู้บริจาคแล้วชาร์ตจะไล่เงินของผู้บริจาครายนั้นตามเวลา</p></details>
   <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · กดกล่องเพื่อกรอง · กล่อง ▶ กดเพื่อคลี่ทอดถัดไป</small></h2>
   <div class="fltools"><button class="chip" id="flBack" hidden title="กลับไปตัวกรองก่อนกดชาร์ต">← ย้อนกลับ</button>
     <select id="flM" title="มุมมอง"><option value="g">แสดงเป็นกลุ่ม</option><option value="d">แสดงรายบัญชี</option></select>
     <select id="flN" title="จำนวนกล่องต่อคอลัมน์">${[8, 14, 24, 32].map((n) => `<option value="${n}">${n} กล่อง</option>`).join("")}</select>
     <select id="flC" title="จำนวนคอลัมน์ที่แสดงพร้อมกัน">${[3, 4, 5, 6, 8].map((n) => `<option value="${n}">${n} คอลัมน์</option>`).join("")}</select>
+    <select id="flT" title="วิธีคำนวณเมื่อกดกล่อง ▶ คลี่ทอดถัดไป"><option value="1">ทอดถัดไป: ไล่ตามเวลา</option><option value="0">ทอดถัดไป: ทุกรายการในช่วง</option></select>
     <button class="chip" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด">✕ ยุบทอด</button></div>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา · กดหัวคอลัมน์เพื่อเรียง</small></h2>
@@ -769,7 +774,7 @@ function pAna() {
   $("#dnQ").oninput = (e) => { if (e.target.value.trim()) return; $("#dnRes").innerHTML = ""; if (F.dn) { F.dn = false; DNT = null; upd(); } };   // ลบข้อความค้นหา = ปิดผลค้นหาผู้บริจาค
   m.onchange = (e) => { const t = e.target;
     if (t.id === "fFrom") F.from = t.value || DB.lo; else if (t.id === "fTo") F.to = t.value || DB.hi; else if (t.dataset.a) tog(F.accs, +t.dataset.a, t.checked);
-    else if (t.id === "flM") F.flm = t.value; else if (t.id === "flN") F.fln = +t.value; else if (t.id === "flC") F.flc = +t.value;
+    else if (t.id === "flM") F.flm = t.value; else if (t.id === "flN") F.fln = +t.value; else if (t.id === "flC") F.flc = +t.value; else if (t.id === "flT") F.flt = t.value === "1";
     else if (t.id === "fYr") { if (!t.value) return; F.from = t.value + "-01-01"; F.to = t.value + "-12-31"; $("#fFrom").value = F.from; $("#fTo").value = F.to; }
     else return; upd(); };
   let tmr; m.oninput = (e) => { const t = e.target; if (t.id !== "fMin" && t.id !== "fQ") return; clearTimeout(tmr); tmr = setTimeout(() => { F.min = +$("#fMin").value || 0; F.q = $("#fQ").value; upd(); }, 280); };
@@ -821,7 +826,7 @@ function pAna() {
       $("#pqRow").hidden = F.cpm === "raw";
       $("#fMin").classList.toggle("on", F.min > 0);
       $("#fClear").hidden = !(pk_ !== "all" || F.accs.size || F.kinds.size || F.cpg.size || F.min || F.q || F.cpm !== "raw" || F.pq.size || F.dn);
-      $("#flM").value = F.flm; $("#flN").value = F.fln; $("#flC").value = F.flc; }
+      $("#flM").value = F.flm; $("#flN").value = F.fln; $("#flC").value = F.flc; $("#flT").value = F.flt !== false ? "1" : "0"; }
     $$("[data-k]", m).forEach((b) => b.classList.toggle("on", F.kinds.has(+b.dataset.k)));
     $$("[data-c]", m).forEach((b) => b.classList.toggle("on", F.cpg.has(+b.dataset.c)));
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
@@ -1092,7 +1097,39 @@ function flowBuild(pair) {
   // ทอดถัดไปตาม F.chain
   const a0 = day2min(F.from), b0 = day2min(F.to) + 1440;
   const chain = [];
-  for (let k = 0; k < F.chain.length; k++) {
+  if (F.flt !== false && F.chain.length) {
+    // ไล่ตามเวลา (ผู้สั่งงาน 18 พ.ย. 69): เงินที่เข้ากล่องที่กด ณ วัน-เวลาใด จับกับรายการเงินออกของบัญชีนั้นที่เกิดตั้งแต่เวลานั้นเป็นต้นไป เรียงตามเวลา จนครบยอดที่รับ
+    //   (รายการเงินออก 1 รายการใช้ได้ไม่เกินยอดของมัน ; ส่วนที่ไม่พบรายการออก = กล่อง rem ; ปลายทางที่ไม่มี statement = กล่อง nst) — เป็นการไล่ตามลำดับเวลา ไม่ใช่การระบุตัวเงิน
+    const outs = new Map(), used = new Map();
+    const getOuts = (ai) => { let o = outs.get(ai); if (!o) { o = txOfAcc(ai).filter((i) => !IN_K.includes(DB.tx[i][2])).sort((x, y) => DB.tx[x][1] - DB.tx[y][1] || x - y); outs.set(ai, o); used.set(ai, new Float64Array(o.length)); } return o; };
+    let arr = [], nst = 0, nstN = 0;
+    for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i), d0 = lid(ci);
+      if ((kR.has(d0) ? d0 : "o") !== F.chain[0]) continue;
+      const dai = accOfCp(ci); if (dai < 0 || dai === r[0]) { nst += r[3]; nstN++; } else arr.push({ ai: dai, t: r[1], amt: r[3] }); }
+    for (let k = 0; k < F.chain.length; k++) {
+      const c = 2 + k, id = F.chain[k];
+      if (!cols[c] || !cols[c].has(id) || !srcAccs(id).length || (!arr.length && nst <= 0.005)) break;
+      arr.sort((x, y) => x.t - y.t);
+      const out = new Map(), pieces = []; let rem = 0;
+      for (const a of arr) { const o = getOuts(a.ai), U = used.get(a.ai);
+        let lo = 0, hi = o.length; while (lo < hi) { const m = (lo + hi) >> 1; if (DB.tx[o[m]][1] < a.t) lo = m + 1; else hi = m; }
+        let need = a.amt;
+        for (let j = lo; j < o.length && need > 0.005; j++) { const i = o[j], av = DB.tx[i][3] - U[j]; if (av <= 0.005) continue;
+          const take = Math.min(av, need); U[j] += take; need -= take;
+          const ci = cpOf(i), d = lid(ci), e = out.get(d) || [0, 0]; e[0] += take; e[1]++; out.set(d, e); pieces.push([d, ci, DB.tx[i][1], take, a.ai]); }
+        rem += need; }
+      const kk = new Set([...out.entries()].sort((x, y) => y[1][0] - x[1][0]).slice(0, N).map((x) => x[0]));
+      cols[c + 1] = new Map();
+      const me = cols[c].get(id); me.out = 0;
+      for (const [d, v] of out) { const dd = kk.has(d) ? d : "o"; nd(c + 1, dd).in += v[0]; me.out += v[0]; lk(c + ":" + id, (c + 1) + ":" + dd, v[0], v[1]); }
+      if (rem > 0.005) { nd(c + 1, "rem").in += rem; lk(c + ":" + id, (c + 1) + ":rem", rem, 0); }
+      if (nst > 0.005) { nd(c + 1, "nst").in += nst; lk(c + ":" + id, (c + 1) + ":nst", nst, nstN); }
+      chain.push(id);
+      const nx = F.chain[k + 1]; arr = []; nst = 0; nstN = 0;
+      if (nx == null) break;
+      for (const [d, ci, t, take, from] of pieces) { if ((kk.has(d) ? d : "o") !== nx) continue; const dai = accOfCp(ci); if (dai < 0 || dai === from) { nst += take; nstN++; } else arr.push({ ai: dai, t, amt: take }); }
+    }
+  } else for (let k = 0; k < F.chain.length; k++) {
     const c = 2 + k, id = F.chain[k];
     if (!cols[c] || !cols[c].has(id)) break;
     const src = srcAccs(id); if (!src.length) break;
@@ -1170,6 +1207,7 @@ function flowInfo(id) {
   if (id === "o" || id === "O") return { lab: "อื่นๆ (รวม)", sub: "", col: "#B0B8C4" };
   if (id === "D") return { lab: DNQ ? DNQ.name : "ผู้บริจาค", sub: "ผู้บริจาค", col: "#F9A825" };
   if (id === "rem") return { lab: "ยังไม่พบรายการโอนออกต่อ (คงอยู่ในบัญชี)", sub: "", col: "#90A4AE" };
+  if (id === "nst") return { lab: "บัญชีปลายทางไม่มี statement (ไล่ต่อไม่ได้)", sub: "", col: "#B0BEC5" };
   if (id === "und") return { lab: "ยอดรวมรายย่อย (ไม่มีวันที่รายครั้ง ไล่ต่อไม่ได้)", sub: "", col: "#CFD8DC" };
   if (t === "g" || t === "G") return { lab: DB.groups[k][1].split(" (")[0], sub: "", col: DB.groups[k][2] };
   if (t === "c") { const c = DB.cps[k]; return { lab: c[1] || (c[0] ? `${c[2]} ${c[0]}` : DB.groups[c[3]][1].split(" (")[0]), sub: `${c[2]} ${c[0]}`.trim(), col: DB.groups[c[3]][2] }; }
@@ -1214,7 +1252,7 @@ function drawFlow(box, pair) {
       (two ? `<text x="${tx}" y="${(cy - 3).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, mc))}${mark}</text><text x="${tx}" y="${(cy + 12).toFixed(1)}" text-anchor="${an}" class="fl2">${amt}${wide && f.sub && (isL || last) ? " · " + esc(cut(f.sub, 22)) : ""}</text>`
         : `<text x="${tx}" y="${(cy + 4).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, Math.max(8, mc - 6)))}${mark} <tspan class="fl2">${ci === 1 ? M(n.v) : amt}</tspan></text>`) + `</g>`;
   }));
-  const hdT = (ci) => (dn ? (ci === 0 ? "ผู้บริจาค" : ci === 1 ? "บัญชีรับบริจาค" : `โอนต่อ ทอด ${ci - 1}`) : ci === 0 ? "เงินเข้าจาก" : ci === 1 ? "บัญชี (statement)" : ci === 2 ? "เงินออกไป (ทอด 1)" : `ทอด ${ci - 1}`);
+  const hdT = (ci) => (dn ? (ci === 0 ? "ผู้บริจาค" : ci === 1 ? "บัญชีรับบริจาค" : `โอนต่อ ทอด ${ci - 1}`) : ci === 0 ? "เงินเข้าจาก" : ci === 1 ? "บัญชี (statement)" : ci === 2 ? "เงินออกไป (ทอด 1)" : `ทอด ${ci - 1}${F.flt !== false ? " · ไล่ตามเวลา" : ""}`);
   const hd = vis.map((ci, j) => `<text x="${j === 0 && ci === 0 ? LW + bw : LW + j * gap}" y="14" text-anchor="${j === 0 && ci === 0 ? "end" : "start"}" class="flh">${hdT(ci)}</text>`).join("");
   const ban = dn ? `<div class="dnban" style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:8px 10px;margin:0 0 6px;font-size:.86rem"><b>ไล่เงินผู้บริจาค:</b> ${esc(dn.name)} — บริจาครวม ${fmt(dn.total)} บาท (${fmt0(dn.n)} ครั้งที่มีวันเวลา) · ไล่ตามรายการโอนออกถัดไปตามเวลาจนครบยอด${dn.rem > 0.5 ? ` · ยังไม่พบรายการโอนออกต่อ ${fmt(dn.rem)} บาท` : ""}${dn.undated > 0.5 ? ` · ยอดรวมรายย่อยไม่มีวันที่ ${fmt(dn.undated)} บาท` : ""}
       <button class="chip" data-dnoff="1" style="margin-left:6px">✕ กลับชาร์ตตามตัวกรอง</button><br><span class="muted">เป็นการไล่ตามลำดับเวลา (สันนิษฐาน) ไม่ใช่การระบุตัวเงิน · ไม่ใช้ตัวกรองช่วงเวลา/บัญชี · เปลี่ยน กลุ่ม/รายบัญชี และจำนวนกล่องได้</span></div>` : "";
@@ -1320,13 +1358,19 @@ function accRows() {                                                    // ร�
   const fz = tsFrz().secs.flatMap((s) => s.rows.map((r) => ({ ...r, sec: s.title }))), fzm = new Map(fz.map((r) => [dg(r.acc), r]));
   const sheet = tsR("acc").filter((r) => isNo(r[0]) && r[1]).map((r) => ({ no: r[0], acc: r[1], name: r[2], bank: r[3], ref: r[4], data: r[5], wd: r[6], br: r[8], note: r[9] }));
   const map = new Map();
-  const put = (acc, o) => { const k = dg(acc); if (!k) return; const e = map.get(k) || { k, acc: String(acc), name: "", bank: "", ai: -1 }; for (const [kk, v] of Object.entries(o)) if (v != null && v !== "" && (e[kk] == null || e[kk] === "" || e[kk] === -1)) e[kk] = v; map.set(k, e); };
+  const cardK = (d) => (d.length === 16 && /^[45]/.test(d) ? d.slice(0, 6) + d.slice(-4) : d);   // เลขบัตรเครดิต 16 หลัก -> เลขบัญชีบัตร 10 หลักตาม statement ธนาคาร (ผู้ใช้ชี้ 18 พ.ย. 69)
+  const put = (acc, o) => { const d0 = dg(acc), k = cardK(d0); if (!k) return; if (k !== d0) o = { ...o, card: d0.replace(/(\d{4})(?=\d)/g, "$1 ") }; const e = map.get(k) || { k, acc: String(acc), name: "", bank: "", ai: -1 }; for (const [kk, v] of Object.entries(o)) if (v != null && v !== "" && (e[kk] == null || e[kk] === "" || e[kk] === -1)) e[kk] = v; map.set(k, e); };
   DB.accounts.forEach((a, i) => put(a.acc, { acc: a.acc, name: a.name, bank: a.bank, ai: i, g: a.g }));
   sheet.forEach((r) => put(r.acc, { name: r.name, bank: r.bank, sheet: r }));
   fz.forEach((r) => put(r.acc, { name: r.name, bank: r.bank }));
+  const CCI = (DB.cc && DB.cc.card_info) || [];                          // บัตรเครดิตที่มี statement บัตร (เมนูบัตรเครดิต)
+  CCI.forEach((c) => put(c.acc, { name: DB.cc.holder || "", bank: "KBANK", card: c.full }));
+  const ccAcc = new Map(CCI.map((c) => [c.acc, c])), ccG = CCI.map((c) => cpG.get(c.acc)).find((g) => g != null);
+  map.forEach((e) => { if (e.card) { e.acc = e.k; if (e.g == null && !cpG.has(e.k) && ccG != null) e.g = ccG; } });
   const rows = [...map.values()].map((e) => { const s = e.ai >= 0 ? S[e.ai] : null, x = rx.get(e.k) || { all: 0, t1: 0, n: 0, by: {} }, a = e.ai >= 0 ? DB.accounts[e.ai] : null;
     const g = e.g != null ? e.g : (cpG.has(e.k) ? cpG.get(e.k) : DB.groups.findIndex((gg) => gg[0] === "oth"));
     const st = e.sheet ? e.sheet.data : "";
+    if (e.ai < 0 && ccAcc.has(e.k)) return { ...e, g, s, x, fz: fzm.get(e.k) || null, st: "มี statement บัตรเครดิต", stx: st, cc: ccAcc.get(e.k), bal: null, first: "", last: "" };
     return { ...e, g, s, x, fz: fzm.get(e.k) || null, st: e.ai >= 0 ? "ในระบบวิเคราะห์" : /ได้แล้ว/.test(st) ? "ได้แล้ว รอนำเข้า" : st || "ยังไม่ขอ",
       stx: st, bal: a ? a.bal : null, first: a ? a.first : "", last: a ? a.last : "" }; });
   ACC_ROWS = { rows, T1, f: TEAM().fetched };
@@ -1354,7 +1398,7 @@ function pAccTable() {                                                 // ตา
   const card = (g) => { const rs = rows.filter((r) => r.g === g && pass(r, "g")), u = gsum(rs), isT1 = gcode(g) === "t1";
     return !rs.length ? "" : `<button class="gcard ${AXF.g === String(g) ? "on" : ""}" data-axk="g" data-axv="${g}" style="--c:${gcol(g)}">${coverH(g, rs, 64)}
       <span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · มี STM ${u.stm}</small><small>${isT1 ? `เงินเข้า ${M(u.inn)} · ออก ${M(u.out)}` : `รับจากบัญชีมูลนิธิ ${M(u.t1)}`}</small>${u.fzn ? `<small class="fz">${IC("lock", 11)} อายัด ${u.fzn} บัญชี ${M(u.fz)}</small>` : ""}</span></button>`; };
-  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}</td><td>${esc(r.name)}</td>
+  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}${r.card ? `<br><small class="muted">บัตรเครดิต ${esc(r.card)}</small>` : ""}</td><td>${esc(r.name)}</td>
       <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : ""}</td>
       <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
       <td>${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
