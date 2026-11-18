@@ -539,11 +539,62 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
   let tm; m.oninput = (e) => { if (e.target.id !== "asQ") return; clearTimeout(tm); tm = setTimeout(() => { ASF.q = e.target.value; render(); const x = $("#asQ"); if (x) { x.focus(); x.setSelectionRange(ASF.q.length, ASF.q.length); } }, 300); };
 }
 let ASF = { st: "", type: "", own: "", q: "" };
+let CCS = "";                                                           // บัญชีต้นทางที่เลือกดูชาร์ตการชำระค่าบัตร ("" = ทุกบัญชี)
 function pCc() {                                                        // เมนูบัตรเครดิต (แยกจากหน้าทรัพย์สิน ; ผู้สั่งงาน 18 พ.ย. 69)
   const m = $("#main");
   if (!DB.cc) { m.innerHTML = '<p class="muted">ยังไม่มีข้อมูลบัตรเครดิต</p>'; return; }
   m.innerHTML = ccBlock(DB.cc);
   ccCharts(DB.cc);
+  ccPayView(DB.cc);
+  m.onclick = (e) => { const tr = e.target.closest("tr[data-ccs]"), b = e.target.closest("[data-ccg]");
+    if (b) { const ai = DB.accounts.findIndex((a) => dg(a.acc) === dg(b.dataset.ccg)); if (ai < 0) return; resetF(); F.accs.add(ai); F.q = "441770"; F.flm = "d"; return go("ana"); }
+    if (!tr || e.target.closest("button")) return;
+    CCS = CCS === tr.dataset.ccs ? "" : tr.dataset.ccs; ccPayView(DB.cc); $("#ccPay").scrollIntoView({ behavior: "smooth", block: "start" }); };
+  m.onchange = (e) => { if (e.target.id === "ccSrc") { CCS = e.target.value; ccPayView(DB.cc); } };
+}
+// ชาร์ต "ค่าบัตรจ่ายโดยบัญชีใด" (ผู้สั่งงาน 18 พ.ย. 69): บัญชีต้นทาง -> บัตร + รายเดือน + รายการรายครั้ง ; กดแถวบัญชีต้นทางในตารางเพื่อดูเฉพาะบัญชีนั้น
+function miniFlow(el, L, R, links) {                                    // L, R: [{id, lab, sub, v, col}] ; links: [{a, b, v}]
+  const W = Math.max(560, el.clientWidth || 760), LW = W > 900 ? 360 : 200, bw = 14, pad = 8, tot = L.reduce((t, x) => t + x.v, 0) || 1;
+  const H0 = Math.max(180, Math.max(L.length, R.length) * 48), sc = (H0 - pad * (Math.max(L.length, R.length) - 1)) / tot;
+  const put = (A) => { let y = 22; A.forEach((n) => { n.h = Math.max(16, n.v * sc); n.y = y; n.o = y; y += n.h + pad; }); return y; };
+  const H = Math.max(put(L), put(R)), xL = LW, xR = W - (W > 900 ? 300 : 170) - bw, cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
+  const byL = Object.fromEntries(L.map((n) => [n.id, n])), byR = Object.fromEntries(R.map((n) => [n.id, n]));
+  let svg = `<text x="${xL + bw}" y="13" text-anchor="end" class="flh">บัญชีที่จ่าย</text><text x="${xR}" y="13" class="flh">บัตรเครดิต</text>`;
+  links.forEach((l) => { const a = byL[l.a], b = byR[l.b]; if (!a || !b) return; const th = Math.max(1, l.v * sc), y0 = a.o + th / 2, y1 = b.o + th / 2, mx = (xL + bw + xR) / 2; a.o += th; b.o += th;
+    svg += `<path class="fl" d="M${xL + bw},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${xR},${y1.toFixed(1)}" stroke="${a.col}" stroke-width="${th.toFixed(1)}" data-tip="${esc(a.lab)} → ${esc(b.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)"><title>${esc(a.lab)} → ${esc(b.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)</title></path>`; });
+  L.forEach((n) => { svg += `<g><rect x="${xL}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xL - 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" text-anchor="end" class="fl1">${esc(cut(n.lab, W > 900 ? 44 : 24))}</text><text x="${xL - 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" text-anchor="end" class="fl2">${M(n.v)} · ${esc(n.sub)}</text></g>`; });
+  R.forEach((n) => { svg += `<g><rect x="${xR}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" class="fl1">${esc(cut(n.lab, 34))}</text><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" class="fl2">${M(n.v)} · ${esc(n.sub)}</text></g>`; });
+  el.innerHTML = `<svg width="${W}" height="${Math.ceil(H + 6)}" viewBox="0 0 ${W} ${Math.ceil(H + 6)}">${svg}</svg>`;
+}
+function ccPayView(C) {
+  const box = $("#ccPay"); if (!box) return;
+  const P = (C.pay && C.pay.list) || [];
+  if (!P.length) { box.innerHTML = ""; return; }
+  const NONE = "(ไม่พบ)", nm = Object.fromEntries(C.pay.src.map((s) => [s.acc, s])), key = (r) => r[3] || NONE;
+  const srcs = [...new Set(P.map(key))], sel = srcs.includes(CCS) || (CCS && /^\(/.test(CCS)) ? (srcs.includes(CCS) ? CCS : NONE) : "";
+  const rows = P.filter((r) => !sel || key(r) === sel), tot = rows.reduce((t, r) => t + r[2], 0);
+  const lab = (k) => (k === NONE ? "ไม่พบบัญชีต้นทาง" : (nm[k] ? nm[k].name : k).replace(/^KBNK /, "KBANK ")), col = (k) => (k === NONE ? "#9AA5B4" : nm[k] && nm[k].t1 ? "#B3261E" : "#00264D");
+  const CARDC = { "4615": "#1565C0", "4260": "#6A1B9A", "6834": "#00897B", "7787": "#F9A825" }, cinfo = Object.fromEntries((C.card_info || []).map((c) => [c.card, c]));
+  const HOWL = ["", "เลขบัญชีบัตร", "ยอด + วันที่", "ถอนเงินสด → เคาน์เตอร์", "ไม่พบ"];
+  const isAcc = sel && sel !== NONE && DB.accounts.some((a) => dg(a.acc) === dg(sel));
+  box.innerHTML = `<h2>${IC("flow")} ค่าบัตรจ่ายโดยบัญชีใด <small>${sel ? esc(lab(sel)) : "ทุกบัญชี"} · ${fmt0(rows.length)} ครั้ง · ${fmt(tot)} บาท — กดแถวบัญชีต้นทางในตารางด้านบนเพื่อดูเฉพาะบัญชี</small></h2>
+  <div class="fline" style="margin-bottom:8px">${fSel('id="ccSrc"', sel, `ทุกบัญชีต้นทาง · ${fmt0(P.length)} ครั้ง`, srcs.map((k) => [k, `${lab(k)} · ${fmt0(P.filter((r) => key(r) === k).length)} ครั้ง`]))}
+    ${isAcc ? `<button class="chip" data-ccg="${esc(sel)}">${IC("flow", 13)} ดูในหน้าวิเคราะห์</button>` : ""}</div>
+  <div class="card flowcard"><div id="ccFl" class="flow"></div></div>
+  <div class="card" style="margin-top:10px"><div class="lab" style="margin-top:0">รายเดือน (ล้านบาท) — ${sel ? "แยกตามบัตร" : "แยกตามบัญชีที่จ่าย"}</div><div class="chartbox"><canvas id="cCcP"></canvas></div></div>
+  ${accd(`${IC("list", 16)} รายการชำระรายครั้ง`, `${fmt0(rows.length)} ครั้ง`, `<div class="tblwrap tall"><table><tr><th>วันเวลาโอน (ธนาคาร)</th><th>บัญชีที่จ่าย</th><th>บัตร</th><th class="n">ยอด (บาท)</th><th>วิธีจับคู่</th></tr>${rows.map((r) => `<tr><td>${ccTm(r[0])}</td><td>${nm[r[3]] && nm[r[3]].t1 ? `<b style="color:var(--red)">${esc(lab(key(r)))}</b>` : esc(lab(key(r)))}</td><td>x${esc(r[1])}</td><td class="n">${fmt(r[2])}</td><td>${HOWL[r[4]] || ""}</td></tr>`).join("")}</table></div>`, !!sel)}`;
+  const agg = (kf) => { const m = new Map(); rows.forEach((r) => { const k = kf(r), e = m.get(k) || [0, 0]; e[0] += r[2]; e[1]++; m.set(k, e); }); return m; };
+  const aL = agg(key), aR = agg((r) => r[1]), aK = agg((r) => key(r) + "|" + r[1]);
+  const L = [...aL.entries()].sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => ({ id: k, lab: lab(k), sub: `${fmt0(v[1])} ครั้ง`, v: v[0], col: col(k) }));
+  const R = [...aR.entries()].sort((a, b) => b[1][0] - a[1][0]).map(([k, v]) => ({ id: k, lab: cinfo[k] ? cinfo[k].full : "x" + k, sub: `${fmt0(v[1])} ครั้ง`, v: v[0], col: CARDC[k] || "#5B6B7F" }));
+  const links = [...aK.entries()].map(([k, v]) => ({ a: k.split("|")[0], b: k.split("|")[1], v: v[0], n: v[1] })).sort((a, b) => L.findIndex((x) => x.id === a.a) - L.findIndex((x) => x.id === b.a) || R.findIndex((x) => x.id === a.b) - R.findIndex((x) => x.id === b.b));
+  miniFlow($("#ccFl"), L, R, links);
+  enhance && enhance(box);
+  if (CH.ccP) { CH.ccP.destroy(); delete CH.ccP; }
+  const ms = [...new Set(rows.map((r) => String(r[0]).slice(0, 7)))].sort(), ser = sel ? R.map((x) => [x.id, x.lab, x.col, (r) => r[1]]) : L.map((x) => [x.id, x.lab, x.col, key]);
+  CH.ccP = new Chart($("#cCcP"), { type: "bar", data: { labels: ms.map((m) => `${MTH[+m.slice(5)]} ${String(+m.slice(0, 4) + 543).slice(2)}`),
+      datasets: ser.map(([id, l, c, kf]) => ({ label: l.length > 40 ? l.slice(0, 39) + "…" : l, backgroundColor: c, stack: "s", data: ms.map((m) => rows.filter((r) => String(r[0]).slice(0, 7) === m && kf(r) === id).reduce((t, r) => t + r[2], 0) / 1e6) })) },
+    options: { maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } } } });
 }
 const NATC = { per: "#B3261E", chr: "#1B7A4A", fin: "#9E9E9E" };
 const ccTm = (t) => (String(t).length > 10 ? `${dTh(String(t).slice(0, 10))} ${String(t).slice(11)}` : dTh(t));
@@ -565,10 +616,11 @@ function ccBlock(C) {
   ${RF.length ? `<p class="muted" style="font-size:.86rem;margin:.5em 0 0">${IC("warn", 14)} ยอดเงินเกินในบัตรที่โอนคืนเข้าบัญชีเงินฝาก: ${RF.map((r) => `บัตร x${r.card} ${dTh(r.d)} <b>${fmt(r.amt)}</b> บาท → ${esc((r.name || "ไม่พบใน statement ธนาคาร").replace(/^KBNK /, "KBANK "))}${r.time ? " (" + esc(r.time) + ")" : ""}`).join(" ; ")}</p>` : ""}` : ""}
   <h2>${IC("bank")} เงินที่ใช้ชำระค่าบัตรมาจากบัญชีใด <small>จับคู่ statement ธนาคาร ยอดเท่ากัน ห่าง ≤ 3 วัน</small></h2>
   <div class="tblwrap"><table><tr><th>บัญชีต้นทาง</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th class="n">ก่อนตั้งมูลนิธิ</th><th class="n">หลังตั้งมูลนิธิ</th></tr>
-    ${C.pay.src.map((s) => `<tr><td>${s.t1 ? `<b style="color:var(--red)">${esc(s.name.replace(/^KBNK /, "KBANK "))}</b> <span class="badge r">บัญชีรับบริจาค</span>` : esc(s.name.replace(/^KBNK /, "KBANK "))}</td><td class="n">${fmt(s.amt)}</td><td class="n">${fmt0(s.n)}</td><td class="n">${fmt(s.before)}</td><td class="n">${fmt(s.after)}</td></tr>`).join("")}
+    ${C.pay.src.map((s) => `<tr class="click" data-ccs="${esc(s.acc)}" title="กดเพื่อดูชาร์ตการชำระของบัญชีนี้"><td>${s.t1 ? `<b style="color:var(--red)">${esc(s.name.replace(/^KBNK /, "KBANK "))}</b> <span class="badge r">บัญชีรับบริจาค</span>` : esc(s.name.replace(/^KBNK /, "KBANK "))}</td><td class="n">${fmt(s.amt)}</td><td class="n">${fmt0(s.n)}</td><td class="n">${fmt(s.before)}</td><td class="n">${fmt(s.after)}</td></tr>`).join("")}
     ${(C.pay.bank_unmatched.by || []).map((r) => `<tr><td>${esc(r[0].replace(/^KBNK /, "KBANK "))} <small class="muted">(ไม่อยู่ใน statement บัตรชุดนี้)</small></td><td class="n">${fmt(r[1])}</td><td class="n">${fmt0(r[2])}</td><td></td><td></td></tr>`).join("")}</table></div>
   ${(C.pay.how || []).length ? `<p class="muted" style="font-size:.84rem;margin:.5em 0 0">วิธีจับคู่: ${C.pay.how.map((h) => `${esc(h.how)} <b>${fmt(h.amt)}</b> บาท (${fmt0(h.n)} ครั้ง)`).join(" · ")}</p>` : ""}
   ${(C.pay.cash || []).map((c) => `<p style="font-size:.9rem;margin:.4em 0 0">${IC("warn", 14)} ชำระบัตร x${c.card} ที่เคาน์เตอร์ <b>${fmt(c.amt)}</b> บาท เมื่อ ${dTh(c.d)} ตรงกับการถอนเงินสดยอดเท่ากันจาก <b style="color:var(--red)">${esc(c.name.replace(/^KBNK /, "KBANK "))}</b> เวลา ${esc(c.time)}</p>`).join("")}
+  <div id="ccPay"></div>
   ${(C.pay_big || []).length || (C.trace || []).length ? `<h2>${IC("clock")} ตารางเวลาเส้นเงินที่ใช้ชำระค่าบัตร <small>ส่วนสืบสวน · เวลาจาก statement ธนาคาร (รายการในบัตรมีเฉพาะวันที่)</small></h2>` : ""}
   ${(C.pay_big || []).length ? accd(`${IC("list", 16)} รายการชำระค่าบัตรตั้งแต่ 300,000 บาท เรียงตามเวลา`, `${C.pay_big.length} รายการ · ${M(C.pay_big.reduce((t, x) => t + x.amt, 0))}`,
     `<div class="tblwrap"><table><tr><th>วันเวลาโอน (ธนาคาร)</th><th>บัญชีต้นทาง</th><th>บัตร</th><th class="n">ยอดชำระ (บาท)</th><th>วิธีจับคู่</th><th>รายการใช้บัตรวันเดียวกัน / ใกล้เคียง</th></tr>${C.pay_big.map((x) => `<tr><td>${ccTm(x.t)}</td><td>${x.t1 ? `<b style="color:var(--red)">${esc(x.src.replace(/^KBNK /, "KBANK "))}</b>` : esc(x.src.replace(/^KBNK /, "KBANK "))}</td><td>x${esc(x.card)}</td><td class="n"><b>${fmt(x.amt)}</b></td><td>${["", "เลขบัญชีบัตร", "ยอด + วันที่", "ถอนเงินสด → เคาน์เตอร์", "ไม่พบ"][x.how] || ""}</td><td>${esc(x.use || "")}</td></tr>`).join("")}</table></div>`) : ""}
