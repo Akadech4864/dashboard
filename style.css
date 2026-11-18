@@ -364,3 +364,33 @@ th.srt small,th .sx{color:#FFD403;font-weight:700}
 .ghd{display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap}
 .ghd .ga{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
 .gsec .tblwrap{border:0;border-top:1px solid var(--line);border-radius:0;margin:0}
+
+/* v20: แผงตัวกรองหน้าวิเคราะห์แบบมินิมอล + รูปในตารางข้อหา */
+.fcard{padding:10px 12px;margin-top:12px}
+.fline{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.fline + .fline{margin-top:8px}
+.sbox{flex:1 1 240px;display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:10px;padding:0 10px;background:#F7F9FC;color:var(--mut);min-width:0}
+.sbox:focus-within{border-color:var(--navy);background:#fff}
+.sbox input{flex:1;min-width:0;border:0;background:transparent;outline:0;padding:8px 0;color:var(--ink)}
+.sgo{border:0;background:transparent;color:var(--navy);padding:4px;display:flex}
+.pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:5px 12px;font-size:.86rem;color:#34435A;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.pill[data-dd]::after{content:"▾";margin-left:6px;color:var(--mut);font-size:.8em}
+.pill.on{border-color:var(--navy);color:var(--navy);font-weight:700;background:#EEF3FA}
+.pill.open{box-shadow:0 0 0 2px var(--yel)}
+.pill.x{border-color:transparent;background:transparent;color:var(--red);padding:5px 4px}
+.pin{border:1px solid var(--line);border-radius:999px;padding:5px 12px;font-size:.86rem;width:158px;background:#fff}
+.pin.on{border-color:var(--navy);background:#EEF3FA;font-weight:700}
+.fsum{margin-left:auto;font-size:.8rem}
+.ddp{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);display:grid;gap:8px}
+.ddp[hidden]{display:none}
+.fltools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-2px 0 8px}
+.fltools select,.ddp select{border:1px solid var(--line);border-radius:999px;padding:4px 10px;background:#fff;font-size:.84rem;color:#34435A}
+.dnres:not(:empty){background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-top:10px}
+details.fnote{font-size:.8rem;color:var(--mut);margin:.5em 0 0}
+details.fnote summary{cursor:pointer}
+details.fnote p{margin:.4em 0 0}
+.cmx th.pt,.cmx td.pt{width:64px;padding:4px 6px}
+.tph{width:52px;height:60px;object-fit:cover;border-radius:8px;background:#E8EDF5;display:flex;align-items:center;justify-content:center;color:#8FA0B5}
+select.pill{padding:5px 8px 5px 12px;max-width:260px;cursor:pointer}
+button.pill.on{background:var(--navy);color:#fff}
+.pill[data-dd].on{background:#EEF3FA;color:var(--navy)}

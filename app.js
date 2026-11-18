@@ -270,7 +270,7 @@ const acts2 = (sec, id) => `<div class="acts in"><button onclick="editItem('${se
 const icFor = (t) => (/มูลนิธิ|บริษัท|นิติบุคคล/.test(t) ? "build" : /บัญชี|ธนาคาร/.test(t) ? "bank" : /วัน|ช่วง|เวลา|ลำดับ/.test(t) ? "cal" : /ผู้ต้องหา|บุคคล|กรรมการ|ผู้เสียหาย|ผู้บริจาค/.test(t) ? "users" : /ข้อหา|กฎหมาย|มาตรา|ศาล|หมาย/.test(t) ? "scale" : /เงิน|ยอด|บริจาค|ทรัพย์/.test(t) ? "coin" : /หน่วย|สอบสวน|ตำรวจ/.test(t) ? "shield" : "doc");
 const stDot = (s) => `<span class="dot" style="background:${/ค้าง|ต้อง|รอ|ยัง/.test(s || "") ? "var(--red)" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s || "") ? "var(--green)" : s ? "#E0A800" : "#B8C2CF"}"></span>`;
 const sico = (ic, cls) => `<span class="ico s ${cls || ""}">${IC(ic, 18)}</span>`;
-let EVY = "", CHV = -1, DFF = "", WKF = "todo", CHF = [];
+let EVY = "", CHV = -1, DFF = "", WKF = "todo", CHF = "";
 function pCase() {
   const ev = [...C.events].sort((a, b) => String(a.date).localeCompare(String(b.date)));
   const yrs = [...new Set(ev.map((e) => String(e.date).slice(0, 4)).filter((y) => /^\d{4}$/.test(y)))];
@@ -278,10 +278,13 @@ function pCase() {
   $("#main").innerHTML = `<h2>${IC("book")} รายละเอียดคดี <small>${C.case.length} หัวข้อ</small> ${addBtn("case")}</h2>
   <div class="accs">${C.case.map((s) => accd(`${sico(icFor(s.title))} ${esc(s.title)}`, "", `<div class="pgd">${esc(s.detail)}</div>${acts2("case", s.id)}`, wide)).join("")}</div>
   <h2>${IC("cal")} ลำดับเหตุการณ์ <small>${show.length} / ${ev.length} เหตุการณ์</small> ${addBtn("events")}</h2>
-  <div class="frow"><button class="chip ${!EVY ? "on" : ""}" data-ey="">ทั้งหมด</button>${yrs.map((y) => `<button class="chip ${EVY === y ? "on" : ""}" data-ey="${y}">${IC("cal", 14)} ${+y + 543} · ${ev.filter((e) => String(e.date).startsWith(y)).length}</button>`).join("")}</div>
+  <div class="fline" style="margin-bottom:8px">${fSel('id="evY"', EVY, `ทุกปี · ${ev.length} เหตุการณ์`, yrs.map((y) => [y, `ปี ${+y + 543} · ${ev.filter((e) => String(e.date).startsWith(y)).length} เหตุการณ์`]))}</div>
   <div class="accs">${show.map((e) => accd(`<span class="dt">${dTh(e.date)}</span> ${esc(e.title)}`, "", `<div class="pgd">${esc(e.detail)}</div>${acts2("events", e.id)}`, false, "tlr")).join("")}</div>${newsBlock()}`;
-  $("#main").onclick = (e) => { const b = e.target.closest("[data-ey]"); if (b) { EVY = b.dataset.ey; render(); } };
+  $("#main").onchange = (e) => { if (e.target.id === "evY") { EVY = e.target.value; render(); } };
 }
+const fSel = (attr, cur, allLab, opts) => `<select class="pill fsel ${cur !== "" && cur != null ? "on" : ""}" ${attr}><option value="">${esc(allLab)}</option>${opts.map(([v, l]) => `<option value="${esc(v)}"${String(cur) === String(v) ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
+const fSearch = (id, val, ph) => `<label class="sbox">${IC("search", 16)}<input type="search" id="${id}" value="${esc(val)}" placeholder="${ph}"></label>`;
+const fClr = (attr, on) => (on ? `<button class="pill x" ${attr}>✕ ล้างตัวกรอง</button>` : "");
 function pCharges() {
   // ผู้ต้องหาและข้อหา: หมวดข้อหา (กดกรอง) + ตารางใครถูกแจ้งข้อหาใด + การ์ดรายบุคคล (ผู้สั่งงาน 17 พ.ย. 69)
   const CATS = [["fraud", "ฉ้อโกงประชาชน", /ฉ้อโกง/, "scale", "#B3261E"], ["com", "พ.ร.บ.คอมพิวเตอร์", /คอมพิวเตอร์|ข้อมูล(อัน)?เป็นเท็จ/, "doc", "#1565C0"], ["aml", "ฟอกเงิน", /ฟอกเงิน/, "coin", "#6A1B9A"]];
@@ -295,24 +298,29 @@ function pCharges() {
     parts.forEach((x) => { const head = x.split(" — ")[0]; let hit = false; CATS.forEach(([k, , rx]) => { if (rx.test(head)) { cats.add(k); hit = true; } }); if (!hit) other.push(head); });
     return { s, i, parts, cats, other, img: pic(s), sh: sheet(s) };
   });
-  const sel = CHF.filter((k) => CATS.some((c) => c[0] === k));
-  const show = P.filter((p) => !sel.length || sel.every((k) => p.cats.has(k)));
-  const tile = (k, l, ic, col) => { const n = P.filter((p) => p.cats.has(k)).length; return `<button class="tile ${sel.includes(k) ? "on" : ""}" data-cf="${k}"><span class="ico" style="background:${col};color:#fff">${IC(ic)}</span><span class="v">${n}<small> ราย</small></span><span class="l">${esc(l)}</span></button>`; };
+  // การ์ดสรุป = ชุดข้อหาของแต่ละคน (ครบทุกข้อหา / ฟอกเงินอย่างเดียว / …) — 1 คนอยู่การ์ดเดียว ผลรวมการ์ด = จำนวนผู้ต้องหา
+  const cKey = (p) => CATS.filter((c) => p.cats.has(c[0])).map((c) => c[0]).join("+") || "none";
+  const COMBO = []; P.forEach((p) => { const k = cKey(p); let c = COMBO.find((x) => x.k === k); if (!c) COMBO.push((c = { k, n: 0 })); c.n++; });
+  COMBO.sort((a, b) => (a.k === "none") - (b.k === "none") || b.k.split("+").length - a.k.split("+").length || b.n - a.n);
+  const cNames = (k) => (k === "none" ? [] : k.split("+").map((x) => CATS.find((c) => c[0] === x)[1]));
+  const cLab = (k) => { const nm = cNames(k); return !nm.length ? "ข้อหาอื่น" : nm.length === CATS.length ? "ครบทุกข้อหา" : nm.length === 1 ? nm[0] + " อย่างเดียว" : nm.join(" + "); };
+  const sel = COMBO.some((c) => c.k === CHF) ? CHF : "";
+  const show = P.filter((p) => !sel || cKey(p) === sel);
+  const tile = (c) => { const ks = c.k === "none" ? [] : c.k.split("+"), one = ks.length === 1 ? CATS.find((x) => x[0] === ks[0]) : null;
+    return `<button class="tile ${sel === c.k ? "on" : ""}" data-cf="${c.k}"><span class="ico" style="background:${one ? one[4] : "var(--navy)"};color:#fff">${IC(one ? one[3] : "scale")}</span><span class="v">${c.n}<small> ราย</small></span><span class="l">${esc(cLab(c.k))}</span>${ks.length > 1 ? `<span class="s">${esc(cNames(c.k).join(" + "))}</span>` : ""}</button>`; };
   const tick = (on, col) => (on ? `<span class="ck" style="background:${col}">${IC("check", 15)}</span>` : `<span class="ck no">–</span>`);
   const stat = (p) => { const st = p.s.status || ""; const sh = p.sh; return `${st ? badge(st) : ""}${sh ? ` <span class="badge y">${IC("cal", 12)} ${esc(sh.issue.replace(/\s+/g, " ").replace(/^แจ้งข้อกล่าวหา\s*/, "นัดแจ้งข้อกล่าวหา "))} ${esc(sh.date)}${sh.time ? " " + esc(sh.time) : ""}${sh.st ? " · " + esc(sh.st) : ""}</span>` : ""}`; };
   const m = $("#main");
-  m.innerHTML = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย · กดหมวดข้อหาเพื่อกรอง (เลือกหลายหมวด = ต้องมีครบทุกข้อหาที่เลือก)</small> ${addBtn("charges")}</h2>
-  <div class="tiles">${CATS.map(([k, l, , ic, col]) => tile(k, l, ic, col)).join("")}<button class="tile ${!sel.length ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ทั้งหมด</span></button></div>
-  <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย</small></h2>
-  <div class="tblwrap"><table class="cmx"><tr><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
-    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
+  m.innerHTML = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย · กดการ์ดเพื่อกรองตาราง</small> ${addBtn("charges")}</h2>
+  <div class="tiles"><button class="tile ${!sel ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ผู้ต้องหาทั้งหมด</span></button>${COMBO.map(tile).join("")}</div>
+  <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย${sel ? " · " + esc(cLab(sel)) : ""}</small></h2>
+  <div class="tblwrap"><table class="cmx"><tr><th class="pt">รูป</th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
+    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="pt">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
   </table></div>
-  ${CATS.map(([k, l, , ic, col]) => { const v = show.filter((p) => p.cats.has(k)); return v.length ? `<h3 class="pch"><span class="dot" style="background:${col}"></span>${IC(ic, 16)} ${esc(l)} <small>${v.length}</small></h3>
-    <div class="pgrid">${v.map((p) => `<button class="pcard" data-c="${p.i}" style="--c:${col}">${p.img ? thumbEl(p.img) : `<span class="ph">${IC("user", 30)}</span>`}<b>${esc(p.s.title)}</b><small>${esc(p.s.extra1)}</small></button>`).join("")}</div>` : ""; }).join("")}
-  <p class="muted" style="font-size:.82rem">ข้อหาตามเนื้อหาที่บันทึกในเว็บ (ตามข่าว / มติ) ; วันนัดแจ้งข้อกล่าวหาจากแท็บ "คุมหมายเรียกผู้ต้องหา" ของชีตชุดทำคดี — กดชื่อเพื่อดูข้อหารายข้อ</p>`;
+  <p class="muted" style="font-size:.82rem">ข้อหาตามเนื้อหาที่บันทึกในเว็บ (ตามข่าว / มติ) ; วันนัดแจ้งข้อกล่าวหาจากแท็บ "คุมหมายเรียกผู้ต้องหา" ของชีตชุดทำคดี — กดแถวเพื่อดูข้อหารายข้อ</p>`;
   m.onclick = (e) => {
     const b = e.target.closest("[data-cf],[data-c],.back"); if (!b) return;
-    if (b.dataset.cf != null) { const k = b.dataset.cf; CHF = !k ? [] : CHF.includes(k) ? CHF.filter((x) => x !== k) : [...CHF, k]; render(); return; }
+    if (b.dataset.cf != null) { CHF = b.dataset.cf === sel ? "" : b.dataset.cf; render(); return; }
     if (b.dataset.c != null) {
       const p = P[+b.dataset.c];
       openModal(`<div class="prof">${p.img ? `<span class="pf">${thumbEl(p.img)}</span>` : `<span class="pf ph">${IC("user", 44)}</span>`}<div><h3>${esc(p.s.title)}</h3><div class="muted">${esc(p.s.extra1)}</div><div style="margin-top:6px">${stat(p)}</div></div></div>
@@ -510,9 +518,10 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
   m.innerHTML = `<h2>${IC("coin")} ทรัพย์สินส่วนตัว <small>${tsStamp()}</small> ${syncBtn()}</h2>
   <div class="tiles"><button class="tile ${!ASF.type && !ASF.st && !ASF.own && !ASF.q ? "on" : ""}" data-ak="clear"><span class="ico y">${IC("coin")}</span><span class="v">${M(all)}</span><span class="l">1. มูลค่าทรัพย์สินส่วนตัว</span><span class="s">${cnt(mine)} รายการ · ผลรวมการ์ดข้อ 2–${CARDS.length + 1}</span></button>
     ${CARDS.map((c, i) => tcard(c, i + 2)).join("")}</div>
-  <div class="frow" style="margin-top:12px"><label>สถานะ</label>${Object.entries(AST).map(([k, v]) => `<button class="chip ${ASF.st === k ? "on" : ""}" data-ak="st" data-av="${k}"><span class="badge ${v[1]}" style="margin-right:4px">${v[0]}</span>${cnt((r) => r.st === k)} รายการ · ${M(sum((r) => r.st === k))}</button>`).join("")}</div>
-  <div class="frow"><label>เจ้าของ</label>${owners.map((o) => `<button class="chip ${ASF.own === o ? "on" : ""}" data-ak="own" data-av="${esc(o)}">${esc(o)} ${cnt((r) => r.own === o)}</button>`).join("")}
-    <input type="search" id="asQ" value="${esc(ASF.q)}" placeholder="ค้นหาทรัพย์สิน / ที่ตั้ง / หมายเหตุ"><button class="btn o" data-ak="clear">ล้างตัวกรอง</button></div>
+  <div class="card fcard"><div class="fline">${fSearch("asQ", ASF.q, "ค้นหาทรัพย์สิน / ที่ตั้ง / หมายเหตุ")}
+    ${fSel('data-as="st"', ASF.st, "ทุกสถานะ", Object.entries(AST).map(([k, v]) => [k, `${v[0]} · ${cnt((r) => r.st === k)} รายการ · ${M(sum((r) => r.st === k))}`]))}
+    ${fSel('data-as="own"', ASF.own, "ทุกเจ้าของ / ที่พบ", owners.map((o) => [o, `${o} · ${cnt((r) => r.own === o)}`]))}
+    ${fClr('data-ak="clear"', ASF.st || ASF.type || ASF.own || ASF.q)}</div></div>
   <h2>${IC("list")} รายการทรัพย์สิน <small>${show.length} / ${R.length} รายการ · ${M(show.reduce((t, r) => t + (r.val || 0), 0))}</small></h2>
   <div class="tblwrap tall"><table><tr><th>#</th><th>ประเภท</th><th>ทรัพย์สิน</th><th>เจ้าของ / ที่พบ</th><th class="n">มูลค่า (บาท)</th><th>สถานะ</th><th>หมายเหตุ</th></tr>
     ${show.map((r, i) => `<tr${r.go ? ` class="click" data-go="${r.go}"` : ""}><td>${i + 1}</td><td>${IC(r.ic, 14)} ${esc(r.type)}</td><td><b>${esc(r.name)}</b>${r.sub ? `<br><small class="muted">${esc(r.sub)}</small>` : ""}</td><td>${esc(r.own)}</td><td class="n">${r.val ? fmt0(r.val) : "–"}</td><td><span class="badge ${AST[r.st][1]}">${AST[r.st][0]}</span></td><td><small>${esc(r.note)}</small></td></tr>`).join("")}</table></div>
@@ -523,6 +532,7 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
     if (!b || tsClick(b)) return; const k = b.dataset.ak; if (!k) return;
     if (k === "cc") return go("cc");
     if (k === "clear") ASF = { st: "", type: "", own: "", q: "" }; else ASF[k] = ASF[k] === b.dataset.av ? "" : b.dataset.av; render(); };
+  m.onchange = (e) => { const k = e.target.dataset.as; if (!k) return; ASF[k] = e.target.value; render(); };
   let tm; m.oninput = (e) => { if (e.target.id !== "asQ") return; clearTimeout(tm); tm = setTimeout(() => { ASF.q = e.target.value; render(); const x = $("#asQ"); if (x) { x.focus(); x.setSelectionRange(ASF.q.length, ASF.q.length); } }, 300); };
 }
 let ASF = { st: "", type: "", own: "", q: "" };
@@ -603,9 +613,10 @@ function pWork() {
     <div class="split">${Object.entries(WST).map(([k, v]) => `<i style="width:${R.length ? R.filter((r) => r.st === k).length / R.length * 100 : 0}%;background:${v[2]}"></i>`).join("")}</div>
     <div class="leg">${Object.entries(WST).map(([k, v]) => `<span style="--c:${v[2]}">${v[0]} ${R.filter((r) => r.st === k).length}</span>`).join("")}</div></div>
   <div class="tiles" style="margin-top:12px">${types.map(tcard).join("")}</div>
-  <div class="frow" style="margin-top:12px"><label>สถานะ</label>${Object.entries(WST).map(([k, v]) => `<button class="chip ${WF.st === k ? "on" : ""}" data-wk="st" data-wv="${k}"><span class="dot" style="background:${v[2]}"></span>${v[0]} ${R.filter((r) => pass(r, "st") && r.st === k).length}</button>`).join("")}</div>
-  ${owners.length ? `<div class="frow"><label>ผู้รับผิดชอบ</label>${owners.map((o) => `<button class="chip ${WF.own === o ? "on" : ""}" data-wk="own" data-wv="${esc(o)}">${IC("user", 13)} ${esc(o)} ${R.filter((r) => r.own === o).length}</button>`).join("")}</div>` : ""}
-  <div class="frow"><input type="search" id="wkQ" value="${esc(WF.q)}" placeholder="ค้นหางาน / ชื่อ / รายละเอียด" style="flex:1;min-width:220px"><button class="btn o" data-wk="clear">ล้างตัวกรอง</button><button class="btn" onclick="editItem('todo')">+ เพิ่มงาน</button></div>
+  <div class="card fcard"><div class="fline">${fSearch("wkQ", WF.q, "ค้นหางาน / ชื่อ / รายละเอียด")}
+    ${fSel('data-ws="st"', WF.st, "ทุกสถานะ", Object.entries(WST).map(([k, v]) => [k, `${v[0]} · ${R.filter((r) => pass(r, "st") && r.st === k).length}`]))}
+    ${owners.length ? fSel('data-ws="own"', WF.own, "ทุกผู้รับผิดชอบ", owners.map((o) => [o, `${o} · ${R.filter((r) => r.own === o).length}`])) : ""}
+    ${fClr('data-wk="clear"', WF.type || WF.st || WF.own || WF.q)}</div></div>
   <h2>${IC("list")} ตารางงาน <small>${show.length} / ${R.length} งาน · ค้างอยู่ด้านบน</small></h2>
   <div class="tblwrap tall"><table><tr><th>#</th><th>วันที่</th><th>หมวด</th><th>งาน</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th></th></tr>
     ${show.map((r, i) => `<tr${r.go ? ` class="click" data-go="${r.go}"` : ""}><td>${i + 1}</td><td>${r.date ? dTh(r.date) : ""}</td><td>${IC(r.ic, 14)} ${esc(r.type)}</td><td><b>${esc(r.title)}</b>${r.detail ? `<br><small class="muted">${esc(r.detail.length > 180 ? r.detail.slice(0, 179) + "…" : r.detail)}</small>` : ""}</td><td>${esc(r.own)}</td>
@@ -615,6 +626,7 @@ function pWork() {
     if (tr && !b) return go(tr.dataset.go);
     if (!b || tsClick(b)) return; const k = b.dataset.wk; if (!k) return;
     if (k === "clear") WF = { type: "", st: "", own: "", q: "" }; else WF[k] = WF[k] === b.dataset.wv ? "" : b.dataset.wv; render(); };
+  m.onchange = (e) => { const k = e.target.dataset.ws; if (!k) return; WF[k] = e.target.value; render(); };
   let tm; m.oninput = (e) => { if (e.target.id !== "wkQ") return; clearTimeout(tm); tm = setTimeout(() => { WF.q = e.target.value; render(); const x = $("#wkQ"); if (x) { x.focus(); x.setSelectionRange(WF.q.length, WF.q.length); } }, 300); };
 }
 
@@ -651,7 +663,7 @@ function prep() {
 }
 let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
 const fSnap = () => ({ ...F, accs: new Set(F.accs), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: [...(F.chain || [])] });
-function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "all", pq: new Set(), chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
+function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
 function filterTx() {
   const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
   const out = [];
@@ -674,41 +686,46 @@ function pAna() {
   const usedCpg = [...new Set(DB.cps.map((c) => c[3]))].sort((x, y) => x - y);
   const yrs = []; for (let y = +DB.lo.slice(0, 4); y <= +DB.hi.slice(0, 4); y++) yrs.push(y);
   const PKS = (DB.pk || []).map(() => [0, 0]); (DB.txq || []).forEach((q, i) => { if (q) { PKS[q][0]++; PKS[q][1] += DB.tx[i][3]; } });
-  const CPM_BTNS = [["all", "ทั้งหมด"], ["raw", "เฉพาะเส้นโอน (ยังไม่จับคู่ถอน-ฝาก)"], ["pair", "เฉพาะคู่ถอน-ฝาก"]].map(([k, l]) => `<button class="chip" data-cm="${k}">${l}</button>`).join("");
+  const CPM_BTNS = [["raw", "ยอดโอนตรง (ค่าเริ่มต้น)"], ["all", "รวมคู่ถอน-ฝากเงินสด"], ["pair", "เฉพาะคู่ถอน-ฝากเงินสด"]].map(([k, l]) => `<button class="chip" data-cm="${k}">${l}</button>`).join("");
   const PQ_BTNS = (DB.pk || []).map((l, q) => (q && PKS[q][0] ? `<button class="chip" data-pq="${q}" title="${fmt(PKS[q][1])} บาท"><span class="dot" style="background:${PKC[q]}"></span>${esc(l)} <small>${fmt0(PKS[q][0])} · ${M(PKS[q][1])}</small></button>` : "")).join("") + (DB.pk ? `<button class="chip" data-pq="0">ทุกประเภท</button>` : "");
   // ลำดับหน้า (ผู้สั่งงาน 17 พ.ย. 69): ตัวเลขในกล่องบนสุด → แถบตัวกรอง → ชาร์ตเส้นเงิน → ตารางคู่โอนรายใหญ่ → ตารางรายการ (เต็มความกว้าง ไม่วางคู่กัน) → ชาร์ตอื่น
   $("#main").innerHTML = `
   <div class="grid g4 kp8" id="aKpi"></div>
-  <details class="fbox" style="margin-top:12px" ${innerWidth > 760 ? "open" : ""}><summary>ตัวกรอง <span id="fSum" class="muted" style="font-weight:400"></span></summary>
-   <div class="filters" style="margin-top:10px">
-    <div class="frow"><label>ช่วงเวลา</label><input type="date" id="fFrom" value="${F.from}"> – <input type="date" id="fTo" value="${F.to}">
+  <div class="card fcard" id="fCard">
+   <div class="fline">
+    <label class="sbox">${IC("search", 16)}<input type="search" id="fQ" value="${esc(F.q)}" placeholder="ค้นหาคู่โอน (ชื่อ / เลขบัญชี)"></label>
+    <label class="sbox">${IC("users", 16)}<input type="search" id="dnQ" placeholder="ค้นหาผู้บริจาค (ชื่อ / เลขบัญชี) แล้วกด Enter"><button class="sgo" id="dnGo" title="ค้นหาผู้บริจาค">${IC("search", 16)}</button></label>
+   </div>
+   <div class="fline">
+    ${["per", "acc", "kind", "cpg", "cash"].map((k) => `<button class="pill" data-dd="${k}"><span></span></button>`).join("")}
+    <input type="number" id="fMin" class="pin" min="0" step="1000" value="${F.min || ""}" placeholder="ยอดขั้นต่ำ (บาท)">
+    <button class="pill x" id="fClear" hidden>✕ ล้างตัวกรอง</button>
+    <span id="fSum" class="muted fsum"></span>
+   </div>
+   <div class="ddp" data-ddp="per" hidden><div class="frow"><input type="date" id="fFrom" value="${F.from}"> – <input type="date" id="fTo" value="${F.to}">
       <button class="chip" data-p="all">ทั้งหมด</button><button class="chip" data-p="before">ก่อนตั้งมูลนิธิ</button><button class="chip" data-p="after">หลังตั้งมูลนิธิ</button>
-      ${yrs.slice(-4).map((y) => `<button class="chip" data-p="${y}">ปี ${y + 543}</button>`).join("")}</div>
-    <div class="frow"><label>กลุ่มบัญชี</label>${Object.keys(gAcc).map((g) => `<button class="chip" data-g="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])} (${gAcc[g].length})</button>`).join("")}</div>
-    <div class="frow"><label>รายบัญชี</label><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
+      <select id="fYr"><option value="">รายปี…</option>${yrs.slice().reverse().map((y) => `<option value="${y}">ปี ${y + 543}</option>`).join("")}</select></div></div>
+   <div class="ddp" data-ddp="acc" hidden><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
         ${gAcc[g].map((i) => { const a = DB.accounts[i]; return `<label title="${a.bank} ${a.acc}"><input type="checkbox" data-a="${i}"><span>${esc(a.name)}</span><small>${a.bank} ${a.acc}</small></label>`; }).join("")}</div>`).join("")}</div></div>
-    <div class="frow"><label>ประเภทรายการ</label>${DB.kinds.map((k, i) => `<button class="chip" data-k="${i}"><span class="dot" style="background:${KCOL[i]}"></span>${k}</button>`).join("")}</div>
-    <div class="frow"><label>กลุ่มคู่โอน</label>${usedCpg.map((g) => `<button class="chip" data-c="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div>
-    <div class="frow"><label>คู่ถอน-ฝากเงินสด</label>${CPM_BTNS}</div>
-    <div class="frow"><label>ประเภทคู่</label>${PQ_BTNS}</div>
-    <div class="frow"><label>ยอดขั้นต่ำ</label><input type="number" id="fMin" min="0" step="1000" value="${F.min || ""}" placeholder="บาท" style="width:130px">
-      <input type="search" id="fQ" value="${esc(F.q)}" placeholder="ค้นหาชื่อ / เลขบัญชีคู่โอน">
-      <button class="btn o" id="fClear">ล้างตัวกรอง</button><button class="btn o" id="fCsv">ส่งออก CSV</button></div>
-   </div></details>
-  <details class="fbox" id="dnBox" style="margin-top:10px"><summary>${IC("search")} ค้นหาผู้บริจาค <span class="muted" style="font-weight:400">— บัญชีที่โอนเข้า 3 บัญชีรับบริจาค (ตามไฟล์ Pivot in รวม 3 บัญชีรับบริจาค)</span></summary>
-    <div class="frow" style="margin-top:10px"><input type="search" id="dnQ" placeholder="ชื่อ หรือ เลขบัญชีผู้บริจาค (อย่างน้อย 3 ตัว)" style="min-width:280px;flex:1"><button class="btn" id="dnGo">ค้นหา</button></div>
-    <div id="dnRes"></div></details>
-  <p class="muted" style="font-size:.82rem;margin:.6em 0 0">ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
-  <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · เปลี่ยนทันทีเมื่อกรอง · กดกล่องเพื่อกรองต่อ</small>
-    <button class="chip" id="flBack" disabled title="กลับไปตัวกรองก่อนกดชาร์ต">← ย้อนกลับ</button>
-    <button class="chip" data-fm="g">กลุ่ม</button><button class="chip" data-fm="d">รายบัญชี</button><span class="muted" style="font-size:.8rem;font-weight:400">ถอน-ฝาก</span>${CPM_BTNS}<span class="muted" style="font-size:.8rem;font-weight:400">จำนวนกล่อง</span><button class="chip" data-fn="8">8</button><button class="chip" data-fn="14">14</button><button class="chip" data-fn="24">24</button><button class="chip" data-fn="32">32</button>
-    <span class="muted" style="font-size:.8rem;font-weight:400">แสดง</span>${[3, 4, 5, 6, 8].map((n) => `<button class="chip" data-fc="${n}">${n}</button>`).join("")}<span class="muted" style="font-size:.8rem;font-weight:400">คอลัมน์</span><button class="chip" id="flClr" title="ยุบทอดที่คลี่ทั้งหมด">✕ ยุบทอด</button></h2>
-  <div class="frow pqrow" style="margin:-4px 0 8px">${PQ_BTNS}</div>
-  <p class="muted" style="font-size:.8rem;margin:0 0 6px">กล่องที่มี ▶ (คอลัมน์เงินออก/ทอดถัดไป) = บัญชีที่มี statement — กดเพื่อคลี่ว่าเงินโอนต่อไปที่ใด กดต่อไปได้เรื่อยๆ ; กล่องอื่นกดเพื่อกรอง</p>
+   <div class="ddp" data-ddp="kind" hidden><div class="frow">${DB.kinds.map((k, i) => `<button class="chip" data-k="${i}"><span class="dot" style="background:${KCOL[i]}"></span>${k}</button>`).join("")}</div></div>
+   <div class="ddp" data-ddp="cpg" hidden><div class="frow">${usedCpg.map((g) => `<button class="chip" data-c="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div></div>
+   <div class="ddp" data-ddp="cash" hidden><div class="frow">${CPM_BTNS}</div>
+     <div class="frow" id="pqRow" hidden><label>ประเภทคู่</label>${PQ_BTNS}</div>
+     <p class="muted" style="font-size:.8rem;margin:0">ยอดโอนตรง = ตาม statement (ถอนเงินสดยังเป็นถอนเงินสด) ; รวมคู่ถอน-ฝาก = รายการถอนเงินสดที่จับคู่กับการฝากได้ แสดงเป็นเงินเข้าบัญชีผู้ฝาก</p></div>
+  </div>
+  <div id="dnRes" class="dnres"></div>
+  <details class="fnote"><summary>วิธีอ่านยอด / วิธีใช้ชาร์ต</summary><p>ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
+   <p>ชาร์ตเส้นเงิน: กล่องที่มี ▶ (คอลัมน์เงินออก/ทอดถัดไป) = บัญชีที่มี statement — กดเพื่อคลี่ว่าเงินโอนต่อไปที่ใด กดต่อไปได้เรื่อยๆ ; กล่องอื่นกดเพื่อกรอง ; ค้นหาผู้บริจาคแล้วชาร์ตจะไล่เงินของผู้บริจาครายนั้นตามเวลา</p></details>
+  <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · กดกล่องเพื่อกรอง · กล่อง ▶ กดเพื่อคลี่ทอดถัดไป</small></h2>
+  <div class="fltools"><button class="chip" id="flBack" hidden title="กลับไปตัวกรองก่อนกดชาร์ต">← ย้อนกลับ</button>
+    <select id="flM" title="มุมมอง"><option value="g">แสดงเป็นกลุ่ม</option><option value="d">แสดงรายบัญชี</option></select>
+    <select id="flN" title="จำนวนกล่องต่อคอลัมน์">${[8, 14, 24, 32].map((n) => `<option value="${n}">${n} กล่อง</option>`).join("")}</select>
+    <select id="flC" title="จำนวนคอลัมน์ที่แสดงพร้อมกัน">${[3, 4, 5, 6, 8].map((n) => `<option value="${n}">${n} คอลัมน์</option>`).join("")}</select>
+    <button class="chip" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด">✕ ยุบทอด</button></div>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
-  <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small> <span class="muted" style="font-size:.8rem;font-weight:400">เรียงตาม</span>${[["t", "ยอดรวม"], ["i", "เงินเข้า"], ["o", "เงินออก"], ["n", "จำนวนครั้ง"]].map(([k, l]) => `<button class="chip" data-cs="${k}">${l}</button>`).join("")}</h2>
+  <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา · กดหัวคอลัมน์เพื่อเรียง</small></h2>
   <div class="tblwrap tbl1" id="tCp"></div>
-  <h2>${IC("list")} รายการ <small id="txLab"></small> <button class="chip" id="txReset" title="กลับไปเรียงตามวันที่-เวลา">↺ รีเซ็ตการเรียง</button><button class="chip" id="txXlsx">${IC("doc", 14)} ส่งออก Excel</button></h2>
+  <h2>${IC("list")} รายการ <small id="txLab"></small> <button class="chip" id="txReset" title="กลับไปเรียงตามวันที่-เวลา">↺ รีเซ็ตการเรียง</button><button class="chip" id="txXlsx">${IC("doc", 14)} ส่งออก Excel</button><button class="chip" id="fCsv">CSV</button></h2>
   <div class="tblwrap tbl1" id="tTx"></div>
   <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>
   <h2>ตามเวลา <small id="granLab"></small> <button class="chip" id="gBtn">สลับ รายเดือน / รายปี</button></h2>
@@ -719,8 +736,11 @@ function pAna() {
   </div>
   `;
   const m = $("#main");
+  const ddClose = () => { $$("[data-ddp]", m).forEach((p) => (p.hidden = true)); $$("[data-dd]", m).forEach((x) => x.classList.remove("open")); };
   m.onclick = (e) => {
+    if (!e.target.closest("#fCard")) ddClose();
     const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.dd) { const p = $(`[data-ddp="${b.dataset.dd}"]`, m), was = p.hidden; ddClose(); p.hidden = !was; b.classList.toggle("open", was); return; }
     if (b.dataset.p) { const p = b.dataset.p; F.from = p === "after" ? DB.cut : /^\d+$/.test(p) ? p + "-01-01" : DB.lo; F.to = p === "before" ? "2022-06-24" : /^\d+$/.test(p) ? p + "-12-31" : DB.hi; $("#fFrom").value = F.from; $("#fTo").value = F.to; }
     else if (b.dataset.g) { const ids = gAcc[b.dataset.g]; const all = ids.every((i) => F.accs.has(i)); ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i))); }
     else if (b.dataset.k) tog(F.kinds, +b.dataset.k);
@@ -746,8 +766,12 @@ function pAna() {
     SHOWN = 200; upd();
   };
   $("#dnQ").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); donorSearch(e.target.value); } };
+  $("#dnQ").oninput = (e) => { if (e.target.value.trim()) return; $("#dnRes").innerHTML = ""; if (F.dn) { F.dn = false; DNT = null; upd(); } };   // ลบข้อความค้นหา = ปิดผลค้นหาผู้บริจาค
   m.onchange = (e) => { const t = e.target;
-    if (t.id === "fFrom") F.from = t.value || DB.lo; else if (t.id === "fTo") F.to = t.value || DB.hi; else if (t.dataset.a) tog(F.accs, +t.dataset.a, t.checked); else return; upd(); };
+    if (t.id === "fFrom") F.from = t.value || DB.lo; else if (t.id === "fTo") F.to = t.value || DB.hi; else if (t.dataset.a) tog(F.accs, +t.dataset.a, t.checked);
+    else if (t.id === "flM") F.flm = t.value; else if (t.id === "flN") F.fln = +t.value; else if (t.id === "flC") F.flc = +t.value;
+    else if (t.id === "fYr") { if (!t.value) return; F.from = t.value + "-01-01"; F.to = t.value + "-12-31"; $("#fFrom").value = F.from; $("#fTo").value = F.to; }
+    else return; upd(); };
   let tmr; m.oninput = (e) => { const t = e.target; if (t.id !== "fMin" && t.id !== "fQ") return; clearTimeout(tmr); tmr = setTimeout(() => { F.min = +$("#fMin").value || 0; F.q = $("#fQ").value; upd(); }, 280); };
   const tog = (s, v, on) => ((on ?? !s.has(v)) ? s.add(v) : s.delete(v));
   let IDX = [], SORTED = [];
@@ -782,7 +806,22 @@ function pAna() {
     const tin = K[0][0] + K[1][0] + K[4][0], tout = K[2][0] + K[3][0];
     $("#aKpi").innerHTML = [["เงินเข้ารวม", tin, K[0][1] + K[1][1] + K[4][1], ""], ["เงินออกรวม", tout, K[2][1] + K[3][1], "r"], ["ถอนเงินสด", K[3][0], K[3][1], "x"], ["ฝากเงินสด", K[1][0], K[1][1], "g"], ["โอนออก / จ่าย", K[2][0], K[2][1], "r"], ["โอนเข้า / รับเงิน", K[0][0], K[0][1], ""], ["รับบริจาค", K[4][0], K[4][1], "y"], ["สุทธิ (เข้า − ออก)", tin - tout, IDX.length, ""]]
       .map(([l, v, n, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${fmt0(n)} ${l.startsWith("สุทธิ") ? "แถวข้อมูล" : "ครั้ง"}</div></div>`).join("");
-    $("#fSum").textContent = `— ${dTh(F.from)} ถึง ${dTh(F.to)} · ${F.accs.size || "ทุก"} บัญชี · ${fmt0(IDX.length)} แถว` + (F.cpm === "raw" ? " · ไม่จับคู่ถอน-ฝาก" : F.cpm === "pair" ? " · เฉพาะคู่ถอน-ฝาก" : "") + (F.pq.size ? ` · ประเภทคู่ ${F.pq.size}` : "");
+    $("#fSum").textContent = `${fmt0(IDX.length)} แถว`;
+    { const yr = F.from.slice(5) === "01-01" && F.to === F.from.slice(0, 4) + "-12-31" ? F.from.slice(0, 4) : "";
+      const pk_ = F.from <= DB.lo && F.to >= DB.hi ? "all" : F.from <= DB.lo && F.to === "2022-06-24" ? "before" : F.from === DB.cut && F.to >= DB.hi ? "after" : "";
+      const gl = (g) => DB.groups[g][1].split(" (")[0];
+      const L = { per: [pk_ === "all" ? "ทุกช่วงเวลา" : pk_ === "before" ? "ก่อนตั้งมูลนิธิ" : pk_ === "after" ? "หลังตั้งมูลนิธิ" : yr ? "ปี " + (+yr + 543) : `${dTh(F.from)} – ${dTh(F.to)}`, pk_ !== "all"],
+        acc: [F.accs.size === 1 ? DB.accounts[[...F.accs][0]].name : F.accs.size ? `บัญชี ${F.accs.size}` : "ทุกบัญชี", F.accs.size > 0],
+        kind: [F.kinds.size === 1 ? DB.kinds[[...F.kinds][0]].split(" (")[0] : F.kinds.size ? `ประเภทรายการ ${F.kinds.size}` : "ทุกประเภทรายการ", F.kinds.size > 0],
+        cpg: [F.cpg.size === 1 ? "คู่โอน: " + gl([...F.cpg][0]) : F.cpg.size ? `กลุ่มคู่โอน ${F.cpg.size}` : "ทุกกลุ่มคู่โอน", F.cpg.size > 0],
+        cash: [F.cpm === "raw" ? "ยอดโอนตรง" : (F.cpm === "pair" ? "เฉพาะคู่ถอน-ฝาก" : "รวมคู่ถอน-ฝาก") + (F.pq.size ? ` · ${F.pq.size} ประเภท` : ""), F.cpm !== "raw"] };
+      $$("[data-dd]", m).forEach((b_) => { const v = L[b_.dataset.dd]; b_.firstElementChild.textContent = v[0]; b_.classList.toggle("on", v[1]); });
+      $$("[data-p]", m).forEach((b_) => b_.classList.toggle("on", b_.dataset.p === pk_));
+      $("#fYr").value = yr && !pk_ ? yr : "";
+      $("#pqRow").hidden = F.cpm === "raw";
+      $("#fMin").classList.toggle("on", F.min > 0);
+      $("#fClear").hidden = !(pk_ !== "all" || F.accs.size || F.kinds.size || F.cpg.size || F.min || F.q || F.cpm !== "raw" || F.pq.size || F.dn);
+      $("#flM").value = F.flm; $("#flN").value = F.fln; $("#flC").value = F.flc; }
     $$("[data-k]", m).forEach((b) => b.classList.toggle("on", F.kinds.has(+b.dataset.k)));
     $$("[data-c]", m).forEach((b) => b.classList.toggle("on", F.cpg.has(+b.dataset.c)));
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
@@ -794,8 +833,8 @@ function pAna() {
     $$("[data-pq]", m).forEach((b) => { const q = +b.dataset.pq; b.classList.toggle("on", q ? F.pq.has(q) : !F.pq.size); b.disabled = F.cpm === "raw"; });
     $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
     $$("[data-fc]", m).forEach((b) => b.classList.toggle("on", F.flc === +b.dataset.fc));
-    { const c_ = $("#flClr"); if (c_) c_.disabled = !F.chain.length; }
-    { const fb_ = $("#flBack"); if (fb_) { fb_.disabled = !FHIST.length; fb_.textContent = FHIST.length ? `← ย้อนกลับ (${FHIST.length})` : "← ย้อนกลับ"; } }
+    { const c_ = $("#flClr"); if (c_) c_.hidden = !F.chain.length; }
+    { const fb_ = $("#flBack"); if (fb_) { fb_.hidden = !FHIST.length; fb_.textContent = FHIST.length ? `← ย้อนกลับ (${FHIST.length})` : "← ย้อนกลับ"; } }
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     // ตาราง
     const ck = { t: (v) => v[0] + v[1], i: (v) => v[0], o: (v) => v[1], n: (v) => v[2] }[F.cps] || ((v) => v[0] + v[1]);
@@ -1238,7 +1277,8 @@ function pPpl() {
     <h2>${IC("bank")} บัญชี <small>${p.accs.length} บัญชี</small> ${p.accs.length ? `<button class="chip" data-flow="${i}">${IC("flow", 15)} ดูเส้นเงิน</button>` : ""}</h2>
     <div class="card">${p.accs.map((a) => li(`${esc(a.bank)} ${esc(a.acc)}`, esc(a.name), `${have.has(dg(a.acc)) ? `<span class="badge g">${IC("check", 12)} มี statement</span>` : stBadge(stOf(a.acc)) || '<span class="badge">ยังไม่ขอ</span>'}`)).join("") || '<span class="muted">ชีตยังไม่ระบุบัญชี</span>'}</div>`; };
   const list = `<h2>${IC("users")} บุคคล / นิติบุคคลที่เกี่ยวข้อง <small>${show.length} / ${P.length} ราย</small></h2>
-    <div class="frow">${[["", "ทั้งหมด"], ["img", "มีภาพ"], ["lnk", "มีลิงก์"], ["per", "บุคคล"], ["org", "นิติบุคคล"]].map(([k, l]) => `<button class="chip ${PPF === k ? "on" : ""}" data-pf="${k}">${l}</button>`).join("")}<button class="chip ${PPG ? "on" : ""}" data-pg="1" title="สลับ แยกประเภท / รวมทั้งหมด">${IC("list", 14)} แยกประเภท</button><input type="search" id="ppQ" value="${esc(PPQ)}" placeholder="ค้นหาชื่อ"></div>
+    <div class="fline" style="margin-bottom:8px">${fSearch("ppQ", PPQ, "ค้นหาชื่อ")}${fSel('id="ppF"', PPF, "ทั้งหมด", [["img", "มีภาพ"], ["lnk", "มีลิงก์"], ["per", "บุคคล"], ["org", "นิติบุคคล"]])}<button class="pill ${PPG ? "on" : ""}" data-pg="1" title="สลับ แยกประเภท / รวมทั้งหมด">แยกประเภท</button></div>
+    <span hidden></span>
     ${PPG ? CAT.map((c) => { const v = show.filter(([p]) => p.cat === c[0]); return v.length ? `<h3 class="pch"><span class="dot" style="background:${c[2]}"></span>${esc(c[1])} <small>${v.length}</small></h3><div class="pgrid">${v.map(card).join("")}</div>` : ""; }).join("") : `<div class="pgrid">${show.map(card).join("")}</div>`}`;
   const wide = isWide(), v = wide ? (PPV >= 0 ? PPV : (ord[0] || [0, -1])[1]) : PPV, m = $("#main");
   m.innerHTML = wide ? `<div class="md"><div class="md-l wide">${list}</div><div class="md-r">${det(v)}</div></div>` : (v >= 0 ? det(v) : list);
@@ -1249,6 +1289,7 @@ function pPpl() {
     else if (b.dataset.pf != null) { PPF = b.dataset.pf; render(); }
     else if (b.dataset.pg != null) { PPG = !PPG; render(); }
     else if (b.dataset.flow != null) { const p = P[+b.dataset.flow]; resetF(); F.q = dg(p.accs[0].acc); F.flm = "d"; go("ana"); } };
+  m.onchange = (e) => { if (e.target.id === "ppF") { PPF = e.target.value; render(); } };
   let tm; m.oninput = (e) => { if (e.target.id !== "ppQ") return; clearTimeout(tm); tm = setTimeout(() => { PPQ = e.target.value; render(); const x = $("#ppQ"); if (x) { x.focus(); x.setSelectionRange(PPQ.length, PPQ.length); } }, 300); };
 }
 
@@ -1331,7 +1372,10 @@ function pAccTable() {                                                 // ตา
     <div class="tile" style="cursor:default"><span class="ico">${IC("coin")}</span><span class="v">${M(tot((r) => gcode(r.g) !== "t1", (r) => r.x.t1))}</span><span class="l">รับจากบัญชีมูลนิธิ (ทุกบัญชี)</span><span class="s">ตาม statement บัญชีมูลนิธิ</span></div></div>
   <h2>${IC("users")} กลุ่มบัญชี <small>กดการ์ดเพื่อดูทั้งกลุ่ม</small>${AXF.g !== "" ? ` <button class="chip" data-axk="g" data-axv="">← ทุกกลุ่ม</button>` : ""}</h2>
   <div class="gcards">${gs.map(card).join("")}</div>
-  <div class="frow" style="margin-top:12px"><input type="search" id="axQ" value="${esc(AXF.q)}" placeholder="ค้นหาเลขบัญชี / ชื่อ / เลขหนังสือ / หมายเหตุ" style="flex:1;min-width:220px"><button class="btn o" data-axk="clear">ล้างตัวกรอง</button></div>
+  <div class="card fcard"><div class="fline">${fSearch("axQ", AXF.q, "ค้นหาเลขบัญชี / ชื่อ / เลขหนังสือ / หมายเหตุ")}
+    ${fSel('data-axs="g"', AXF.g, "ทุกกลุ่มบัญชี", gs.map((g) => [g, DB.groups[g] ? DB.groups[g][1].split(" (")[0] : "กลุ่ม " + g]))}
+    ${fSel('data-axs="st"', AXF.st, "ทุกสถานะ STM", STS.map((x) => [x, `${x} · ${rows.filter((r) => r.st === x).length}`]))}
+    ${fClr('data-axk="clear"', AXF.g !== "" || AXF.st || AXF.fz || AXF.q)}</div></div>
   <h2>${IC("list")} รายบัญชี <small>${shown} / ${rows.length} บัญชี · เรียงเป็นกลุ่ม · กดแถวเพื่อดูรายละเอียด</small></h2>
   ${gs.map(sect).join("") || '<p class="muted">ไม่มีบัญชีตามตัวกรอง</p>'}
   <p class="muted" style="font-size:.82rem">รวมจาก: บัญชีที่มี statement ในระบบ + แท็บคุมบัญชี (สถานะขอ STM) + แท็บข้อมูลอายัด ของชีตชุดทำคดี · "รับจากบัญชีมูลนิธิ / บัญชีที่มี STM" ดูจาก statement ฝั่งผู้โอน (เห็นแม้บัญชีนี้ยังไม่มี statement) · คงเหลือล่าสุด = ยอดคงเหลือรายการสุดท้ายใน statement · รูปหน้าปก = ภาพบุคคลจากชีตชุดทำคดี (ถ้ามี)</p>`;
@@ -1342,6 +1386,7 @@ function pAccTable() {                                                 // ตา
     if (b && b.dataset.axq != null) { resetF(); F.q = b.dataset.axq; F.flm = "d"; return go("ana"); }
     if (b && b.dataset.axk) { const k = b.dataset.axk; if (k === "clear") AXF = { g: "", st: "", fz: "", q: "", sort: "" }; else AXF[k] = AXF[k] === b.dataset.axv ? "" : b.dataset.axv; render(); if (k === "g" && AXF.g !== "") { const el = $(".gsec"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); } return; }
     const tr = e.target.closest("tr[data-axr]"); if (tr) accDetail(tr.dataset.axr); };
+  m.onchange = (e) => { const k = e.target.dataset.axs; if (!k) return; AXF[k] = e.target.value; render(); };
   let tm; m.oninput = (e) => { if (e.target.id !== "axQ") return; clearTimeout(tm); tm = setTimeout(() => { AXF.q = e.target.value; render(); const x = $("#axQ"); if (x) { x.focus(); x.setSelectionRange(AXF.q.length, AXF.q.length); } }, 300); };
 }
 function accDetail(k) {
