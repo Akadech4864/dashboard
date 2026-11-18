@@ -522,7 +522,9 @@ function prep() {
   DB.lo = min2iso(lo).slice(0, 10); DB.hi = min2iso(hi).slice(0, 10);
   resetF();
 }
-function resetF() { F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8 }; SHOWN = 200; }
+let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
+const fSnap = () => ({ ...F, accs: new Set(F.accs), kinds: new Set(F.kinds), cpg: new Set(F.cpg) });
+function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8 }; SHOWN = 200; }
 function filterTx() {
   const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
   const out = [];
@@ -553,15 +555,19 @@ function pAna() {
       ${yrs.slice(-4).map((y) => `<button class="chip" data-p="${y}">ปี ${y + 543}</button>`).join("")}</div>
     <div class="frow"><label>กลุ่มบัญชี</label>${Object.keys(gAcc).map((g) => `<button class="chip" data-g="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])} (${gAcc[g].length})</button>`).join("")}</div>
     <div class="frow"><label>รายบัญชี</label><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
-        ${gAcc[g].map((i) => { const a = DB.accounts[i]; return `<label title="${esc(a.name)}"><input type="checkbox" data-a="${i}"><span>${a.bank} ${a.acc}</span><small>${esc(a.name)}</small></label>`; }).join("")}</div>`).join("")}</div></div>
+        ${gAcc[g].map((i) => { const a = DB.accounts[i]; return `<label title="${a.bank} ${a.acc}"><input type="checkbox" data-a="${i}"><span>${esc(a.name)}</span><small>${a.bank} ${a.acc}</small></label>`; }).join("")}</div>`).join("")}</div></div>
     <div class="frow"><label>ประเภทรายการ</label>${DB.kinds.map((k, i) => `<button class="chip" data-k="${i}"><span class="dot" style="background:${KCOL[i]}"></span>${k}</button>`).join("")}</div>
     <div class="frow"><label>กลุ่มคู่โอน</label>${usedCpg.map((g) => `<button class="chip" data-c="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div>
     <div class="frow"><label>ยอดขั้นต่ำ</label><input type="number" id="fMin" min="0" step="1000" value="${F.min || ""}" placeholder="บาท" style="width:130px">
       <input type="search" id="fQ" value="${esc(F.q)}" placeholder="ค้นหาชื่อ / เลขบัญชีคู่โอน">
       <button class="btn o" id="fClear">ล้างตัวกรอง</button><button class="btn o" id="fCsv">ส่งออก CSV</button></div>
    </div></details>
+  <details class="fbox" id="dnBox" style="margin-top:10px"><summary>${IC("search")} ค้นหาผู้บริจาค <span class="muted" style="font-weight:400">— บัญชีที่โอนเข้า 3 บัญชีรับบริจาค (ตามไฟล์ Pivot in รวม 3 บัญชีรับบริจาค)</span></summary>
+    <div class="frow" style="margin-top:10px"><input type="search" id="dnQ" placeholder="ชื่อ หรือ เลขบัญชีผู้บริจาค (อย่างน้อย 3 ตัว)" style="min-width:280px;flex:1"><button class="btn" id="dnGo">ค้นหา</button></div>
+    <div id="dnRes"></div></details>
   <p class="muted" style="font-size:.82rem;margin:.6em 0 0">ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
   <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · เปลี่ยนทันทีเมื่อกรอง · กดกล่องเพื่อกรองต่อ</small>
+    <button class="chip" id="flBack" disabled title="กลับไปตัวกรองก่อนกดชาร์ต">← ย้อนกลับ</button>
     <button class="chip" data-fm="g">กลุ่ม</button><button class="chip" data-fm="d">รายบัญชี</button><span class="muted" style="font-size:.8rem;font-weight:400">จำนวนกล่อง</span><button class="chip" data-fn="8">8</button><button class="chip" data-fn="14">14</button><button class="chip" data-fn="24">24</button></h2>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small> <span class="muted" style="font-size:.8rem;font-weight:400">เรียงตาม</span>${[["t", "ยอดรวม"], ["i", "เงินเข้า"], ["o", "เงินออก"], ["n", "จำนวนครั้ง"]].map(([k, l]) => `<button class="chip" data-cs="${k}">${l}</button>`).join("")}</h2>
@@ -590,9 +596,14 @@ function pAna() {
     else if (b.dataset.cs) F.cps = b.dataset.cs;
     else if (b.dataset.fm) F.flm = b.dataset.fm;
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
+    else if (b.id === "flBack") { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; }
+    else if (b.id === "dnGo") return donorSearch($("#dnQ").value);
+    else if (b.dataset.dn != null) return donorDetail(+b.dataset.dn);
+    else if (b.dataset.dnb != null) return donorSearch($("#dnQ").value);
     else return;
     SHOWN = 200; upd();
   };
+  $("#dnQ").onkeydown = (e) => { if (e.key === "Enter") { e.preventDefault(); donorSearch(e.target.value); } };
   m.onchange = (e) => { const t = e.target;
     if (t.id === "fFrom") F.from = t.value || DB.lo; else if (t.id === "fTo") F.to = t.value || DB.hi; else if (t.dataset.a) tog(F.accs, +t.dataset.a, t.checked); else return; upd(); };
   let tmr; m.oninput = (e) => { const t = e.target; if (t.id !== "fMin" && t.id !== "fQ") return; clearTimeout(tmr); tmr = setTimeout(() => { F.min = +$("#fMin").value || 0; F.q = $("#fQ").value; upd(); }, 280); };
@@ -630,18 +641,19 @@ function pAna() {
     $$("button[data-cs]", m).forEach((b) => b.classList.toggle("on", F.cps === b.dataset.cs));
     $$("[data-fm]", m).forEach((b) => b.classList.toggle("on", F.flm === b.dataset.fm));
     $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
+    { const fb_ = $("#flBack"); if (fb_) { fb_.disabled = !FHIST.length; fb_.textContent = FHIST.length ? `← ย้อนกลับ (${FHIST.length})` : "← ย้อนกลับ"; } }
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     // ตาราง
     const ck = { t: (v) => v[0] + v[1], i: (v) => v[0], o: (v) => v[1], n: (v) => v[2] }[F.cps] || ((v) => v[0] + v[1]);
     const top = [...byC.entries()].filter((x) => ck(x[1]) > 0).sort((x, y) => ck(y[1]) - ck(x[1])).slice(0, 50);
     $("#tCp").innerHTML = `<table><tr><th>#</th><th>คู่โอน</th><th>บัญชี</th><th>กลุ่ม</th><th class="n srt ${F.cps === "i" ? "on" : ""}" data-cs="i">เงินเข้า (บาท)</th><th class="n srt ${F.cps === "o" ? "on" : ""}" data-cs="o">เงินออก (บาท)</th><th class="n srt ${F.cps === "n" ? "on" : ""}" data-cs="n">ครั้ง</th></tr>` +
       top.map(([ci, v], i) => { const c = DB.cps[ci]; return `<tr class="click" data-q="${esc(c[0] || c[1])}"><td>${i + 1}</td><td>${esc(c[1]) || "<span class=muted>ไม่ระบุชื่อ</span>"}</td><td>${c[2]} ${c[0]}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[c[3]][2]}"></span> ${esc(DB.groups[c[3]][1].split(" (")[0])}</td><td class="n">${v[0] ? fmt(v[0]) : ""}</td><td class="n">${v[1] ? fmt(v[1]) : ""}</td><td class="n">${fmt0(v[2])}</td></tr>`; }).join("") + "</table>";
-    $("#tCp").onclick = (e) => { const th = e.target.closest("th[data-cs]"); if (th) { F.cps = F.cps === th.dataset.cs ? "t" : th.dataset.cs; upd(true); return; } const tr = e.target.closest("tr[data-q]"); if (tr) { F.q = tr.dataset.q; $("#fQ").value = F.q; upd(); } };
+    $("#tCp").onclick = (e) => { const th = e.target.closest("th[data-cs]"); if (th) { F.cps = F.cps === th.dataset.cs ? "t" : th.dataset.cs; upd(true); return; } const tr = e.target.closest("tr[data-q]"); if (tr) { FHIST.push(fSnap()); F.q = tr.dataset.q; $("#fQ").value = F.q; upd(); } };
     const big = [...IDX].sort((x, y) => DB.tx[y][3] - DB.tx[x][3]).slice(0, SHOWN);
     $("#txLab").textContent = `เรียงตามยอด — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว`;
     $("#more").hidden = big.length >= IDX.length;
     $("#tTx").innerHTML = `<table><tr><th>วันเวลา</th><th>บัญชี</th><th>ประเภท</th><th class="n">ยอด (บาท)</th><th>คู่โอน</th><th>กลุ่มคู่โอน</th></tr>` +
-      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]], iso = min2iso(r[1]); return `<tr><td>${dTh(iso)} ${r[2] === 4 ? "(ทั้งเดือน)" : iso.slice(11, 16)}</td><td title="${esc(a.name)}">${a.bank} ${a.acc}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}</td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]], iso = min2iso(r[1]); return `<tr><td>${dTh(iso)} ${r[2] === 4 ? "(ทั้งเดือน)" : iso.slice(11, 16)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}</td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
     if (tableOnly) return;
     // ชาร์ต
     ["time", "cpg", "acc"].forEach((k) => CH[k] && (CH[k].destroy(), delete CH[k]));
@@ -653,9 +665,9 @@ function pAna() {
     const hb = (id, keys, lab, col, onPick) => new Chart($(id), { type: "bar", data: { labels: keys.map(lab), datasets: [{ label: "เงินเข้า", data: keys.map((k) => k[1][0] / 1e6), backgroundColor: "#1565C0" }, { label: "เงินออก", data: keys.map((k) => k[1][1] / 1e6), backgroundColor: "#B3261E" }] },
       options: { indexAxis: "y", maintainAspectRatio: false, onClick: (e, el) => { if (el.length) onPick(keys[el[0].index][0]); }, scales: { x: { title: { display: true, text: "ล้านบาท" } }, y: { ticks: { font: { size: 11 } } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } } } });
     const gs = Object.entries(byG).sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1])).slice(0, 14);
-    CH.cpg = hb("#cCpg", gs, (k) => DB.groups[k[0]][1].split(" (")[0], null, (g) => { tog(F.cpg, +g); upd(); });
+    CH.cpg = hb("#cCpg", gs, (k) => DB.groups[k[0]][1].split(" (")[0], null, (g) => { FHIST.push(fSnap()); tog(F.cpg, +g); upd(); });
     const as = Object.entries(byA).sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1])).slice(0, 14);
-    CH.acc = hb("#cAcc", as, (k) => { const a = DB.accounts[k[0]]; return `${a.bank} ${a.acc} ${a.name.slice(0, 22)}`; }, null, (a) => { tog(F.accs, +a); upd(); });
+    CH.acc = hb("#cAcc", as, (k) => { const a = DB.accounts[k[0]]; return `${a.name.slice(0, 26)} (${a.bank} ${a.acc})`; }, null, (a) => { FHIST.push(fSnap()); tog(F.accs, +a); upd(); });
   }
   const fb = $("#flow"), tip = $("#flTip");
   fb.onmousemove = (e) => { const t = e.target.closest("[data-tip]"); if (!t) { tip.hidden = true; return; } tip.textContent = t.dataset.tip; tip.hidden = false; tip.style.left = Math.max(4, Math.min(innerWidth - tip.offsetWidth - 8, e.clientX + 14)) + "px"; tip.style.top = (e.clientY + 16) + "px"; };
@@ -663,6 +675,7 @@ function pAna() {
   fb.onclick = (e) => {
     const g = e.target.closest("[data-n]"); if (!g) { const t = e.target.closest("[data-tip]"); if (t) toast(t.dataset.tip); return; }
     const id = g.dataset.n.slice(1), k = +id.slice(1);
+    if ("gcGa".includes(id[0])) FHIST.push(fSnap());
     if (id[0] === "g") tog(F.cpg, k);
     else if (id[0] === "c") { const cp = DB.cps[k]; F.q = cp[0] || cp[1]; $("#fQ").value = F.q; }
     else if (id[0] === "G") { const ids = gAcc[k] || [], all = ids.every((i) => F.accs.has(i)); ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i))); }
@@ -671,6 +684,45 @@ function pAna() {
     tip.hidden = true; upd();
   };
   upd();
+}
+
+/* ---------- ค้นหาผู้บริจาค (donors.enc โหลดเมื่อใช้ ; ผู้สั่งงาน 18 พ.ย. 69) ---------- */
+let DN = null, DNH = [];
+async function loadDonors() {
+  if (DN) return DN;
+  const f = await fetchEnc("donors.enc");
+  DN = await gunzipJSON(await decrypt(KEY, f));
+  DN.t1s = DN.t1.map((t) => (t.match(/\d{10}/) || [t])[0].replace(/^(\d{3})(\d)(\d{5})(\d)$/, "$1-$2-$3-$4"));
+  return DN;
+}
+const dnDay = (d) => { if (d < 0) return ""; const t = new Date(Date.UTC(2015, 0, 1) + d * 864e5); return `${t.getUTCDate()} ${MTH[t.getUTCMonth() + 1]} ${String(t.getUTCFullYear() + 543).slice(2)}`; };
+async function donorSearch(q) {
+  const box = $("#dnRes"); q = String(q || "").trim();
+  if (q.length < 3) { box.innerHTML = '<p class="muted">พิมพ์ชื่อ หรือ เลขบัญชี อย่างน้อย 3 ตัวอักษร</p>'; return; }
+  box.innerHTML = '<p class="muted">กำลังถอดรหัสข้อมูลผู้บริจาค…</p>';
+  let D; try { D = await loadDonors(); } catch (e) { box.innerHTML = `<p class="muted">โหลดข้อมูลผู้บริจาคไม่ได้: ${esc(e.message)}</p>`; return; }
+  const ql = q.toLowerCase().replace(/[\s-]/g, ""), agg = new Map();
+  D.d.forEach((d, i) => { if ((d[0] + d[2]).toLowerCase().replace(/[\s-]/g, "").includes(ql)) agg.set(i, { t: 0, n: 0, by: D.t1.map(() => 0), f: 1e9, l: -1 }); });
+  for (const x of D.x) { const a = agg.get(x[0]); if (!a) continue; a.t += x[4]; a.n += x[5]; a.by[x[1]] += x[4]; if (x[2] >= 0) { a.f = Math.min(a.f, x[2]); a.l = Math.max(a.l, x[2]); } }
+  DNH = [...agg.entries()].sort((a, b) => b[1].t - a[1].t);
+  const tot = DNH.reduce((s, [, a]) => s + a.t, 0);
+  box.innerHTML = !DNH.length ? `<p class="muted">ไม่พบ "${esc(q)}" ในผู้บริจาค ${fmt0(D.d.length)} บัญชี</p>` :
+    `<p class="muted" style="font-size:.84rem">พบ ${fmt0(DNH.length)} บัญชี รวม ${fmt(tot)} บาท${DNH.length > 100 ? " (แสดง 100 อันดับแรก)" : ""} — กดแถวเพื่อดูรายการรายครั้ง</p>
+    <div class="tblwrap tbl1"><table><tr><th>#</th><th>ผู้บริจาค</th><th>บัญชี</th><th>ประเภท</th>${D.t1s.map((t) => `<th class="n">เข้า ${t}</th>`).join("")}<th class="n">รวม (บาท)</th><th class="n">ครั้ง</th><th>ช่วงเวลา</th></tr>
+    ${DNH.slice(0, 100).map(([i, a], k) => { const d = D.d[i]; return `<tr class="click" data-dnr="${i}"><td>${k + 1}</td><td>${esc(d[2]) || '<span class="muted">ไม่ระบุชื่อ</span>'}</td><td>${esc(d[1])} ${esc(d[0])}</td><td>${esc(d[3])}</td>${a.by.map((v) => `<td class="n">${v ? fmt(v) : ""}</td>`).join("")}<td class="n"><b>${fmt(a.t)}</b></td><td class="n">${fmt0(a.n)}</td><td>${dnDay(a.f)} – ${dnDay(a.l)}</td></tr>`; }).join("")}</table></div>`;
+  box.onclick = (e) => { const tr = e.target.closest("tr[data-dnr]"); if (tr) donorDetail(+tr.dataset.dnr); };
+}
+async function donorDetail(i) {
+  const D = await loadDonors(), d = D.d[i], box = $("#dnRes");
+  const rows = D.x.filter((x) => x[0] === i).sort((a, b) => a[2] - b[2] || String(a[3]).localeCompare(String(b[3])));
+  const tot = rows.reduce((s, x) => s + x[4], 0), n = rows.reduce((s, x) => s + x[5], 0);
+  box.innerHTML = `<p><button class="btn o" data-dnb="1">← กลับผลค้นหา</button></p>
+    <div class="grid g3"><div class="card kpi"><div class="l">${esc(d[2]) || "ไม่ระบุชื่อ"}</div><div class="v">${M(tot)}</div><div class="s">${esc(d[1])} ${esc(d[0])} · ${esc(d[3])}</div></div>
+    ${D.t1s.map((t, k) => { const v = rows.filter((x) => x[1] === k).reduce((s, x) => s + x[4], 0); return v ? `<div class="card kpi y"><div class="l">เข้าบัญชี ${t}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div></div>` : ""; }).join("")}</div>
+    <div class="tblwrap tbl1" style="margin-top:8px"><table><tr><th>วันที่</th><th>เวลา</th><th>เข้าบัญชีรับบริจาค</th><th>ประเภทรายการ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th></tr>
+    ${rows.map((x) => `<tr><td>${dnDay(x[2])}</td><td>${esc(x[3])}</td><td>${esc(D.t1[x[1]])}</td><td>${esc(D.kinds[x[6]] || "")}</td><td class="n">${fmt(x[4])}</td><td class="n">${fmt0(x[5])}</td></tr>`).join("")}
+    <tr><td colspan="4"><b>รวม</b></td><td class="n"><b>${fmt(tot)}</b></td><td class="n"><b>${fmt0(n)}</b></td></tr></table></div>
+    <p class="muted" style="font-size:.8rem">แถวที่จำนวนครั้งมากกว่า 1 = ยอดรวมรายย่อย (ไฟล์ Pivot ไม่แตกรายการ) — รายครั้งดูในไฟล์ EDIT</p>`;
 }
 
 /* ---------- บัญชี (กล่องรายกลุ่ม กดดูรายบัญชี) ---------- */
@@ -810,7 +862,7 @@ function flowInfo(id) {
   if (id === "o" || id === "O") return { lab: "อื่นๆ (รวม)", sub: "", col: "#B0B8C4" };
   if (t === "g" || t === "G") return { lab: DB.groups[k][1].split(" (")[0], sub: "", col: DB.groups[k][2] };
   if (t === "c") { const c = DB.cps[k]; return { lab: c[1] || (c[0] ? `${c[2]} ${c[0]}` : DB.groups[c[3]][1].split(" (")[0]), sub: `${c[2]} ${c[0]}`.trim(), col: DB.groups[c[3]][2] }; }
-  const a = DB.accounts[k]; return { lab: `${a.bank} ${a.acc}`, sub: a.name, col: DB.groups[a.g][2] };
+  const a = DB.accounts[k]; return { lab: a.name || `${a.bank} ${a.acc}`, sub: `${a.bank} ${a.acc}`, col: DB.groups[a.g][2] };
 }
 function drawFlow(box, pair) {
   if (!box) return;
