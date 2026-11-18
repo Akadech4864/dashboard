@@ -339,3 +339,10 @@ a.chip.lnk:hover{background:var(--navy);color:#fff}
 .ai-share summary{cursor:pointer;font-weight:700;color:var(--navy);font-size:.86rem}
 .ai-share ol{margin:.5em 0;padding-left:1.2em;font-size:.84rem}
 .ai-share .muted{font-size:.78rem}
+/* ส่งออก Excel / PNG + เรียงตาราง (18 พ.ย. 69) */
+.xbar{display:flex;gap:6px;justify-content:flex-end;margin:4px 0 2px}
+.xbar .chip{font-size:.78rem;padding:3px 9px}
+.chartbox .pngbtn,.flowcard .pngbtn{position:absolute;top:4px;right:6px;font-size:.72rem;padding:2px 8px;opacity:.75;z-index:2}
+.chartbox .pngbtn:hover,.flowcard .pngbtn:hover{opacity:1}
+th.srt small,th .sx{color:#FFD403;font-weight:700}
+#tTx th.srt.on::after{content:""}

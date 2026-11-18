@@ -117,6 +117,106 @@ $("#setBtn").onclick = () => {
 };
 function download(name, text, type) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + text], { type: type + ";charset=utf-8" })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 
+function download2(name, blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+const CRCT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = (u) => { let c = 0xFFFFFFFF; for (let i = 0; i < u.length; i++) c = CRCT[(c ^ u[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zipStore(files) {                                              // [[ชื่อ, ข้อความ]] -> Blob zip (STORED)
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  for (const [name, text] of files) {
+    const nb = enc.encode(name), db = enc.encode(text), crc = crc32(db), h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint32(14, crc, true); h.setUint32(18, db.length, true); h.setUint32(22, db.length, true); h.setUint16(26, nb.length, true);
+    parts.push(h, nb, db);
+    const c = new DataView(new ArrayBuffer(46)); c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint32(16, crc, true); c.setUint32(20, db.length, true); c.setUint32(24, db.length, true); c.setUint16(28, nb.length, true); c.setUint32(42, off, true);
+    cen.push(c, nb); off += 30 + nb.length + db.length;
+  }
+  const csz = cen.reduce((t, x) => t + x.byteLength, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csz, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, e], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+}
+function xlsxBlob(sheet, rows, widths) {                                // ตาราง -> .xlsx (แถวแรก = หัวตาราง ตัวหนา ตรึงแถว ; ตัวเลข = ค่าตัวเลข)
+  const x = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
+  const col = (n) => { let s = ""; n++; while (n) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+  const body = rows.map((r, ri) => `<row r="${ri + 1}">${r.map((v, ci) => { const ref = col(ci) + (ri + 1);
+    if (typeof v === "number" && isFinite(v)) return `<c r="${ref}"${ri ? ' s="2"' : ""}><v>${v}</v></c>`;
+    return `<c r="${ref}" t="inlineStr"${ri ? "" : ' s="1"'}><is><t xml:space="preserve">${x(v ?? "")}</t></is></c>`; }).join("")}</row>`).join("");
+  const cols = widths ? `<cols>${widths.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join("")}</cols>` : "";
+  const ws = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>${cols}<sheetData>${body}</sheetData><autoFilter ref="A1:${col(rows[0].length - 1)}${rows.length}"/></worksheet>`;
+  const st = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="1"><numFmt numFmtId="164" formatCode="#,##0.00"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Tahoma"/></font><font><b/><sz val="11"/><name val="Tahoma"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="3"><xf/><xf fontId="1" applyFont="1"/><xf numFmtId="164" applyNumberFormat="1"/></cellXfs></styleSheet>`;
+  return zipStore([
+    ["[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`],
+    ["_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(sheet)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${x(sheet)}'!$A$1:$${col(rows[0].length - 1)}$${rows.length}</definedName></definedNames></workbook>`],
+    ["xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ["xl/worksheets/sheet1.xml", ws], ["xl/styles.xml", st]]);
+}
+
+const TMON = { "ม.ค.": 1, "ก.พ.": 2, "มี.ค.": 3, "เม.ย.": 4, "พ.ค.": 5, "มิ.ย.": 6, "ก.ค.": 7, "ส.ค.": 8, "ก.ย.": 9, "ต.ค.": 10, "พ.ย.": 11, "ธ.ค.": 12 };
+function cellKey(t) {                                                   // ข้อความในเซลล์ -> ค่าที่ใช้เรียง (วันที่ไทย / ตัวเลข / ข้อความ)
+  t = String(t || "").trim();
+  const d = t.match(/^(\d{1,2}) (ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.) (\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (d) { let y = +d[3]; if (y < 100) y += 2500; return ((y * 100 + TMON[d[2]]) * 100 + +d[1]) * 1e6 + (+(d[4] || 0)) * 1e4 + (+(d[5] || 0)) * 100 + (+(d[6] || 0)); }
+  const n = t.replace(/[,\s]|บาท|ล\.|ครั้ง|%/g, "");
+  if (/^-?\d+(\.\d+)?$/.test(n)) return parseFloat(n);
+  return t;
+}
+const isTotalRow = (tr) => /^(รวม|ผลรวม|ที่เหลือ)/.test((tr.cells[0] || {}).textContent || "") || /^(รวม|ผลรวม)/.test((tr.cells[1] || {}).textContent || "");
+function tableRows(tbl) { return [...tbl.rows].map((tr) => [...tr.cells].map((c) => c.innerText.replace(/\s*\n\s*/g, " ").trim())); }
+function exportTable(tbl, name) {
+  const rows = tableRows(tbl).map((r, i) => (i ? r.map((v) => { const k = cellKey(v); return typeof k === "number" && !/\d{1,2} [ก-๙.]+ \d{2}/.test(v) ? k : v; }) : r));
+  download2((name || "ตาราง") + ".xlsx", xlsxBlob("ตาราง", rows, rows[0].map((h, j) => Math.min(48, Math.max(8, ...rows.slice(0, 200).map((r) => String(r[j] ?? "").length + 2))))));
+}
+function sortTable(tbl) {
+  const body = [...tbl.rows].filter((tr) => tr.parentNode && !tr.querySelector("th")), fixed = body.filter(isTotalRow), data = body.filter((tr) => !isTotalRow(tr));
+  if (!tbl._orig) tbl._orig = data.slice();
+  const keys = tbl._sort || [];
+  const arr = keys.length ? data.slice().sort((a, b) => { for (const [c, d] of keys) { const x = cellKey((a.cells[c] || {}).textContent), y = cellKey((b.cells[c] || {}).textContent);
+    if (x === y) continue; const r = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "th"); if (r) return r * d; } return tbl._orig.indexOf(a) - tbl._orig.indexOf(b); }) : tbl._orig.filter((tr) => data.includes(tr));
+  const parent = (data[0] || fixed[0] || {}).parentNode; if (!parent) return;
+  arr.concat(fixed).forEach((tr) => parent.appendChild(tr));
+  const hr = [...tbl.rows].find((tr) => tr.querySelector("th"));
+  if (hr) [...hr.cells].forEach((th, c) => { let s = th.querySelector(".sx"); const n = keys.findIndex((k) => k[0] === c);
+    if (n < 0) { if (s) s.remove(); return; } if (!s) { s = document.createElement("small"); s.className = "sx"; th.appendChild(s); } s.textContent = ` ${keys[n][1] > 0 ? "▲" : "▼"}${keys.length > 1 ? n + 1 : ""}`; });
+}
+function svgPng(svg, name) {                                            // SVG ชาร์ตเส้นเงิน -> PNG (ฝังสไตล์ข้อความ/เส้น)
+  let css = ""; for (const ss of document.styleSheets) { try { for (const r of ss.cssRules) if (/\.(fl|fn|flh)/.test(r.selectorText || "")) css += r.cssText; } catch (e) { } }
+  const c = svg.cloneNode(true); c.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  c.insertAdjacentHTML("afterbegin", `<style>text{font-family:Tahoma,'Leelawadee UI',sans-serif}${css}</style><rect width="100%" height="100%" fill="#fff"/>`);
+  const w = +svg.getAttribute("width"), h = +svg.getAttribute("height"), im = new Image();
+  im.onload = () => { const cv = document.createElement("canvas"); cv.width = w * 2; cv.height = h * 2; const g = cv.getContext("2d"); g.scale(2, 2); g.drawImage(im, 0, 0); cv.toBlob((b) => download2(name + ".png", b)); };
+  im.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(c));
+}
+function canvasPng(cv, name) { const o = document.createElement("canvas"); o.width = cv.width; o.height = cv.height; const g = o.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, o.width, o.height); g.drawImage(cv, 0, 0); o.toBlob((b) => download2(name + ".png", b)); }
+const titleNear = (el) => { let e = el; for (let k = 0; k < 6 && e; k++) { let p = e.previousElementSibling; while (p) { if (/^H[23]$/.test(p.tagName) || p.classList.contains("lab")) return p.textContent.replace(/\s+/g, " ").trim().slice(0, 60); p = p.previousElementSibling; } e = e.parentElement; } return TABS.find((t) => t[0] === TAB)?.[1] || "ข้อมูล"; };
+function enhance(root) {
+  for (const tbl of root.querySelectorAll("table")) {
+    if (tbl.dataset.enh) continue; tbl.dataset.enh = "1";
+    const hr = [...tbl.rows].find((tr) => tr.querySelector("th"));
+    const custom = hr && hr.querySelector("[data-ts],[data-cs]");
+    if (hr && !custom) [...hr.cells].forEach((th, c) => { th.classList.add("srt"); th.title = "กดเพื่อเรียง (กดซ้ำสลับ ▲▼ / ครั้งที่ 3 เอาออก ; กดหลายคอลัมน์ = เรียงหลายชั้น)";
+      th.addEventListener("click", (e) => { e.stopPropagation(); const k = tbl._sort = tbl._sort || [], n = k.findIndex((x) => x[0] === c);
+        if (n < 0) k.push([c, 1]); else if (k[n][1] === 1) k[n][1] = -1; else k.splice(n, 1); sortTable(tbl); }); });
+    if (tbl.closest("#tTx")) continue;                                  // ตารางรายการมีปุ่มส่งออกทุกแถวของตัวเอง
+    const host = tbl.closest(".tblwrap") || tbl;
+    const bar = document.createElement("div"); bar.className = "xbar";
+    bar.innerHTML = `${hr && !custom ? '<button class="chip" data-xr="1" title="กลับลำดับเดิม">↺ ลำดับเดิม</button>' : ""}<button class="chip" data-xl="1">${IC("doc", 13)} Excel</button>`;
+    bar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; e.stopPropagation();
+      if (b.dataset.xl) exportTable(tbl, titleNear(host)); else { tbl._sort = []; sortTable(tbl); } };
+    host.parentNode.insertBefore(bar, host);
+  }
+  for (const cv of root.querySelectorAll(".chartbox canvas")) {
+    const box = cv.closest(".chartbox"); if (box.dataset.enh) continue; box.dataset.enh = "1";
+    const b = document.createElement("button"); b.className = "chip pngbtn"; b.textContent = "PNG"; b.title = "ส่งออกรูปชาร์ต";
+    b.onclick = (e) => { e.stopPropagation(); canvasPng(cv, titleNear(box)); }; box.appendChild(b);
+  }
+  for (const card of root.querySelectorAll(".flowcard")) {
+    if (card.dataset.enh) continue; card.dataset.enh = "1";
+    const b = document.createElement("button"); b.className = "chip pngbtn"; b.textContent = "PNG"; b.title = "ส่งออกรูปชาร์ต";
+    b.onclick = (e) => { e.stopPropagation(); const sv = card.querySelector("svg"); if (sv) svgPng(sv, titleNear(card)); }; card.style.position = "relative"; card.appendChild(b);
+  }
+}
+let ENT = 0;
+new MutationObserver(() => { clearTimeout(ENT); ENT = setTimeout(() => { const m = $("#main"); if (m) enhance(m); }, 120); }).observe(document.getElementById("main") || document.body, { childList: true, subtree: true });
+
 /* ---------- โครงหน้า ---------- */
 const TABS = [["over", "ภาพรวม", "chart"], ["case", "คดี", "book"], ["charges", "ข้อหา", "scale"], ["defences", "ข้อต่อสู้", "shield"], ["work", "งาน", "list"], ["prog", "ความคืบหน้า", "cal"], ["stm", "ขอ STM", "doc"], ["asset", "ทรัพย์สิน", "coin"], ["srch", "ตรวจค้น", "bag"], ["ppl", "บุคคล", "users"], ["ana", "วิเคราะห์", "flow"], ["acc", "บัญชี", "bank"], ["trace", "ไล่เส้นเงิน", "route"], ["img", "ภาพ", "img"]];
 let TAB = "over";
@@ -513,6 +613,18 @@ const T0 = Date.UTC(2015, 0, 1) / 60000;
 const KCOL = ["#1565C0", "#00897B", "#B3261E", "#9E9E9E", "#FFD403"];
 const IN_K = [0, 1, 4];
 let F = null, TXM = null, SHOWN = 200;
+const txSec = (i) => (DB.txs && DB.txs[i] >= 0 ? DB.txs[i] : -1);
+const txT = (i) => { const r = DB.tx[i]; if (r[2] === 4) return "(ทั้งเดือน)"; const sec = txSec(i); return min2iso(r[1]).slice(11, 16) + (sec >= 0 ? ":" + String(sec).padStart(2, "0") : ""); };
+const TXS0 = () => [["t", 1]];                                          // ค่าเริ่มต้นตารางรายการ: วันที่-เวลา เก่า -> ใหม่ (ผู้สั่งงาน 18 พ.ย. 69)
+let TXS = TXS0();
+const TXC = { t: "วันเวลา", a: "บัญชี", k: "ประเภท", v: "ยอด", c: "คู่โอน", g: "กลุ่มคู่โอน" };
+const txKey = (k, i) => { const r = DB.tx[i]; switch (k) { case "t": return r[1] * 60 + Math.max(0, txSec(i)); case "a": return DB.accounts[r[0]].name || ""; case "k": return r[2]; case "v": return r[3];
+  case "c": { const c = DB.cps[r[4]]; return (c[1] || c[0] || ""); } default: return DB.groups[DB.cps[r[4]][3]][1]; } };
+function txSort(idx) {
+  const ks = TXS.map(([k, d]) => { const m = new Map(); for (const i of idx) m.set(i, txKey(k, i)); return [m, d]; });
+  return [...idx].sort((x, y) => { for (const [m, d] of ks) { const a = m.get(x), b = m.get(y); if (a === b) continue;
+    const c = typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b), "th"); if (c) return c * d; } return x - y; });
+}
 const day2min = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 60000 - T0;
 const min2iso = (m) => new Date((m + T0) * 60000).toISOString();
 function prep() {
@@ -572,7 +684,7 @@ function pAna() {
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา</small> <span class="muted" style="font-size:.8rem;font-weight:400">เรียงตาม</span>${[["t", "ยอดรวม"], ["i", "เงินเข้า"], ["o", "เงินออก"], ["n", "จำนวนครั้ง"]].map(([k, l]) => `<button class="chip" data-cs="${k}">${l}</button>`).join("")}</h2>
   <div class="tblwrap tbl1" id="tCp"></div>
-  <h2>${IC("list")} รายการ <small id="txLab"></small></h2>
+  <h2>${IC("list")} รายการ <small id="txLab"></small> <button class="chip" id="txReset" title="กลับไปเรียงตามวันที่-เวลา">↺ รีเซ็ตการเรียง</button><button class="chip" id="txXlsx">${IC("doc", 14)} ส่งออก Excel</button></h2>
   <div class="tblwrap tbl1" id="tTx"></div>
   <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>
   <h2>ตามเวลา <small id="granLab"></small> <button class="chip" id="gBtn">สลับ รายเดือน / รายปี</button></h2>
@@ -593,6 +705,8 @@ function pAna() {
     else if (b.id === "fCsv") return csv();
     else if (b.id === "gBtn") F.gran = (F._g === "y") ? "m" : "y";
     else if (b.id === "more") { SHOWN += 300; return upd(true); }
+    else if (b.id === "txReset") { TXS = TXS0(); return upd(true); }
+    else if (b.id === "txXlsx") return txXlsx();
     else if (b.dataset.cs) F.cps = b.dataset.cs;
     else if (b.dataset.fm) F.flm = b.dataset.fm;
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
@@ -608,11 +722,18 @@ function pAna() {
     if (t.id === "fFrom") F.from = t.value || DB.lo; else if (t.id === "fTo") F.to = t.value || DB.hi; else if (t.dataset.a) tog(F.accs, +t.dataset.a, t.checked); else return; upd(); };
   let tmr; m.oninput = (e) => { const t = e.target; if (t.id !== "fMin" && t.id !== "fQ") return; clearTimeout(tmr); tmr = setTimeout(() => { F.min = +$("#fMin").value || 0; F.q = $("#fQ").value; upd(); }, 280); };
   const tog = (s, v, on) => ((on ?? !s.has(v)) ? s.add(v) : s.delete(v));
-  let IDX = [];
+  let IDX = [], SORTED = [];
+  function txXlsx() {                                                  // ส่งออก Excel (.xlsx) ทุกแถวที่กรอง เรียงตามที่ตั้งไว้ (ผู้สั่งงาน 18 พ.ย. 69)
+    const H = ["วันที่", "เวลา", "ธนาคาร", "เลขบัญชี", "ชื่อบัญชี", "ประเภทรายการ", "ยอด (บาท)", "ครั้ง", "บัญชีคู่โอน", "ธนาคารคู่โอน", "ชื่อคู่โอน", "กลุ่มคู่โอน"];
+    const rows = (SORTED.length ? SORTED : IDX).map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]], iso = min2iso(r[1]);
+      return [iso.slice(0, 10), txT(i), a.bank, a.acc, a.name, DB.kinds[r[2]], r[3], r[5] || 1, c[0] || "", c[2] || "", c[1] || "", DB.groups[c[3]][1]]; });
+    download2(`รายการที่กรอง ${F.from} ถึง ${F.to}.xlsx`, xlsxBlob("รายการ", [H, ...rows], [12, 9, 8, 15, 32, 22, 15, 7, 18, 10, 32, 30]));
+    toast(`ส่งออก ${fmt0(rows.length)} แถว`);
+  }
   function csv() {
     const L = ["วันเวลา,ธนาคาร,บัญชี,ชื่อบัญชี,ประเภทรายการ,ยอด,ครั้ง,บัญชีคู่โอน,ธนาคารคู่โอน,ชื่อคู่โอน,กลุ่มคู่โอน"];
     const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    IDX.forEach((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]]; L.push([min2iso(r[1]).slice(0, 16).replace("T", " "), a.bank, q("'" + a.acc), q(a.name), DB.kinds[r[2]], r[3], r[5] || 1, q(c[0] ? "'" + c[0] : ""), c[2], q(c[1]), q(DB.groups[c[3]][1])].join(",")); });
+    IDX.forEach((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]]; L.push([min2iso(r[1]).slice(0, 10) + " " + txT(i), a.bank, q("'" + a.acc), q(a.name), DB.kinds[r[2]], r[3], r[5] || 1, q(c[0] ? "'" + c[0] : ""), c[2], q(c[1]), q(DB.groups[c[3]][1])].join(",")); });
     download("รายการที่กรอง.csv", L.join("\r\n"), "text/csv");
   }
   function upd(tableOnly) {
@@ -649,11 +770,16 @@ function pAna() {
     $("#tCp").innerHTML = `<table><tr><th>#</th><th>คู่โอน</th><th>บัญชี</th><th>กลุ่ม</th><th class="n srt ${F.cps === "i" ? "on" : ""}" data-cs="i">เงินเข้า (บาท)</th><th class="n srt ${F.cps === "o" ? "on" : ""}" data-cs="o">เงินออก (บาท)</th><th class="n srt ${F.cps === "n" ? "on" : ""}" data-cs="n">ครั้ง</th></tr>` +
       top.map(([ci, v], i) => { const c = DB.cps[ci]; return `<tr class="click" data-q="${esc(c[0] || c[1])}"><td>${i + 1}</td><td>${esc(c[1]) || "<span class=muted>ไม่ระบุชื่อ</span>"}</td><td>${c[2]} ${c[0]}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[c[3]][2]}"></span> ${esc(DB.groups[c[3]][1].split(" (")[0])}</td><td class="n">${v[0] ? fmt(v[0]) : ""}</td><td class="n">${v[1] ? fmt(v[1]) : ""}</td><td class="n">${fmt0(v[2])}</td></tr>`; }).join("") + "</table>";
     $("#tCp").onclick = (e) => { const th = e.target.closest("th[data-cs]"); if (th) { F.cps = F.cps === th.dataset.cs ? "t" : th.dataset.cs; upd(true); return; } const tr = e.target.closest("tr[data-q]"); if (tr) { FHIST.push(fSnap()); F.q = tr.dataset.q; $("#fQ").value = F.q; upd(); } };
-    const big = [...IDX].sort((x, y) => DB.tx[y][3] - DB.tx[x][3]).slice(0, SHOWN);
-    $("#txLab").textContent = `เรียงตามยอด — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว`;
+    SORTED = txSort(IDX);
+    const big = SORTED.slice(0, SHOWN);
+    $("#txLab").textContent = `เรียงตาม ${TXS.map(([k, d], n) => `${n + 1}.${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")} — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว · กดหัวคอลัมน์เพื่อเรียงเพิ่ม (กดซ้ำสลับ ↑↓ / ครั้งที่ 3 เอาออก)`;
     $("#more").hidden = big.length >= IDX.length;
-    $("#tTx").innerHTML = `<table><tr><th>วันเวลา</th><th>บัญชี</th><th>ประเภท</th><th class="n">ยอด (บาท)</th><th>คู่โอน</th><th>กลุ่มคู่โอน</th></tr>` +
-      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]], iso = min2iso(r[1]); return `<tr><td>${dTh(iso)} ${r[2] === 4 ? "(ทั้งเดือน)" : iso.slice(11, 16)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}</td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+    const th = (k, l, cls) => { const n = TXS.findIndex((x) => x[0] === k); return `<th class="srt ${cls || ""} ${n >= 0 ? "on" : ""}" data-ts="${k}">${l}${n >= 0 ? ` <small>${TXS[n][1] > 0 ? "▲" : "▼"}${TXS.length > 1 ? n + 1 : ""}</small>` : ""}</th>`; };
+    $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("a", "บัญชี")}${th("k", "ประเภท")}${th("v", "ยอด (บาท)", "n")}${th("c", "คู่โอน")}${th("g", "กลุ่มคู่โอน")}</tr>` +
+      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[r[4]], iso = min2iso(r[1]); return `<tr><td>${dTh(iso)} ${txT(i)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}</td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+    $("#tTx").onclick = (e) => { const h = e.target.closest("th[data-ts]"); if (!h) return; const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
+      if (n < 0) TXS.push([k, k === "v" ? -1 : 1]); else if (TXS[n][1] === (k === "v" ? -1 : 1)) TXS[n][1] *= -1; else TXS.splice(n, 1);
+      if (!TXS.length) TXS = TXS0(); SHOWN = 200; upd(true); };
     if (tableOnly) return;
     // ชาร์ต
     ["time", "cpg", "acc"].forEach((k) => CH[k] && (CH[k].destroy(), delete CH[k]));
@@ -710,7 +836,24 @@ async function donorSearch(q) {
     `<p class="muted" style="font-size:.84rem">พบ ${fmt0(DNH.length)} บัญชี รวม ${fmt(tot)} บาท${DNH.length > 100 ? " (แสดง 100 อันดับแรก)" : ""} — กดแถวเพื่อดูรายการรายครั้ง</p>
     <div class="tblwrap tbl1"><table><tr><th>#</th><th>ผู้บริจาค</th><th>บัญชี</th><th>ประเภท</th>${D.t1s.map((t) => `<th class="n">เข้า ${t}</th>`).join("")}<th class="n">รวม (บาท)</th><th class="n">ครั้ง</th><th>ช่วงเวลา</th></tr>
     ${DNH.slice(0, 100).map(([i, a], k) => { const d = D.d[i]; return `<tr class="click" data-dnr="${i}"><td>${k + 1}</td><td>${esc(d[2]) || '<span class="muted">ไม่ระบุชื่อ</span>'}</td><td>${esc(d[1])} ${esc(d[0])}</td><td>${esc(d[3])}</td>${a.by.map((v) => `<td class="n">${v ? fmt(v) : ""}</td>`).join("")}<td class="n"><b>${fmt(a.t)}</b></td><td class="n">${fmt0(a.n)}</td><td>${dnDay(a.f)} – ${dnDay(a.l)}</td></tr>`; }).join("")}</table></div>`;
+  if (DNH.length) { box.insertAdjacentHTML("afterbegin", `<div class="card flowcard svgchart" style="margin:8px 0"><div class="lab" style="margin:0 0 4px">เส้นเงิน ผู้บริจาคที่ค้นพบ → บัญชีรับบริจาค</div><div id="dnFlow"></div></div>`); dnFlow($("#dnFlow"), DNH, D); }
   box.onclick = (e) => { const tr = e.target.closest("tr[data-dnr]"); if (tr) donorDetail(+tr.dataset.dnr); };
+}
+function dnFlow(el, hits, D) {                                          // ชาร์ต 2 คอลัมน์: ผู้บริจาค (12 อันดับ + อื่นๆ) -> บัญชีรับบริจาค
+  const top = hits.slice(0, 12), rest = hits.slice(12), L = top.map(([i, a]) => ({ lab: D.d[i][2] || `${D.d[i][1]} ${D.d[i][0]}`, sub: `${D.d[i][1]} ${D.d[i][0]}`, v: a.t, by: a.by }));
+  if (rest.length) L.push({ lab: `ผู้บริจาครายอื่น ${fmt0(rest.length)} บัญชี`, sub: "", v: rest.reduce((t, [, a]) => t + a.t, 0), by: D.t1.map((_, k) => rest.reduce((t, [, a]) => t + a.by[k], 0)) });
+  const R = D.t1.map((t, k) => ({ lab: t.replace(/^KBANK \d+ /, ""), sub: D.t1s[k], v: L.reduce((s_, x) => s_ + x.by[k], 0), col: ["#1A237E", "#1565C0", "#26C6DA"][k] || "#1565C0" })).filter((x) => x.v > 0);
+  const W = Math.max(640, el.clientWidth || 800), LW = W > 900 ? 300 : 180, bw = 14, pad = 6, tot = L.reduce((s_, x) => s_ + x.v, 0) || 1;
+  const H0 = Math.max(260, L.length * 30), sc = (H0 - pad * Math.max(L.length - 1, R.length - 1)) / tot;
+  let y = 22; L.forEach((n) => { n.h = Math.max(16, n.v * sc); n.y = y; n.o = y; y += n.h + pad; });
+  let y2 = 22; R.forEach((n) => { n.h = Math.max(16, n.v * sc); n.y = y2; n.o = y2; y2 += n.h + pad; });
+  const H = Math.max(y, y2), xL = LW, xR = W - LW - bw, cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
+  let svg = `<text x="${xL + bw}" y="13" text-anchor="end" class="flh">ผู้บริจาค</text><text x="${xR}" y="13" class="flh">บัญชีรับบริจาค</text>`;
+  L.forEach((n) => { R.forEach((r, k0) => { const k = D.t1.findIndex((t) => t.replace(/^KBANK \d+ /, "") === r.lab); const v = n.by[k] || 0; if (!v) return; const th = Math.max(1, v * sc), y0 = n.o + th / 2, y1 = r.o + th / 2, mx = (xL + bw + xR) / 2;
+    n.o += th; r.o += th; svg += `<path class="fl" d="M${xL + bw},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${xR},${y1.toFixed(1)}" stroke="${r.col}" stroke-width="${th.toFixed(1)}" data-tip="${esc(n.lab)} → ${esc(r.sub)} : ${fmt(v)} บาท"/>`; }); });
+  L.forEach((n) => { svg += `<g data-tip="${esc(n.lab)} ${esc(n.sub)} : ${fmt(n.v)} บาท"><rect x="${xL}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="#F9A825"/><text x="${xL - 6}" y="${(n.y + n.h / 2 + 4).toFixed(1)}" text-anchor="end" class="fl1">${esc(cut(n.lab, W > 900 ? 34 : 20))} <tspan class="fl2">${M(n.v)}</tspan></text></g>`; });
+  R.forEach((n) => { svg += `<g data-tip="${esc(n.sub)} ${esc(n.lab)} : ${fmt(n.v)} บาท"><rect x="${xR}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" class="fl1">${esc(cut(n.sub, 20))}</text><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" class="fl2">${M(n.v)} · ${esc(cut(n.lab, 26))}</text></g>`; });
+  el.innerHTML = `<svg width="${W}" height="${Math.ceil(H + 6)}" viewBox="0 0 ${W} ${Math.ceil(H + 6)}">${svg}</svg>`;
 }
 async function donorDetail(i) {
   const D = await loadDonors(), d = D.d[i], box = $("#dnRes");
@@ -723,6 +866,12 @@ async function donorDetail(i) {
     ${rows.map((x) => `<tr><td>${dnDay(x[2])}</td><td>${esc(x[3])}</td><td>${esc(D.t1[x[1]])}</td><td>${esc(D.kinds[x[6]] || "")}</td><td class="n">${fmt(x[4])}</td><td class="n">${fmt0(x[5])}</td></tr>`).join("")}
     <tr><td colspan="4"><b>รวม</b></td><td class="n"><b>${fmt(tot)}</b></td><td class="n"><b>${fmt0(n)}</b></td></tr></table></div>
     <p class="muted" style="font-size:.8rem">แถวที่จำนวนครั้งมากกว่า 1 = ยอดรวมรายย่อย (ไฟล์ Pivot ไม่แตกรายการ) — รายครั้งดูในไฟล์ EDIT</p>`;
+  const mon = new Map(); for (const x of rows) { if (x[2] < 0) continue; const t = new Date(Date.UTC(2015, 0, 1) + x[2] * 864e5), k = t.getUTCFullYear() * 12 + t.getUTCMonth(); let o = mon.get(k); if (!o) mon.set(k, (o = D.t1.map(() => 0))); o[x[1]] += x[4]; }
+  const ks = [...mon.keys()].sort((a, b) => a - b);
+  if (ks.length) { box.insertAdjacentHTML("beforeend", `<div class="card" style="margin-top:8px"><div class="lab" style="margin:0 0 4px">ยอดบริจาครายเดือน — ${esc(d[2] || d[0])}</div><div class="chartbox"><canvas id="cDn"></canvas></div></div>`);
+    CH.dn && CH.dn.destroy(); CH.dn = new Chart($("#cDn"), { type: "bar", data: { labels: ks.map((k) => `${MTH[k % 12 + 1]} ${String(Math.floor(k / 12) + 543).slice(2)}`),
+      datasets: D.t1.map((t, j) => ({ label: D.t1s[j], data: ks.map((k) => mon.get(k)[j]), backgroundColor: ["#1A237E", "#1565C0", "#26C6DA"][j], stack: "s" })).filter((ds) => ds.data.some((v) => v)) },
+      options: { maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: "บาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw)}` } } } } }); }
 }
 
 /* ---------- บัญชี (กล่องรายกลุ่ม กดดูรายบัญชี) ---------- */
