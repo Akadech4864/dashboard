@@ -59,7 +59,8 @@ const SEC = {
   charges: { label: "ข้อหา", f: [["title", "บุคคล"], ["extra1", "บทบาท"], ["detail", "ข้อหา", "ta"], ["status", "สถานะ"]] },
   defences: { label: "ข้อต่อสู้ที่ต้องพิสูจน์", f: [["extra1", "ผู้อ้าง"], ["title", "ข้อต่อสู้"], ["detail", "สิ่งที่ต้องพิสูจน์", "ta"], ["extra2", "หลักฐานที่มี", "ta"], ["status", "สถานะ"]] },
   done: { label: "สิ่งที่ทำไปแล้ว", f: [["title", "งาน"], ["detail", "รายละเอียด", "ta"], ["date", "วันที่", "date"]] },
-  todo: { label: "สิ่งที่ต้องทำต่อ", f: [["title", "งาน"], ["detail", "รายละเอียด", "ta"], ["extra1", "ผู้รับผิดชอบ"], ["date", "กำหนด", "date"], ["status", "สถานะ"]] },
+  todo: { label: "งาน", f: [["title", "งาน"], ["detail", "รายละเอียด", "ta"], ["extra2", "หมวดงาน (เลือกหรือพิมพ์เอง)", "list"], ["extra1", "ผู้รับผิดชอบ"], ["date", "กำหนด / วันที่", "date"],
+    ["status", "สถานะ", "sel:ต้องทำ|กำลังดำเนินการ|รอผล|เสร็จแล้ว"]] },
 };
 const LS = { get: (k) => { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { } } };
 const sheetCfg = () => { const o = LS.get("cib_sheet") || {}; return { url: o.url || DB.sheet_url || "", token: o.token || DB.sheet_token || "" }; };
@@ -94,7 +95,10 @@ $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") clos
 function editItem(sec, id) {
   const it = id ? { ...C[sec].find((x) => x.id === id) } : { id: sec[0] + Date.now().toString(36) };
   openModal(`<h3>${id ? "แก้ไข" : "เพิ่ม"} — ${SEC[sec].label}</h3>` + SEC[sec].f.map(([k, l, t]) =>
-    `<label>${l}</label>` + (t === "ta" ? `<textarea data-k="${k}">${esc(it[k])}</textarea>` : `<input data-k="${k}" type="${t === "date" ? "date" : "text"}" value="${esc(it[k])}">`)).join("") +
+    `<label>${l}</label>` + (t === "ta" ? `<textarea data-k="${k}">${esc(it[k])}</textarea>`
+      : t && t.startsWith("sel:") ? `<select data-k="${k}">${[...new Set([...t.slice(4).split("|"), it[k] || ""])].filter(Boolean).map((o) => `<option${(it[k] || t.slice(4).split("|")[0]) === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`
+      : t === "list" ? `<input data-k="${k}" list="dl_${k}" value="${esc(it[k])}" placeholder="เช่น ขอข้อมูลธนาคาร / สอบปากคำ / รายงาน"><datalist id="dl_${k}">${[...new Set(typeof workRows === "function" ? workRows().map((r) => r.type) : [])].map((o) => `<option value="${esc(o)}">`).join("")}</datalist>`
+      : `<input data-k="${k}" type="${t === "date" ? "date" : "text"}" value="${esc(it[k])}">`)).join("") +
     `<div class="modal-foot">${id ? '<button class="btn o" id="mDel">ลบ</button>' : ""}<button class="btn o" id="mCancel">ยกเลิก</button><button class="btn" id="mSave">บันทึก</button></div>`);
   $("#mCancel").onclick = closeModal;
   $("#mSave").onclick = () => { $$("[data-k]", $("#modalBox")).forEach((e) => (it[e.dataset.k] = e.value.trim())); closeModal(); saveItem(sec, it); };
@@ -233,7 +237,7 @@ function start() {
   loadContent();
   if (window.aiMount) window.aiMount();
 }
-function go(t) { PV = ""; AV = ""; if (t === "prog") t = "work"; if (t === "stm" || t === "acc") { ACS = "tbl"; t = "acct"; } else if (t === "ppl" || t === "trace") { ACS = t; t = "acct"; } if (t === "acct") ACC_ROWS = null; TAB = TABS.some((x) => x[0] === t) ? t : "over"; history.replaceState(null, "", "#" + TAB); $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB)); render(); window.scrollTo(0, 0); }
+function go(t) { PV = ""; AV = ""; if (t === "prog") t = "work"; if (t === "stm" || t === "acc") { ACS = "tbl"; t = "acct"; } else if (t === "ppl" || t === "trace") { ACS = t; t = "acct"; } TAB = TABS.some((x) => x[0] === t) ? t : "over"; history.replaceState(null, "", "#" + TAB); $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB)); render(); window.scrollTo(0, 0); }
 function killCharts() { Object.values(CH).forEach((c) => c.destroy()); CH = {}; }
 function render() { killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
 const acts = (sec, id) => `<span class="acts"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></span>`;
@@ -517,14 +521,14 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
   let tm; m.oninput = (e) => { if (e.target.id !== "asQ") return; clearTimeout(tm); tm = setTimeout(() => { ASF.q = e.target.value; render(); const x = $("#asQ"); if (x) { x.focus(); x.setSelectionRange(ASF.q.length, ASF.q.length); } }, 300); };
 }
 let ASF = { st: "", type: "", own: "", q: "" };
-const NATC = { per: "#B3261E", chk: "#E0A800", chr: "#1B7A4A", fin: "#9E9E9E" };
+const NATC = { per: "#B3261E", chr: "#1B7A4A", fin: "#9E9E9E" };
 function ccBlock(C) {
   const nat = Object.fromEntries(C.nature.map((x) => [x.k, x])), t1 = C.pay.src.filter((s) => s.t1).reduce((t, s) => t + s.amt, 0);
   const x4260 = (C.pay.bank_unmatched.by || []).filter((r) => /4417704260/.test(r[0])).reduce((t, r) => t + r[1], 0);
   const trips = C.trips.reduce((t, x) => t + x.amt, 0);
   return `<div id="ccBlk"></div><h2>${IC("card")} การใช้บัตรเครดิต ${esc(C.holder || "")} <small>KBANK VISA x${C.cards.map((c) => c.card).join(" / x")} · ${dTh(C.range[0])} – ${dTh(C.range[1])} · statement ${C.files} ฉบับ</small></h2>
-  <div class="grid g4 kp8">${[["ยอดใช้จ่ายสุทธิ", C.total, `${fmt0(C.n)} รายการ`, ""], ["ใช้ส่วนตัว (ชัดเจน)", nat.per?.amt || 0, `${((nat.per?.amt || 0) / C.total * 100).toFixed(1)}%`, "r"],
-    ["อาจซื้อของมูลนิธิ/บริจาค (ต้องตรวจใบเสร็จ)", nat.chk?.amt || 0, `${((nat.chk?.amt || 0) / C.total * 100).toFixed(1)}%`, "y"], ["บริจาค / กุศล", nat.chr?.amt || 0, `${((nat.chr?.amt || 0) / C.total * 100).toFixed(2)}%`, "g"],
+  <div class="grid g4 kp8">${[["ยอดใช้จ่ายสุทธิ", C.total, `${fmt0(C.n)} รายการ`, ""], ["ใช้ส่วนตัว", nat.per?.amt || 0, `${((nat.per?.amt || 0) / C.total * 100).toFixed(1)}%`, "r"], ["บริจาค / ทำบุญ", nat.chr?.amt || 0, `${((nat.chr?.amt || 0) / C.total * 100).toFixed(2)}% · ${(C.chr || []).length} รายการ`, "g"],
+    ["สินค้าแบรนด์เนม / เครื่องประดับ", (C.types.find((t) => t.k === "lux") || {}).amt || 0, `${(C.types.find((t) => t.k === "lux") || {}).n || 0} รายการ`, ""],
     ["ชำระค่าบัตรจากบัญชีรับบริจาค", t1, `${(t1 / C.pay.total * 100).toFixed(1)}% ของยอดชำระ`, "r"], ["บัญชีรับบริจาคชำระบัตร x4260 (ยังไม่มี statement)", x4260, "บัญชีบัตร 4417704260", "x"],
     ["เดินทางต่างประเทศ", trips, `${C.trips.length} ทริป`, ""], ["หลังตั้งมูลนิธิ (25 มิ.ย. 65)", C.period["หลังตั้งมูลนิธิ"]?.[0] || 0, `${fmt0(C.period["หลังตั้งมูลนิธิ"]?.[1] || 0)} รายการ`, ""]]
     .map(([l, v, s, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${s}</div></div>`).join("")}</div>
@@ -536,11 +540,11 @@ function ccBlock(C) {
     ${(C.pay.bank_unmatched.by || []).map((r) => `<tr><td>${esc(r[0].replace(/^KBNK /, "KBANK "))} <small class="muted">(ไม่อยู่ใน statement บัตรชุดนี้)</small></td><td class="n">${fmt(r[1])}</td><td class="n">${fmt0(r[2])}</td><td></td><td></td></tr>`).join("")}</table></div>
   <h2>${IC("list")} ประเภทการใช้จ่าย</h2>
   <div class="tblwrap"><table><tr><th>ประเภท</th><th>ลักษณะ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th class="n">ก่อนตั้ง</th><th class="n">หลังตั้ง</th></tr>
-    ${C.types.map((t) => `<tr><td>${esc(t.label)}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${NATC[t.nat]}"></span> ${esc({ per: "ใช้ส่วนตัว", chk: "อาจซื้อของมูลนิธิ/บริจาค", chr: "บริจาค/กุศล" }[t.nat] || t.nat)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td class="n">${fmt(t.before)}</td><td class="n">${fmt(t.after)}</td></tr>`).join("")}</table></div>
+    ${C.types.map((t) => `<tr><td>${esc(t.label)}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${NATC[t.nat]}"></span> ${esc({ per: "ใช้ส่วนตัว", chr: "บริจาค/ทำบุญ" }[t.nat] || t.nat)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td class="n">${fmt(t.before)}</td><td class="n">${fmt(t.after)}</td></tr>`).join("")}</table></div>
   ${accd(`${IC("users", 16)} ร้านค้ารายใหญ่ (รวมสาขา)`, `${C.merchants.length} อันดับ`, `<div class="tblwrap"><table><tr><th>#</th><th>ร้านค้า</th><th>ประเภท</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th></tr>${C.merchants.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.m)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td><td class="n">${fmt0(x.n)}</td></tr>`).join("")}</table></div>`)}
   ${accd(`${IC("route", 16)} เดินทางต่างประเทศ`, `${C.trips.length} ทริป · ${M(trips)}`, `<div class="tblwrap"><table><tr><th>#</th><th>วันแรก</th><th>วันสุดท้าย</th><th>ประเทศ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th>รายการใหญ่สุด</th></tr>${C.trips.map((t) => `<tr><td>${t.no}</td><td>${dTh(t.start)}</td><td>${dTh(t.end)}</td><td>${esc(t.countries)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td><small>${t.top.slice(0, 2).map(([v, d]) => `${esc(d)} ${fmt0(v)}`).join("<br>")}</small></td></tr>`).join("")}</table></div>`)}
   ${accd(`${IC("warn", 16)} รายการตั้งแต่ 50,000 บาท`, `${C.big.length} รายการ`, `<div class="tblwrap"><table><tr><th>วันที่</th><th>บัตร</th><th>ร้านค้า</th><th>เมือง/ประเทศ</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${C.big.map((x) => `<tr><td>${dTh(x.d)}</td><td>x${x.card}</td><td>${esc(x.m)}</td><td>${esc(x.loc)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td></tr>`).join("")}</table></div>`)}
-  ${accd(`${IC("check", 16)} บริจาค-กุศล และรายการที่อาจซื้อของมูลนิธิ/บริจาค`, `${C.chr.length + C.chk.length} รายการ`, `<div class="tblwrap"><table><tr><th>วันที่</th><th>ร้านค้า</th><th>เมือง</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${[...C.chr, ...C.chk].map((x) => `<tr><td>${dTh(x.d)}</td><td>${esc(x.m)}</td><td>${esc(x.loc)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td></tr>`).join("")}</table></div>`)}
+  ${accd(`${IC("check", 16)} บริจาค / ทำบุญ`, `${(C.chr || []).length} รายการ · ${fmt((C.chr || []).reduce((t, x) => t + x.amt, 0))} บาท`, `<div class="tblwrap"><table><tr><th>วันที่</th><th>ร้านค้า/องค์กร</th><th>เมือง</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${(C.chr || []).map((x) => `<tr><td>${dTh(x.d)}</td><td>${esc(x.m)}</td><td>${esc(x.loc)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td></tr>`).join("")}</table></div>`)}
   ${accd(`${IC("list", 16)} รายการทั้งหมด`, `${fmt0(C.tx.length)} แถว`, `<div class="tblwrap tall"><table><tr><th>วันที่</th><th>บัตร</th><th>ร้านค้า</th><th>เมือง/ประเทศ</th><th>ประเภท</th><th>ประเทศ</th><th class="n">ยอด (บาท)</th></tr>${C.tx.map((r) => `<tr><td>${dTh(r[0])}</td><td>x${r[1]}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[6])}</td><td class="n">${fmt(r[7])}</td></tr>`).join("")}</table></div>`)}
   <p class="muted" style="font-size:.82rem">จัดประเภทจากชื่อร้านค้าตาม statement บัตร (ไม่ใช่รายการสินค้าจริง) ต้องยืนยันด้วยใบเสร็จ ; รายงานฉบับเต็ม + Excel Pivot อยู่ในโฟลเดอร์ 4_รายงานนำเสนอ/8_บัตรเครดิต</p>`;
 }
@@ -561,13 +565,16 @@ const WST = { done: ["เสร็จแล้ว", "g", "#1B7A4A"], doing: ["�
 function workRows() {
   const R = [], today = isoNow().slice(0, 10);
   const stOf = (s, dflt) => (!s ? dflt : /มาพบแล้ว|เรียบร้อย|เสร็จ|ได้แล้ว|แล้วเสร็จ/.test(s) ? "done" : /ยังไม่/.test(s) ? "todo" : /รอ|ออกแล้ว|ขอแล้ว|นัด/.test(s) ? "wait" : "doing");
-  C.todo.forEach((t) => R.push({ type: "งานผู้วิเคราะห์ (ในเว็บ)", ic: "clock", title: t.title, detail: t.detail || "", own: t.extra1 || "", date: t.date || "", stx: t.status || "ต้องทำ", st: /เสร็จ/.test(t.status || "") ? "done" : /รอ/.test(t.status || "") ? "wait" : "todo", sec: "todo", id: t.id }));
+  C.todo.forEach((t) => R.push({ type: t.extra2 || "งานผู้วิเคราะห์ (ในเว็บ)", ic: "clock", title: t.title, detail: t.detail || "", own: t.extra1 || "", date: t.date || "", stx: t.status || "ต้องทำ",
+    st: /เสร็จ/.test(t.status || "") ? "done" : /รอ/.test(t.status || "") ? "wait" : /กำลัง|ดำเนิน/.test(t.status || "") ? "doing" : "todo", sec: "todo", id: t.id }));
   C.done.forEach((t) => R.push({ type: "งานผู้วิเคราะห์ (ในเว็บ)", ic: "check", title: t.title, detail: t.detail || "", own: t.extra1 || "", date: t.date || "", stx: t.status || "เสร็จแล้ว", st: "done", sec: "done", id: t.id }));
   progTasks().forEach((t) => R.push({ type: "งานชุดทำคดี", ic: "check", title: (t.no ? t.no + ". " : "") + t.title, detail: [t.detail, t.prob ? "ปัญหา: " + t.prob : "", t.note].filter(Boolean).join(" · "), own: t.owner, date: t.date || "", stx: t.due || "", st: t.st === "none" ? "none" : t.st }));
   tsSus().forEach((r) => R.push({ type: "หมายเรียกผู้ต้องหา", ic: "scale", title: r.name, detail: [r.issue, r.off, r.note].filter(Boolean).join(" · "), own: r.off || "", date: pDate(r.date) || "", stx: r.st, st: stOf(r.st, pDate(r.date) > today ? "wait" : "none") }));
   tsWit().forEach((s) => s.rows.forEach((r) => R.push({ type: "หมายเรียกพยาน", ic: "users", title: r.name, detail: [s.title, r.sub, r.note].filter(Boolean).join(" · "), own: r.off || "", date: pDate(r.date) || "", stx: r.st, st: stOf(r.st, pDate(r.date) > today ? "wait" : "none") })));
   tsAnu().forEach((r) => R.push({ type: "หมายเรียกเอกสาร / รถ", ic: "doc", title: r.name, detail: r.prov, own: "", date: pDate(r.meet) || "", stx: r.meet ? "นัด " + r.meet : "", st: pDate(r.meet) && pDate(r.meet) > today ? "wait" : "none" }));
-  tsAcc().forEach((r) => R.push({ type: "ขอข้อมูลบัญชี (STM)", ic: "bank", title: `${r.bank} ${r.acc} ${r.name}`, detail: [r.ref ? "หนังสือ " + r.ref : "", r.wd ? "ถอนเงิน: " + r.wd : "", r.note].filter(Boolean).join(" · "), own: "", date: "", stx: r.data, st: /ได้แล้ว/.test(r.data) ? "done" : /ขอแล้ว|รอ/.test(r.data) ? "wait" : "todo", go: "stm" }));
+  accRows().rows.forEach((r) => R.push({ type: "ขอข้อมูลบัญชี (STM)", ic: "bank", title: `${r.bank} ${r.acc} ${r.name}`.trim(),
+    detail: [r.sheet && r.sheet.ref ? "หนังสือ " + r.sheet.ref : "", r.sheet && r.sheet.wd ? "ถอนเงิน: " + r.sheet.wd : "", r.sheet ? r.sheet.note : "", r.fz ? `อายัด ${fmt(r.fz.amt)} บาท` : ""].filter(Boolean).join(" · "),
+    own: "", date: "", stx: r.st, st: r.ai >= 0 ? "done" : /รอนำเข้า/.test(r.st) ? "doing" : /ขอแล้ว|รอ/.test(r.st) ? "wait" : "todo", go: "acct" }));
   tsCo().forEach((r) => R.push({ type: "หมายเรียกนิติบุคคล", ic: "build", title: r.name, detail: r.type, own: "", date: "", stx: "", st: "none" }));
   return R;
 }
@@ -580,19 +587,19 @@ function pWork() {
   const tcard = (t) => { const v = R.filter((r) => r.type === t), d = v.filter((r) => r.st === "done").length, ic = v[0].ic;
     return `<button class="tile ${WF.type === t ? "on" : ""}" data-wk="type" data-wv="${esc(t)}"><span class="ico">${IC(ic)}</span><span class="v">${d}<small>/${v.length}</small></span><span class="l">${esc(t)}</span><span class="s"><span class="bar"><i style="width:${v.length ? d / v.length * 100 : 0}%;background:var(--green)"></i></span></span></button>`; };
   const m = $("#main");
-  m.innerHTML = `<h2>${IC("list")} งานและความคืบหน้า <small>${tsStamp()}</small> ${syncBtn()} ${addBtn("todo")}</h2>
+  m.innerHTML = `<h2>${IC("list")} งานและความคืบหน้า <small>${tsStamp()}</small> ${syncBtn()} <button class="btn" style="display:inline-block;padding:4px 14px;font-size:.9rem" onclick="editItem('todo')">+ เพิ่มงาน</button></h2>
   <div class="hero"><div class="l">ความคืบหน้ารวมทุกงาน</div><div class="v">${pct}% <small style="font-size:.5em">เสร็จ ${fmt0(done)} / ${fmt0(R.length)} งาน</small></div>
     <div class="split">${Object.entries(WST).map(([k, v]) => `<i style="width:${R.length ? R.filter((r) => r.st === k).length / R.length * 100 : 0}%;background:${v[2]}"></i>`).join("")}</div>
     <div class="leg">${Object.entries(WST).map(([k, v]) => `<span style="--c:${v[2]}">${v[0]} ${R.filter((r) => r.st === k).length}</span>`).join("")}</div></div>
   <div class="tiles" style="margin-top:12px">${types.map(tcard).join("")}</div>
   <div class="frow" style="margin-top:12px"><label>สถานะ</label>${Object.entries(WST).map(([k, v]) => `<button class="chip ${WF.st === k ? "on" : ""}" data-wk="st" data-wv="${k}"><span class="dot" style="background:${v[2]}"></span>${v[0]} ${R.filter((r) => pass(r, "st") && r.st === k).length}</button>`).join("")}</div>
   ${owners.length ? `<div class="frow"><label>ผู้รับผิดชอบ</label>${owners.map((o) => `<button class="chip ${WF.own === o ? "on" : ""}" data-wk="own" data-wv="${esc(o)}">${IC("user", 13)} ${esc(o)} ${R.filter((r) => r.own === o).length}</button>`).join("")}</div>` : ""}
-  <div class="frow"><input type="search" id="wkQ" value="${esc(WF.q)}" placeholder="ค้นหางาน / ชื่อ / รายละเอียด" style="flex:1;min-width:220px"><button class="btn o" data-wk="clear">ล้างตัวกรอง</button></div>
+  <div class="frow"><input type="search" id="wkQ" value="${esc(WF.q)}" placeholder="ค้นหางาน / ชื่อ / รายละเอียด" style="flex:1;min-width:220px"><button class="btn o" data-wk="clear">ล้างตัวกรอง</button><button class="btn" onclick="editItem('todo')">+ เพิ่มงาน</button></div>
   <h2>${IC("list")} ตารางงาน <small>${show.length} / ${R.length} งาน · ค้างอยู่ด้านบน</small></h2>
   <div class="tblwrap tall"><table><tr><th>#</th><th>วันที่</th><th>หมวด</th><th>งาน</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th></th></tr>
     ${show.map((r, i) => `<tr${r.go ? ` class="click" data-go="${r.go}"` : ""}><td>${i + 1}</td><td>${r.date ? dTh(r.date) : ""}</td><td>${IC(r.ic, 14)} ${esc(r.type)}</td><td><b>${esc(r.title)}</b>${r.detail ? `<br><small class="muted">${esc(r.detail.length > 180 ? r.detail.slice(0, 179) + "…" : r.detail)}</small>` : ""}</td><td>${esc(r.own)}</td>
       <td><span class="badge ${WST[r.st][1]}">${WST[r.st][0]}</span>${r.stx && r.stx !== WST[r.st][0] ? `<br><small class="muted">${esc(r.stx)}</small>` : ""}</td><td>${r.sec ? `<button class="chip" onclick="editItem('${r.sec}','${r.id}')">แก้ไข</button>` : ""}</td></tr>`).join("")}</table></div>
-  <p class="muted" style="font-size:.82rem">รวมงานในเว็บ (แก้ไขได้) + แท็บชีตชุดทำคดี: สิ่งที่ดำเนินการ / หมายเรียกผู้ต้องหา / พยาน / เอกสาร-รถ / คุมบัญชี / นิติบุคคล (อ่านอย่างเดียว) · กดหัวคอลัมน์เพื่อเรียง · ส่งออก Excel ได้จากปุ่มเหนือตาราง</p>`;
+  <p class="muted" style="font-size:.82rem">งานที่เพิ่มในเว็บ (ปุ่ม + เพิ่มงาน / แก้ไข — เก็บในเครื่องนี้ หรือ Google Sheet ถ้าตั้งค่าไว้ที่ปุ่มตั้งค่า) + แท็บชีตชุดทำคดี: สิ่งที่ดำเนินการ / หมายเรียกผู้ต้องหา / พยาน / เอกสาร-รถ / คุมบัญชี / นิติบุคคล (อ่านอย่างเดียว) · กดหัวคอลัมน์เพื่อเรียง · ส่งออก Excel ได้จากปุ่มเหนือตาราง</p>`;
   m.onclick = (e) => { const b = e.target.closest("button"); const tr = e.target.closest("tr[data-go]");
     if (tr && !b) return go(tr.dataset.go);
     if (!b || tsClick(b)) return; const k = b.dataset.wk; if (!k) return;
@@ -1246,7 +1253,7 @@ function pAcct() {
 }
 let ACC_ROWS = null;
 function accRows() {                                                    // รวมบัญชีจาก แท็บคุมบัญชี + บัญชีที่มี statement + แท็บอายัด -> 1 แถวต่อเลขบัญชี
-  if (ACC_ROWS) return ACC_ROWS;
+  if (ACC_ROWS && ACC_ROWS.f === TEAM().fetched) return ACC_ROWS;
   const T1 = new Set(DB.accounts.map((a, i) => (DB.groups[a.g][0] === "t1" ? i : -1)).filter((i) => i >= 0));
   const S = DB.accounts.map(() => ({ inn: 0, out: 0, dep: 0, wd: 0, n: 0 }));
   const rx = new Map();                                                 // เลขบัญชี (ตัด 0 นำหน้า) -> {all, t1, n, by:{ai:amt}} เงินที่บัญชีที่มี statement โอนเข้า
@@ -1269,41 +1276,59 @@ function accRows() {                                                    // ร�
     const st = e.sheet ? e.sheet.data : "";
     return { ...e, g, s, x, fz: fzm.get(e.k) || null, st: e.ai >= 0 ? "ในระบบวิเคราะห์" : /ได้แล้ว/.test(st) ? "ได้แล้ว รอนำเข้า" : st || "ยังไม่ขอ",
       stx: st, bal: a ? a.bal : null, first: a ? a.first : "", last: a ? a.last : "" }; });
-  ACC_ROWS = { rows, T1 };
+  ACC_ROWS = { rows, T1, f: TEAM().fetched };
   return ACC_ROWS;
 }
-function pAccTable() {
+function pAccTable() {                                                 // ตารางบัญชีเรียงเป็นกลุ่ม เริ่มจากบัญชีรับบริจาค + การ์ดหน้าปกกลุ่ม (รูปเจ้าของบัญชี / โลโก้มูลนิธิ) กดดูทั้งกลุ่มได้ (ผู้สั่งงาน 18 พ.ย. 69)
   const { rows } = accRows();
-  const q = AXF.q.trim().toLowerCase(), gname = (g) => (DB.groups[g] ? DB.groups[g][1].split(" (")[0] : "อื่น ๆ");
+  const q = AXF.q.trim().toLowerCase(), gname = (g) => (DB.groups[g] ? DB.groups[g][1].split(" (")[0] : "อื่น ๆ"), gcol = (g) => (DB.groups[g] ? DB.groups[g][2] : "#999"), gcode = (g) => (DB.groups[g] ? DB.groups[g][0] : "");
   const STS = ["ในระบบวิเคราะห์", "ได้แล้ว รอนำเข้า", ...new Set(rows.map((r) => r.st).filter((s) => !/ในระบบ|รอนำเข้า/.test(s)))];
   const pass = (r, skip) => (skip === "g" || AXF.g === "" || String(r.g) === AXF.g) && (skip === "st" || !AXF.st || r.st === AXF.st) && (!AXF.fz || (AXF.fz === "y" ? r.fz : !r.fz)) &&
     (!q || (r.acc + " " + r.name + " " + r.bank + " " + (r.sheet ? r.sheet.note + r.sheet.ref : "")).toLowerCase().includes(q));
-  const show = rows.filter((r) => pass(r)).sort((a, b) => (b.x.t1 - a.x.t1) || ((b.s ? b.s.inn : 0) - (a.s ? a.s.inn : 0)) || (b.x.all - a.x.all));
-  const gs = [...new Set(rows.map((r) => r.g))].sort((a, b) => a - b);
+  const ord = (a, b) => (b.x.t1 - a.x.t1) || ((b.s ? b.s.inn : 0) - (a.s ? a.s.inn : 0)) || (b.x.all - a.x.all);
+  const gs = [...new Set(rows.map((r) => r.g))].sort((a, b) => a - b);                  // ลำดับกลุ่มตามข้อมูล: บัญชีรับบริจาค -> บุคคลหลัก -> บริษัท -> ญาติ -> เหรัญญิก -> ช่าง ...
   const fzs = rows.filter((r) => r.fz), fzSum = fzs.reduce((t, r) => t + r.fz.amt, 0);
   const tot = (f, k) => rows.filter(f).reduce((t, r) => t + k(r), 0);
+  const PH = {}; imgBy((i) => i.cat === "บุคคล").forEach((i) => (PH[nk(i.key)] = i));
+  const cover = (g, rs) => { if (gcode(g) === "t1") return imgBy((i) => i.cat === "นิติบุคคล" && /มูลนิธิ/.test(i.key || i.title)).slice(0, 1);
+    const seen = new Set(), out = []; for (const r of [...rs].sort(ord)) { const i = PH[nk(r.name)]; if (i && !seen.has(i.id)) { seen.add(i.id); out.push(i); } } return out.slice(0, 3); };
+  const coverH = (g, rs, sz) => { const im = cover(g, rs);
+    return im.length ? `<span class="gcov" style="--c:${gcol(g)};--n:${im.length}">${im.map((i) => `<img alt="" loading="lazy" style="width:${sz}px;height:${sz}px" src="data:image/jpeg;base64,${i.th}">`).join("")}</span>`
+      : `<span class="gcov ico" style="--c:${gcol(g)};width:${sz}px;height:${sz}px;background:${gcol(g)}">${IC(gcode(g) === "t1" ? "build" : /pco|con|bld|ctr/.test(gcode(g)) ? "build" : /cash/.test(gcode(g)) ? "coin" : "user", Math.round(sz * 0.5))}</span>`; };
   const kt = (key, val, ic, v, l, s, cls) => `<button class="tile ${AXF[key] === val && val !== "" ? "on" : ""}" data-axk="${key}" data-axv="${esc(val)}"><span class="ico ${cls || ""}">${IC(ic)}</span><span class="v">${v}</span><span class="l">${l}</span>${s ? `<span class="s">${s}</span>` : ""}</button>`;
+  const gsum = (rs) => ({ n: rs.length, stm: rs.filter((r) => r.ai >= 0).length, inn: rs.reduce((t, r) => t + (r.s ? r.s.inn : 0), 0), out: rs.reduce((t, r) => t + (r.s ? r.s.out : 0), 0),
+    t1: rs.reduce((t, r) => t + r.x.t1, 0), fz: rs.reduce((t, r) => t + (r.fz ? r.fz.amt : 0), 0), fzn: rs.filter((r) => r.fz).length });
+  const card = (g) => { const rs = rows.filter((r) => r.g === g && pass(r, "g")), u = gsum(rs), isT1 = gcode(g) === "t1";
+    return !rs.length ? "" : `<button class="gcard ${AXF.g === String(g) ? "on" : ""}" data-axk="g" data-axv="${g}" style="--c:${gcol(g)}">${coverH(g, rs, 64)}
+      <span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · มี STM ${u.stm}</small><small>${isT1 ? `เงินเข้า ${M(u.inn)} · ออก ${M(u.out)}` : `รับจากบัญชีมูลนิธิ ${M(u.t1)}`}</small>${u.fzn ? `<small class="fz">${IC("lock", 11)} อายัด ${u.fzn} บัญชี ${M(u.fz)}</small>` : ""}</span></button>`; };
+  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}</td><td>${esc(r.name)}</td>
+      <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : ""}</td>
+      <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
+      <td>${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
+  const sect = (g) => { const rs = rows.filter((r) => r.g === g && pass(r)).sort(ord); if (!rs.length) return ""; const u = gsum(rs), ais = rs.filter((r) => r.ai >= 0).map((r) => r.ai);
+    return `<div class="gsec" style="--c:${gcol(g)}"><div class="ghd">${coverH(g, rs, 46)}<span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · เข้า ${M(u.inn)} · ออก ${M(u.out)}${gcode(g) === "t1" ? "" : ` · รับจากบัญชีมูลนิธิ ${M(u.t1)}`}${u.fzn ? ` · อายัด ${u.fzn} บัญชี ${M(u.fz)}` : ""}</small></span>
+        <span class="ga">${AXF.g === String(g) ? `<button class="chip" data-axk="g" data-axv="">← ทุกกลุ่ม</button>` : `<button class="chip" data-axk="g" data-axv="${g}">ดูเฉพาะกลุ่มนี้</button>`}${ais.length ? `<button class="chip" data-axg="${ais.join(",")}">${IC("flow", 13)} วิเคราะห์ทั้งกลุ่ม</button>` : ""}</span></div>
+      <div class="tblwrap"><table><tr><th>บัญชี</th><th>ชื่อบัญชี</th><th>STM</th><th>อายัด (บาท)</th><th class="n">เงินเข้า</th><th class="n">เงินออก</th><th class="n">คงเหลือล่าสุด</th><th class="n">รับจากบัญชีมูลนิธิ</th><th class="n">รับจากบัญชีที่มี STM</th><th></th></tr>${rs.map(rowH).join("")}</table></div></div>`; };
+  const shown = rows.filter((r) => pass(r)).length;
   const m = $("#main");
-  m.innerHTML = `<h2>${IC("bank")} บัญชีทั้งหมด <small>${rows.length} บัญชี · ${tsStamp()}</small> ${syncBtn()}</h2>
+  m.innerHTML = `<h2>${IC("bank")} บัญชีทั้งหมด <small>${rows.length} บัญชี · ${gs.length} กลุ่ม · ${tsStamp()}</small> ${syncBtn()}</h2>
   <div class="tiles">${kt("st", "ในระบบวิเคราะห์", "chart", rows.filter((r) => r.ai >= 0).length, "มี statement ในระบบ", `เข้า ${M(tot((r) => r.s, (r) => r.s.inn))}`, "g")}
     ${kt("st", "ได้แล้ว รอนำเข้า", "warn", rows.filter((r) => r.st === "ได้แล้ว รอนำเข้า").length, "ได้ STM แล้ว รอนำเข้า", "", "r")}
     ${STS.filter((s) => !/ในระบบ|รอนำเข้า/.test(s)).map((s) => kt("st", s, /ขอแล้ว|รอ/.test(s) ? "clock" : "doc", rows.filter((r) => r.st === s).length, esc(s), "", /ขอแล้ว/.test(s) ? "y" : "")).join("")}
     ${kt("fz", "y", "lock", `${fzs.length}<small> บัญชี</small>`, "อายัดแล้ว", M(fzSum), "r")}
-    <div class="tile" style="cursor:default"><span class="ico">${IC("coin")}</span><span class="v">${M(tot((r) => !(r.g != null && DB.groups[r.g] && DB.groups[r.g][0] === "t1"), (r) => r.x.t1))}</span><span class="l">รับจากบัญชีมูลนิธิ (ทุกบัญชี)</span><span class="s">ตาม statement บัญชีมูลนิธิ</span></div></div>
-  <div class="frow" style="margin-top:12px"><label>กลุ่ม</label><button class="chip ${AXF.g === "" ? "on" : ""}" data-axk="g" data-axv="">ทั้งหมด</button>${gs.map((g) => `<button class="chip ${AXF.g === String(g) ? "on" : ""}" data-axk="g" data-axv="${g}"><span class="dot" style="background:${DB.groups[g] ? DB.groups[g][2] : "#999"}"></span>${esc(gname(g))} ${rows.filter((r) => pass(r, "g") && r.g === g).length}</button>`).join("")}</div>
-  <div class="frow"><input type="search" id="axQ" value="${esc(AXF.q)}" placeholder="ค้นหาเลขบัญชี / ชื่อ / เลขหนังสือ / หมายเหตุ" style="flex:1;min-width:220px"><button class="btn o" data-axk="clear">ล้างตัวกรอง</button></div>
-  <h2>${IC("list")} รายบัญชี <small>${show.length} / ${rows.length} บัญชี · กดแถวเพื่อดูรายละเอียด</small></h2>
-  <div class="tblwrap tall"><table id="tAx"><tr><th>กลุ่ม</th><th>บัญชี</th><th>ชื่อบัญชี</th><th>STM</th><th>อายัด (บาท)</th><th class="n">เงินเข้า</th><th class="n">เงินออก</th><th class="n">คงเหลือล่าสุด</th><th class="n">รับจากบัญชีมูลนิธิ</th><th class="n">รับจากบัญชีที่มี STM</th><th></th></tr>
-    ${show.map((r) => `<tr class="click" data-axr="${r.k}"><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[r.g] ? DB.groups[r.g][2] : "#999"}"></span> ${esc(gname(r.g))}</td><td>${esc(r.bank)} ${esc(r.acc)}</td><td>${esc(r.name)}</td>
-      <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : ""}</td>
-      <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
-      <td>${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`).join("")}</table></div>
-  <p class="muted" style="font-size:.82rem">รวมจาก: บัญชีที่มี statement ในระบบ + แท็บคุมบัญชี (สถานะขอ STM) + แท็บข้อมูลอายัด ของชีตชุดทำคดี · "รับจากบัญชีมูลนิธิ / บัญชีที่มี STM" ดูจาก statement ฝั่งผู้โอน (เห็นแม้บัญชีนี้ยังไม่มี statement) · คงเหลือล่าสุด = ยอดคงเหลือรายการสุดท้ายใน statement</p>`;
+    <div class="tile" style="cursor:default"><span class="ico">${IC("coin")}</span><span class="v">${M(tot((r) => gcode(r.g) !== "t1", (r) => r.x.t1))}</span><span class="l">รับจากบัญชีมูลนิธิ (ทุกบัญชี)</span><span class="s">ตาม statement บัญชีมูลนิธิ</span></div></div>
+  <h2>${IC("users")} กลุ่มบัญชี <small>กดการ์ดเพื่อดูทั้งกลุ่ม</small>${AXF.g !== "" ? ` <button class="chip" data-axk="g" data-axv="">← ทุกกลุ่ม</button>` : ""}</h2>
+  <div class="gcards">${gs.map(card).join("")}</div>
+  <div class="frow" style="margin-top:12px"><input type="search" id="axQ" value="${esc(AXF.q)}" placeholder="ค้นหาเลขบัญชี / ชื่อ / เลขหนังสือ / หมายเหตุ" style="flex:1;min-width:220px"><button class="btn o" data-axk="clear">ล้างตัวกรอง</button></div>
+  <h2>${IC("list")} รายบัญชี <small>${shown} / ${rows.length} บัญชี · เรียงเป็นกลุ่ม · กดแถวเพื่อดูรายละเอียด</small></h2>
+  ${gs.map(sect).join("") || '<p class="muted">ไม่มีบัญชีตามตัวกรอง</p>'}
+  <p class="muted" style="font-size:.82rem">รวมจาก: บัญชีที่มี statement ในระบบ + แท็บคุมบัญชี (สถานะขอ STM) + แท็บข้อมูลอายัด ของชีตชุดทำคดี · "รับจากบัญชีมูลนิธิ / บัญชีที่มี STM" ดูจาก statement ฝั่งผู้โอน (เห็นแม้บัญชีนี้ยังไม่มี statement) · คงเหลือล่าสุด = ยอดคงเหลือรายการสุดท้ายใน statement · รูปหน้าปก = ภาพบุคคลจากชีตชุดทำคดี (ถ้ามี)</p>`;
   m.onclick = (e) => { const b = e.target.closest("button");
     if (b && tsClick(b)) return;
     if (b && b.dataset.axa != null) { resetF(); F.accs.add(+b.dataset.axa); F.flm = "d"; return go("ana"); }
+    if (b && b.dataset.axg != null) { resetF(); b.dataset.axg.split(",").forEach((i) => F.accs.add(+i)); F.flm = "d"; return go("ana"); }
     if (b && b.dataset.axq != null) { resetF(); F.q = b.dataset.axq; F.flm = "d"; return go("ana"); }
-    if (b && b.dataset.axk) { const k = b.dataset.axk; if (k === "clear") AXF = { g: "", st: "", fz: "", q: "", sort: "" }; else AXF[k] = AXF[k] === b.dataset.axv && k !== "g" ? "" : b.dataset.axv; return render(); }
+    if (b && b.dataset.axk) { const k = b.dataset.axk; if (k === "clear") AXF = { g: "", st: "", fz: "", q: "", sort: "" }; else AXF[k] = AXF[k] === b.dataset.axv ? "" : b.dataset.axv; render(); if (k === "g" && AXF.g !== "") { const el = $(".gsec"); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); } return; }
     const tr = e.target.closest("tr[data-axr]"); if (tr) accDetail(tr.dataset.axr); };
   let tm; m.oninput = (e) => { if (e.target.id !== "axQ") return; clearTimeout(tm); tm = setTimeout(() => { AXF.q = e.target.value; render(); const x = $("#axQ"); if (x) { x.focus(); x.setSelectionRange(AXF.q.length, AXF.q.length); } }, 300); };
 }

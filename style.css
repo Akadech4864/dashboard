@@ -104,7 +104,7 @@ tr.click:hover{background:#F3F6FB}
 .modal-box{background:#fff;border-radius:14px;padding:18px;width:100%;max-width:560px}
 .modal-box h3{margin:0 0 10px;color:var(--navy)}
 .modal-box label{display:block;font-size:.84rem;font-weight:700;color:var(--navy);margin-top:10px}
-.modal-box input,.modal-box textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:3px}
+.modal-box input,.modal-box textarea,.modal-box select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-top:3px}
 .modal-box textarea{min-height:84px;resize:vertical}
 .modal-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap}
 .viewer{position:fixed;inset:0;z-index:60;background:#0b1626}
@@ -346,3 +346,21 @@ a.chip.lnk:hover{background:var(--navy);color:#fff}
 .chartbox .pngbtn:hover,.flowcard .pngbtn:hover{opacity:1}
 th.srt small,th .sx{color:#FFD403;font-weight:700}
 #tTx th.srt.on::after{content:""}
+
+/* ---- การ์ดหน้าปกกลุ่มบัญชี + ส่วนรายกลุ่ม (หน้า บัญชี / บุคคล ; 18 พ.ย. 69) ---- */
+.gcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.gcard{display:flex;align-items:center;gap:10px;text-align:left;background:#fff;border:1px solid var(--line);border-left:6px solid var(--c);border-radius:12px;padding:10px 12px;cursor:pointer}
+.gcard:hover{box-shadow:0 2px 10px rgba(0,38,77,.12)}
+.gcard.on{outline:3px solid #FFD403;background:#FFFBE6}
+.gcov{display:inline-flex;flex:none;align-items:center}
+.gcov img{border-radius:50%;object-fit:cover;border:3px solid var(--c);background:#fff;margin-left:-14px}
+.gcov img:first-child{margin-left:0}
+.gcov.ico{justify-content:center;border-radius:50%;color:#fff}
+.gt{display:flex;flex-direction:column;min-width:0}
+.gt b{color:var(--navy);font-size:.98rem;line-height:1.25}
+.gt small{color:#5B6B80;font-size:.78rem;line-height:1.35}
+.gt small.fz{color:var(--red);font-weight:600}
+.gsec{margin:14px 0 0;border:1px solid var(--line);border-top:5px solid var(--c);border-radius:12px;background:#fff;overflow:hidden}
+.ghd{display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap}
+.ghd .ga{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.gsec .tblwrap{border:0;border-top:1px solid var(--line);border-radius:0;margin:0}
