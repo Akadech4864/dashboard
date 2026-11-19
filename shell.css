@@ -432,3 +432,16 @@ table.xt tr.click{cursor:pointer}
 .wpb{height:7px;border-radius:9px;background:var(--soft);overflow:hidden}
 .wpb i{display:block;height:100%;background:#1B7A4A;border-radius:9px}
 .wpn{font-size:.8rem;font-weight:700;text-align:right}
+
+/* ---------- Timeline เส้นเงินเป็นทอด (19 พ.ย. 69) ---------- */
+.tlc{margin:12px 0}
+.tlh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.tlh h2{margin:0}
+.tlsrc{font-size:.88rem;margin:6px 0 10px;padding:7px 11px;border-radius:10px;background:color-mix(in srgb,#FFD403 14%,var(--card));border:1px solid color-mix(in srgb,#FFD403 40%,transparent)}
+.tlbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.tlbar .seg{flex:none}
+.tlt{display:inline-flex;align-items:center;gap:6px;font-size:.84rem;color:var(--mut)}
+.tlt input{border:1px solid var(--line);border-radius:999px;padding:5px 10px;font:inherit;font-size:.84rem;background:var(--card);color:var(--ink)}
+.tlk{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px;margin-bottom:6px}
+.tlk>div{background:var(--soft);border-radius:12px;padding:8px 11px;display:flex;flex-direction:column;gap:1px}
+.tlk small{font-size:.74rem;color:var(--mut)}.tlk b{font-size:1.05rem}.tlk span{font-size:.72rem;color:var(--mut)}
+#tTx tr.click{cursor:pointer}
