@@ -512,3 +512,14 @@ details.acc>.body{border-top:0;padding-top:8px}
 :root[data-theme=dark] .card.tlc.tlc.tlc{border-color:var(--fold)!important}
 .card.tlc>.tlh h2{flex:1;min-width:0}
 details.acc>summary .ico.s,details.acc>summary .ico.s svg{color:var(--fold)}
+
+/* ---------- มือถือ: ตารางเลื่อนทีละแกน (ผู้ใช้สั่ง 19 พ.ย. 69 "ตารางไม่ล็อก เคลื่อนได้ทุกแกนเมื่อใช้ในมือถือ") ----------
+   กรอบตาราง = เลื่อนแนวนอนอย่างเดียว / แนวตั้ง = เลื่อนทั้งหน้า (ไม่มีกรอบเลื่อน 2 แกนซ้อนในหน้า จึงลากเฉียงไม่ได้)
+   หัวตาราง sticky ในกรอบใช้ไม่ได้แล้ว → หัวตารางลอย #thf (shell.js thfUpd) เลื่อนแนวนอนตามตาราง กดหัวลอย = กดหัวจริง (เรียง) */
+@media (hover:none) and (pointer:coarse),(max-width:640px){
+  .tblwrap,.tblwrap.tall{max-height:none!important;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain}
+}
+#thf{position:fixed;z-index:25;overflow:hidden;box-shadow:0 4px 10px rgba(0,38,77,.28);border-radius:0 0 8px 8px}
+#thf[hidden]{display:none}
+#thf table{table-layout:fixed;margin:0;will-change:transform}
+#thf th{position:static}

@@ -2082,7 +2082,7 @@ function pAccTable() {                                                 // ตา
     ${STS.filter((s) => !/ในระบบ|รอนำเข้า/.test(s)).map((s) => kt("st", s, /ขอแล้ว|รอ/.test(s) ? "clock" : "doc", rows.filter((r) => r.st === s).length, esc(s), "", /ขอแล้ว/.test(s) ? "y" : "")).join("")}
     ${kt("fz", "y", "lock", `${fzs.length}<small> บัญชี</small>`, "อายัดแล้ว", M(fzSum), "r")}
     <div class="tile" style="cursor:default"><span class="ico">${IC("coin")}</span><span class="v">${M(tot((r) => gcode(r.g) !== "t1", (r) => r.x.t1))}</span><span class="l">รับจากบัญชีมูลนิธิ (ทุกบัญชี)</span><span class="s">ตาม statement บัญชีมูลนิธิ</span></div></div>
-  <h2>${IC("users")} กลุ่มบัญชี <small>กดการ์ดเพื่อดูทั้งกลุ่ม</small>${AXF.g !== "" ? ` <button class="chip" data-axk="g" data-axv="">← ทุกกลุ่ม</button>` : ""}</h2>
+  <h2>${IC("users")} กลุ่มบัญชี${AXF.g !== "" ? ` ${ibx("back", "ทุกกลุ่ม", 'data-axk="g" data-axv=""')}` : ""}</h2>
   <div class="gcards">${gs.map(card).join("")}</div>
   <div class="card fcard"><div class="fline">${fSearch("axQ", AXF.q, "ค้นหาเลขบัญชี / ชื่อ / เลขหนังสือ / หมายเหตุ")}
     ${fSel('data-axs="g"', AXF.g, "ทุกกลุ่มบัญชี", gs.map((g) => [g, DB.groups[g] ? DB.groups[g][1].split(" (")[0] : "กลุ่ม " + g]))}

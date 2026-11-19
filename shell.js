@@ -606,3 +606,38 @@ document.addEventListener("click", (e) => {
   const r = b.getBoundingClientRect(), w = Math.min(360, innerWidth - 24); d.style.width = w + "px";
   d.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2)) + "px"; d.style.top = (r.bottom + 8 + scrollY) + "px";
 }, true);
+
+/* ---------- หัวตารางลอยบนมือถือ (ผู้ใช้สั่ง 19 พ.ย. 69) ----------
+   มือถือ: .tblwrap เลื่อนแนวนอนอย่างเดียว (shell.css) หัว sticky ในกรอบจึงไม่ทำงาน → เมื่อหัวจริงพ้นขอบบน แสดงสำเนาหัวตารางใต้แถบบน
+   ความกว้างคอลัมน์ลอกจากหัวจริง + เลื่อนแนวนอนตามกรอบ ; กดหัวลอย = ส่งต่อไปหัวจริง (เรียงลำดับ) ; ไม่สำเนาไอคอนกรวย */
+const THF_MQ = matchMedia("(hover:none) and (pointer:coarse), (max-width:640px)");
+let THF = { tbl: null, sig: "", hs: null }, THF_RAF = 0;
+function thfTopY() { let y = 0; document.querySelectorAll(".top, .br-nav").forEach((e) => { const r = e.getBoundingClientRect(); if (r.height && r.top <= y + 1) y = Math.max(y, r.bottom); }); return y; }
+function thfHdr(tbl) { const rs = []; for (const r of tbl.rows) { if (r.classList.contains("cfr") || r.style.display === "none") continue; if (!r.querySelector("th") || r.querySelector("td")) break; rs.push(r); } return rs; }
+function thfClick(e) { const c = e.target.closest("th"); if (!c || !THF.hs) return; const ri = [...c.parentNode.parentNode.rows].indexOf(c.parentNode), o = THF.hs[ri] && THF.hs[ri].cells[c.cellIndex]; if (o) o.click(); }
+function thfUpd() {
+  THF_RAF = 0; let box = document.getElementById("thf");
+  if (!THF_MQ.matches) { if (box) box.hidden = true; return; }
+  const top = thfTopY(); let hit = null;
+  for (const w of document.querySelectorAll("#main .tblwrap")) {
+    const r = w.getBoundingClientRect(); if (!r.height || r.top >= top || r.bottom <= top + 44) continue;
+    const tbl = w.querySelector("table"); if (!tbl) continue;
+    const hs = thfHdr(tbl); if (!hs.length || hs[hs.length - 1].getBoundingClientRect().bottom > top) continue;
+    hit = { w, tbl, hs, r }; break;
+  }
+  if (!hit) { if (box) box.hidden = true; return; }
+  if (!box) { box = document.createElement("div"); box.id = "thf"; box.hidden = true; box.addEventListener("click", thfClick); document.body.appendChild(box); }
+  const sig = hit.tbl.offsetWidth + ":" + hit.hs.map((r) => [...r.cells].map((c) => c.offsetWidth + c.className + c.textContent).join("|")).join("/");
+  if (THF.tbl !== hit.tbl || THF.sig !== sig) {
+    const t = hit.tbl.cloneNode(false), hd = document.createElement("thead"); t.removeAttribute("id"); t.style.width = hit.tbl.offsetWidth + "px";
+    hit.hs.forEach((r) => { const c = r.cloneNode(true); c.removeAttribute("id"); c.querySelectorAll(".cfp,.cfb").forEach((x) => x.remove()); c.querySelectorAll("[id]").forEach((x) => x.removeAttribute("id")); [...c.cells].forEach((x, i) => (x.style.width = r.cells[i].getBoundingClientRect().width + "px")); hd.appendChild(c); });
+    t.appendChild(hd); box.replaceChildren(t); THF = { tbl: hit.tbl, sig, hs: hit.hs };
+  }
+  box.style.top = top + "px"; box.style.left = hit.r.left + hit.w.clientLeft + "px"; box.style.width = hit.w.clientWidth + "px";
+  box.firstChild.style.transform = `translateX(${-hit.w.scrollLeft}px)`; box.hidden = false;
+}
+const thfQ = () => { if (!THF_RAF) THF_RAF = requestAnimationFrame(thfUpd); };
+addEventListener("scroll", thfQ, { passive: true, capture: true });
+addEventListener("resize", thfQ);
+if (THF_MQ.addEventListener) THF_MQ.addEventListener("change", thfQ);
+new MutationObserver(thfQ).observe(document.getElementById("main") || document.body, { childList: true, subtree: true });
