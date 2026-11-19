@@ -457,3 +457,15 @@ table.xt tr.xdet>td{background:var(--soft);padding:10px 12px}
 table.xmini{width:100%;border-collapse:collapse;font-size:.84rem;background:var(--card)}
 table.xmini th{position:static;background:#0B3A66;color:#fff;font-weight:600;padding:5px 8px}
 table.xmini td{padding:4px 8px;border-bottom:1px solid var(--line)}
+
+/* ---------- ช่องกรองรายคอลัมน์แบบไอคอน (19 พ.ย. 69) ---------- */
+th.hasf{position:sticky}
+th .cfb{display:inline-grid;place-items:center;width:20px;height:20px;margin-left:4px;padding:0;border:0;border-radius:6px;background:rgba(255,255,255,.12);color:#C9D6E6;cursor:pointer;vertical-align:middle}
+th .cfb:hover{background:rgba(255,255,255,.25);color:#fff}
+th.fon .cfb{background:#FFD403;color:#00264D}
+th .cfp{display:none;position:absolute;left:0;top:100%;z-index:6;min-width:200px;padding:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(0,38,77,.22);text-align:left;font-weight:400}
+th.cfo .cfp{display:flex;flex-direction:column;gap:4px}
+th .cfp input{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:6px 9px;font:inherit;font-size:.86rem;color:var(--ink);background:var(--card)}
+th .cfp input:focus{outline:2px solid #FFD403;border-color:transparent}
+th .cfp small{font-size:.72rem;color:var(--mut);white-space:nowrap}
+th.n .cfp,th:last-child .cfp{left:auto;right:0}

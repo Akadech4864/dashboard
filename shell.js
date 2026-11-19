@@ -500,10 +500,11 @@ function xtMount(host, cfg) {
     ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip" data-xk="${k}" data-xv="${esc(v)}">${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
   <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small></h2>
   <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? `<button class="chip" data-xx="xl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button>` : ""}<button class="chip" data-xx="sr">↺ ลำดับเดิม</button><button class="chip" data-xx="cf">✕ ล้างช่องกรองคอลัมน์</button>
-    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง (Shift = หลายชั้น) · ช่องกรอง: , = หรือ · ! = ไม่เอา${C_.some((c) => c[2] === "a") ? " · ตัวเลข: &gt;100000 / 1000-5000" : ""}</small></div>
+    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง · ไอคอน ${CF_IC} เพื่อกรอง</small></div>
   <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${C_.map(([, , t], c) => (t === "x" || t === "n" ? "<th></th>" : `<th><input data-xcf="${c}" value="${esc(S.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : t === "d" ? "2569 / 2026-11" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
   <div data-xmore="1" style="text-align:center;margin:8px 0"></div>${cfg.note ? `<p class="muted" style="font-size:.82rem">${cfg.note}</p>` : ""}`;
+  cfrEnhance(host);
   const txt = (r, c) => { const v = C_[c][1](r); return C_[c][2] === "d" && v ? `${v} ${dTh(v)} ${+String(v).slice(0, 4) + 543}` : String(v ?? ""); };
   let R = [];
   const upd = () => {
@@ -555,3 +556,31 @@ function xtMount(host, cfg) {
   upd();
   return { upd: reset };
 }
+
+/* ---------- ช่องกรองรายคอลัมน์แบบไอคอน (ผู้ใช้สั่ง 19 พ.ย. 69 "ไม่ควรมีช่องให้กรอก ควรเป็นสัญลักษณ์แล้วค่อยพิมพ์ — ทำกับทุกตาราง") ----------
+   ซ่อนแถว .cfr ของทุกตาราง ; หัวคอลัมน์ที่กรองได้มีไอคอนกรวยเล็ก กดแล้วช่องพิมพ์โผล่ใต้หัวคอลัมน์ ; มีค่ากรอง = ไอคอนสีเหลือง
+   ย้าย input เดิมไปไว้ใน popover จึงใช้ตัวจัดการ input เดิมของแต่ละตารางได้ (เหตุการณ์ input ยังวิ่งขึ้นไปถึง host) */
+const CF_IC = '<svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M3 4h18l-7 9v6l-4 2v-8z"/></svg>';
+function cfrEnhance(root) {
+  (root || document).querySelectorAll("table").forEach((tbl) => {
+    const fr = tbl.querySelector("tr.cfr"); if (!fr || fr.dataset.cfx) return; fr.dataset.cfx = "1";
+    const hr = [...tbl.rows].find((r) => r !== fr && r.querySelector("th")); if (!hr) return;
+    [...fr.cells].forEach((cell, c) => {
+      const inp = cell.querySelector("input"), th = hr.cells[c]; if (!inp || !th) return;
+      th.classList.add("hasf");
+      const b = document.createElement("button"); b.className = "cfb"; b.type = "button"; b.title = "กรองคอลัมน์นี้"; b.innerHTML = CF_IC;
+      const pop = document.createElement("div"); pop.className = "cfp"; pop.appendChild(inp);
+      const hint = document.createElement("small"); hint.textContent = inp.placeholder && /≥|ช่วง/.test(inp.placeholder) ? ">100000 · 1000-5000 · , = หรือ · ! = ไม่เอา" : ", = หรือ · ! = ไม่เอา"; pop.appendChild(hint);
+      inp.placeholder = "พิมพ์เพื่อกรอง…";
+      th.appendChild(b); th.appendChild(pop);
+      b.addEventListener("click", (e) => { e.stopPropagation(); const op = !th.classList.contains("cfo"); document.querySelectorAll("th.cfo").forEach((x) => x.classList.remove("cfo")); th.classList.toggle("cfo", op); if (op) setTimeout(() => inp.focus(), 0); });
+      pop.addEventListener("click", (e) => e.stopPropagation());
+      inp.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === "Escape") th.classList.remove("cfo"); });
+      inp.addEventListener("input", () => th.classList.toggle("fon", !!inp.value.trim()));
+      th.classList.toggle("fon", !!inp.value.trim());
+    });
+    fr.style.display = "none";
+  });
+}
+function cfrSync() { document.querySelectorAll("th.hasf").forEach((th) => { const i = th.querySelector(".cfp input"); if (i) th.classList.toggle("fon", !!i.value.trim()); }); }
+document.addEventListener("click", (e) => { if (!e.target.closest("th.cfo")) document.querySelectorAll("th.cfo").forEach((x) => x.classList.remove("cfo")); setTimeout(cfrSync, 0); });

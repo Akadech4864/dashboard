@@ -199,6 +199,7 @@ function svgPng(svg, name) {                                            // SVG �
 function canvasPng(cv, name) { const o = document.createElement("canvas"); o.width = cv.width; o.height = cv.height; const g = o.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, o.width, o.height); g.drawImage(cv, 0, 0); o.toBlob((b) => download2(name + ".png", b)); }
 const titleNear = (el) => { let e = el; for (let k = 0; k < 6 && e; k++) { let p = e.previousElementSibling; while (p) { if (/^H[23]$/.test(p.tagName) || p.classList.contains("lab")) return p.textContent.replace(/\s+/g, " ").trim().slice(0, 60); p = p.previousElementSibling; } e = e.parentElement; } return TABS.find((t) => t[0] === TAB)?.[1] || "ข้อมูล"; };
 function enhance(root) {
+  if (window.cfrEnhance) cfrEnhance(root);
   for (const tbl of root.querySelectorAll("table")) {
     if (tbl.dataset.enh) continue; tbl.dataset.enh = "1";
     const hr = [...tbl.rows].find((tr) => tr.querySelector("th"));
@@ -617,13 +618,13 @@ function pAsset() {
   </div>
   <h2>${IC("list")} รายการทรัพย์สิน <small id="asCnt"></small></h2>
   <div class="frow" style="margin:-4px 0 8px"><button class="chip" id="asXl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button><button class="chip" id="asSr">↺ ลำดับเดิม</button><button class="chip" id="asCfx">✕ ล้างช่องกรองคอลัมน์</button>
-    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง (Shift = หลายชั้น) · ช่องกรอง: , = หรือ · ! = ไม่เอา · มูลค่า: &gt;1000000 / 100000-500000</small></div>
+    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง · ไอคอน ${CF_IC} เพื่อกรอง</small></div>
   <div class="tblwrap tall" data-noxbar="1"><table id="asT" class="xt"><thead><tr>${ACOLS.map(([l, , t], c) => `<th data-cs="${c}" class="srt${t !== "t" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${ACOLS.map(([, , t], c) => (c === 0 ? "<th></th>" : `<th><input data-acf="${c}" value="${esc(ASF.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
   <p class="muted" style="font-size:.82rem">สถานะ: "ยึดแล้ว" = ของกลางจากการตรวจค้น 11 พ.ย. 69 (มูลค่า = ค่ากลางราคาประเมินมือสอง) · "อายัดแล้ว" = เงินในบัญชีตามแท็บข้อมูลอายัด · "อยู่ระหว่างดำเนินการ" = คอลัมน์การดำเนินการของแท็บทรัพย์สินที่ดิน · ที่เหลือชีตยังไม่ระบุการยึด/อายัด ; เงินในบัญชีมูลนิธิแสดงในรายการแต่ไม่นับเป็นทรัพย์สินส่วนตัว ; ข้อมูลจากชีตชุดทำคดี (อ่านอย่างเดียว)</p>
   ${DB.cc ? `<p style="margin-top:10px"><button class="chip" data-gocc="1">${IC("card", 14)} ดูการใช้บัตรเครดิต (เมนูบัตรเครดิต) ${M(DB.cc.total)}</button></p>` : ""}`;
   if (view === "3d") a3dBuild();
-  asSync(); asUpd();
+  cfrEnhance(m); asSync(); asUpd();
   let tm;
   m.onclick = asClick;
   m.oninput = (e) => { const t = e.target; if (t.id === "asQ" || t.id === "asMin" || t.dataset.acf != null) { clearTimeout(tm); tm = setTimeout(() => {
@@ -809,7 +810,7 @@ function pCc() {
   const nav = `<div class="frow subnav only-m" style="margin-bottom:10px">${CCV_T.map(([k, l, ic]) => `<button class="chip ${CCV === k ? "on" : ""}" data-ccv="${k}">${IC(ic, 15)} ${l}</button>`).join("")}</div>`;
   if (CCV === "sum") { m.innerHTML = nav + B.HEAD + B.SUM; ccCharts(DB.cc); }
   else if (CCV === "pay") { m.innerHTML = nav + B.HEAD + B.PAY; ccPayView(DB.cc); }
-  else { m.innerHTML = nav + B.HEAD + ccTxShell(); ccSync(); ccUpd(); }
+  else { m.innerHTML = nav + B.HEAD + ccTxShell(); cfrEnhance(m); ccSync(); ccUpd(); }
   let tm;
   m.onclick = (e) => {
     const v = e.target.closest("[data-ccv]"); if (v) { CCV = v.dataset.ccv; render(); shellSync(); return window.scrollTo(0, 0); }
@@ -855,7 +856,7 @@ function ccTxShell() {
   <div id="ccMer"></div>
   <h2>${IC("list")} รายการ <small id="ccCnt"></small></h2>
   <div class="frow" style="margin:-4px 0 8px"><button class="chip" id="ccXl">${IC("doc", 13)} Excel (ทุกแถวตามตัวกรอง)</button><button class="chip" id="ccSr" title="กลับไปเรียงตามวันที่ล่าสุด">↺ ลำดับเดิม</button><button class="chip" id="ccCfx">✕ ล้างช่องกรองคอลัมน์</button>
-    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง (กดซ้ำสลับ ▲▼ · Shift + กด = เรียงหลายชั้น) · ช่องกรองใต้หัวคอลัมน์: คั่นด้วย , = หรือ · ขึ้นต้น ! = ไม่เอา · ยอด: &gt;100000 / 1000-5000</small></div>
+    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง · ไอคอน ${CF_IC} เพื่อกรอง</small></div>
   <div class="tblwrap tall" data-noxbar="1"><table id="ccT"><thead><tr>${CCOLS.map(([l, , k], c) => `<th data-cs="${c}" class="srt${k === "a" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${CCOLS.map(([, , k], c) => `<th><input data-cf="${c}" value="${esc(CCF.cf[c] || "")}" placeholder="${k === "a" ? "≥ / ช่วง" : k === "d" ? "2567 / 2024-05" : "กรอง…"}"></th>`).join("")}</tr></thead><tbody></tbody></table></div>
   <div id="ccMore" style="text-align:center;margin:8px 0"></div>
