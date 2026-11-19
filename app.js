@@ -1117,8 +1117,8 @@ function prep() {
   resetF();
 }
 let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
-const fSnap = () => ({ ...F, accs: new Set(F.accs), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: [...(F.chain || [])] });
-function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: true, chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
+const fSnap = () => ({ ...F, accs: new Set(F.accs), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])) });
+function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: "fifo", chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
 function filterTx() {
   const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
   const out = [];
@@ -1176,7 +1176,7 @@ function pAna() {
     <select id="flM" title="มุมมอง"><option value="g">แสดงเป็นกลุ่ม</option><option value="d">แสดงรายบัญชี</option></select>
     <select id="flN" title="จำนวนกล่องต่อคอลัมน์">${[8, 14, 24, 32].map((n) => `<option value="${n}">${n} กล่อง</option>`).join("")}</select>
     <select id="flC" title="จำนวนคอลัมน์ที่แสดงพร้อมกัน">${[3, 4, 5, 6, 8].map((n) => `<option value="${n}">${n} คอลัมน์</option>`).join("")}</select>
-    <select id="flT" title="วิธีคำนวณเมื่อกดกล่อง ▶ คลี่ทอดถัดไป"><option value="1">ทอดถัดไป: ไล่ตามเวลา</option><option value="0">ทอดถัดไป: ทุกรายการในช่วง</option></select>
+    <select id="flT" title="วิธีไล่เงินเมื่อกดกล่อง ▶ คลี่ทอดถัดไป (กดได้หลายกล่อง)"><option value="fifo">ไล่แบบ เข้าก่อนออกก่อน</option><option value="pro">ไล่แบบ ตามสัดส่วน (ตรงกับรายงาน)</option><option value="all">ทุกรายการในช่วง (ไม่ไล่)</option></select>
     <button class="chip" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด">✕ ยุบทอด</button></div>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <div id="tlBox"></div>
@@ -1225,7 +1225,7 @@ function pAna() {
   $("#dnQ").oninput = (e) => { if (e.target.value.trim()) return; $("#dnRes").innerHTML = ""; if (F.dn) { F.dn = false; DNT = null; upd(); } };   // ลบข้อความค้นหา = ปิดผลค้นหาผู้บริจาค
   m.onchange = (e) => { const t = e.target;
     if (t.id === "fFrom") F.from = t.value || DB.lo; else if (t.id === "fTo") F.to = t.value || DB.hi; else if (t.dataset.a) tog(F.accs, +t.dataset.a, t.checked);
-    else if (t.id === "flM") F.flm = t.value; else if (t.id === "flN") F.fln = +t.value; else if (t.id === "flC") F.flc = +t.value; else if (t.id === "flT") F.flt = t.value === "1";
+    else if (t.id === "flM") F.flm = t.value; else if (t.id === "flN") F.fln = +t.value; else if (t.id === "flC") F.flc = +t.value; else if (t.id === "flT") F.flt = t.value === "all" ? false : t.value;
     else if (t.id === "fYr") { if (!t.value) return; F.from = t.value + "-01-01"; F.to = t.value + "-12-31"; $("#fFrom").value = F.from; $("#fTo").value = F.to; }
     else return; upd(); };
   let tmr; m.oninput = (e) => { const t = e.target; if (t.id !== "fMin" && t.id !== "fQ") return; clearTimeout(tmr); tmr = setTimeout(() => { F.min = +$("#fMin").value || 0; F.q = $("#fQ").value; upd(); }, 280); };
@@ -1277,7 +1277,7 @@ function pAna() {
       $("#pqRow").hidden = F.cpm === "raw";
       $("#fMin").classList.toggle("on", F.min > 0);
       $("#fClear").hidden = !(pk_ !== "all" || F.accs.size || F.kinds.size || F.cpg.size || F.min || F.q || F.cpm !== "raw" || F.pq.size || F.dn);
-      $("#flM").value = F.flm; $("#flN").value = F.fln; $("#flC").value = F.flc; $("#flT").value = F.flt !== false ? "1" : "0"; }
+      $("#flM").value = F.flm; $("#flN").value = F.fln; $("#flC").value = F.flc; $("#flT").value = F.flt === false ? "all" : F.flt === "pro" ? "pro" : "fifo"; }
     $$("[data-k]", m).forEach((b) => b.classList.toggle("on", F.kinds.has(+b.dataset.k)));
     $$("[data-c]", m).forEach((b) => b.classList.toggle("on", F.cpg.has(+b.dataset.c)));
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
@@ -1337,7 +1337,10 @@ function pAna() {
     const g = e.target.closest("[data-n]"); if (!g || F.dn) { const t = e.target.closest("[data-tip]"); if (t) toast(t.dataset.tip); return; }
     const col = +g.dataset.n.split(":")[0], id = g.dataset.n.split(":")[1], k = +id.slice(1);
     if (col >= 2 && id !== "o" && srcAccs(id).length) { FHIST.push(fSnap()); const at = col - 2;
-      F.chain = F.chain[at] === id ? F.chain.slice(0, at) : F.chain.slice(0, at).concat([id]); tip.hidden = true; return upd(); }
+      const C = (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])), S = C[at] || [];
+      if (S.includes(id)) { const S2 = S.filter((x) => x !== id); F.chain = S2.length ? C.slice(0, at).concat([S2], C.slice(at + 1)) : C.slice(0, at); }
+      else { C[at] = S.concat([id]); F.chain = C.slice(0, at + 1).concat(C.slice(at + 1)); }
+      tip.hidden = true; return upd(); }
     if (col >= 3) { toast("บัญชีนี้ยังไม่มี statement จึงไล่ทอดต่อไม่ได้"); return; }
     if ("gcGa".includes(id[0])) FHIST.push(fSnap());
     if (id[0] === "g") tog(F.cpg, k);
@@ -1531,6 +1534,90 @@ function pImg() {
     `<p class="muted" style="font-size:.84rem">กดภาพเพื่อเปิดภาพเต็ม (ซูมได้) — ไฟล์ต้นฉบับ (.png / .anb) อยู่ในโฟลเดอร์คดี</p>`;
 }
 
+/* ---------- เครื่องไล่เงินเป็นทอดกลาง (ชาร์ตเส้นเงิน + Timeline ใช้ร่วมกัน ; ผู้ใช้สั่ง 19 พ.ย. 69) ----------
+   runTrace(items, mode, cont, maxHop, boxOf) -> { P, cut }
+   items: [{ i, amt }] = รายการโอนออกทอด 1 (ต้นสาย) หรือ [{ ai, t, amt }] = เงินเข้าบัญชี ai ณ เวลา t
+   mode "fifo" = เข้าก่อนออกก่อน: เงินที่เข้าบัญชี ณ เวลาใด จับกับรายการเงินออกของบัญชีนั้นตั้งแต่เวลานั้น เรียงตามเวลาจนครบยอด (รายการเงินออก 1 รายการใช้ได้ไม่เกินยอดของมัน)
+   mode "pro"  = ตามสัดส่วน (กติกาเดียวกับ Timeline กรรมฟอกเงินในรายงาน): ไล่ทุกรายการของทุกบัญชีตามลำดับเวลาจริง เงินที่ไล่มาในบัญชีถูกโอนออกตามสัดส่วน
+                 ยอดที่ไล่มา : ยอดคงเหลือในบัญชี ณ เวลาโอน (ยอดคงเหลือคำนวณจากรายการใน statement ; ถ้าต่ำกว่ายอดที่ไล่มา ถือว่าเงินที่โอนออกมาจากยอดที่ไล่มาก่อน)
+   ทั้งสองแบบใช้บัญชีคุมยอดชุดเดียวทุกสาย จึงไม่นับรายการเงินออกซ้ำ และยอดปลายสายรวม = ยอดต้นสาย ; เป็นข้อสันนิษฐานตามลำดับเวลา ไม่ใช่การระบุตัวเงิน
+   cont(hop, ci) = เงินที่โอนไปคู่โอน ci ในทอด hop ไล่ต่อหรือไม่ (ชาร์ต = เฉพาะกล่องที่คลี่ / Timeline = ทุกสาย) ; boxOf(ci) = รหัสกล่องสำหรับชาร์ต */
+let TXORD = null;
+function txOrder() {                                                    // ทุกรายการเรียงตามเวลา (เงินเข้าก่อนเงินออกในนาทีเดียวกัน) — สร้างครั้งเดียว
+  if (TXORD) return TXORD;
+  const n = DB.tx.length, o = new Int32Array(n); for (let i = 0; i < n; i++) o[i] = i;
+  TXORD = o.sort((a, b) => DB.tx[a][1] - DB.tx[b][1] || (IN_K.includes(DB.tx[b][2]) - IN_K.includes(DB.tx[a][2])) || a - b);
+  return TXORD;
+}
+function runTrace(items, mode, cont, maxHop, boxOf) {
+  const P = []; let cut = false;
+  const endOf = (i, dai, from, hop, ci) => (dai < 0 ? (DB.tx[i][2] === 3 ? "ถอนเงินสด" : "ปลายทางไม่มี statement") : dai === from ? "โอนภายในบัญชีเดียวกัน"
+    : hop >= maxHop ? `ถึงทอดที่ ${maxHop} (หยุดไล่)` : !cont(hop, ci) ? "ไม่ได้คลี่ทอดต่อ" : "");
+  if (mode !== "pro") {
+    const outs = new Map(), used = new Map(), jump = new Map();
+    const getOuts = (ai) => { let o = outs.get(ai); if (!o) { o = txOfAcc(ai).filter((i) => !IN_K.includes(DB.tx[i][2])).sort((p, q) => DB.tx[p][1] - DB.tx[q][1] || p - q); outs.set(ai, o); used.set(ai, new Float64Array(o.length)); jump.set(ai, Int32Array.from(o, (_, k) => k)); } return o; };
+    const find = (J, k) => { let r = k; while (r < J.length && J[r] !== r) r = J[r]; while (k < J.length && J[k] !== k) { const nx = J[k]; J[k] = r; k = nx; } return r; };
+    const addTx = (i, take, hop, par, t0, sbox) => {
+      if (P.length >= TL_CAP) { cut = true; return; }
+      const r = DB.tx[i], ci = cpOf(i), dai = accOfCp(ci), end = endOf(i, dai, r[0], hop, ci);
+      const p = { id: P.length, par, hop, t: r[1], i, from: r[0], ci, to: dai, amt: take, full: r[3], t0, end, sbox };
+      P.push(p);
+      if (!end) push(dai, r[1], take, hop + 1, p.id, boxOf(ci));
+    };
+    const push = (ai, t, amt, hop, par, sbox) => {
+      const o = getOuts(ai), U = used.get(ai), J = jump.get(ai);
+      let lo = 0, hi = o.length; while (lo < hi) { const m = (lo + hi) >> 1; if (DB.tx[o[m]][1] < t) lo = m + 1; else hi = m; }
+      let k = find(J, lo), rem = amt;
+      while (rem > 0.005 && k < o.length && !cut) {
+        const i = o[k], take = Math.min(rem, DB.tx[i][3] - U[k]);
+        if (take > 0.005) { U[k] += take; rem -= take; addTx(i, take, hop, par, t, sbox); }
+        if (DB.tx[i][3] - U[k] <= 0.005) { J[k] = k + 1; k = find(J, k); } else break;
+      }
+      if (rem > 0.005 && !cut) P.push({ id: P.length, par, hop, t, i: -1, from: ai, ci: -1, to: -1, amt: rem, full: 0, t0: t, end: "คงอยู่ในบัญชี (ยังไม่พบรายการโอนออก)", sbox });
+    };
+    for (const x of items) { if (cut) break; if (x.i != null) addTx(x.i, x.amt, 1, -1, DB.tx[x.i][1], ""); else push(x.ai, x.t, x.amt, 1, -1, ""); }
+    return { P, cut };
+  }
+  // ---- ตามสัดส่วน ----
+  const nA = DB.accounts.length, bal = new Float64Array(nA), B = new Map(), last = new Map(), abox = new Map(), crumb = new Map();
+  const seedOut = new Map(), seedIn = items.filter((x) => x.i == null).sort((a, b) => a.t - b.t); let si = 0;
+  for (const x of items) if (x.i != null) seedOut.set(x.i, (seedOut.get(x.i) || 0) + x.amt);
+  const bucket = (ai) => { let b = B.get(ai); if (!b) B.set(ai, (b = new Float64Array(maxHop + 2))); return b; };
+  const crumbAdd = (ai, v, t, h) => { const c = crumb.get(ai) || [0, t, h]; c[0] += v; c[1] = t; c[2] = Math.min(c[2], h); crumb.set(ai, c); };
+  const deliver = (i, take, hop, t0, sbox) => {                       // เงิน take ออกจากรายการ i (ทอด hop)
+    if (P.length >= TL_CAP) { cut = true; return; }
+    const r = DB.tx[i], ci = cpOf(i), dai = accOfCp(ci), end = endOf(i, dai, r[0], hop, ci);
+    P.push({ id: P.length, par: -1, hop, t: r[1], i, from: r[0], ci, to: dai, amt: take, full: r[3], t0, end, sbox });
+    if (!end) { bucket(dai)[hop + 1] += take; last.set(dai, r[1]); if (!abox.has(dai)) abox.set(dai, boxOf(ci)); }
+  };
+  const ord = txOrder();
+  let firstT = Infinity; for (const x of items) firstT = Math.min(firstT, x.i != null ? DB.tx[x.i][1] : x.t);
+  for (let q = 0; q < ord.length && !cut; q++) {
+    const i = ord[q], r = DB.tx[i], ai = r[0], inflow = IN_K.includes(r[2]);
+    while (si < seedIn.length && seedIn[si].t <= r[1]) { const s = seedIn[si++]; bucket(s.ai)[1] += s.amt; last.set(s.ai, s.t); }
+    if (inflow) { bal[ai] += r[3]; continue; }
+    if (seedOut.has(i)) { deliver(i, seedOut.get(i), 1, r[1], ""); bal[ai] -= r[3]; continue; }   // รายการต้นสาย ไม่หักจากยอดที่ไล่มา (กันนับซ้ำ)
+    if (r[1] >= firstT) {
+      const b = B.get(ai);
+      if (b) { let tot = 0; for (let h = 1; h <= maxHop; h++) tot += b[h];
+        if (tot > 0.005) {
+          const tr = Math.min(tot, r[3] * tot / Math.max(bal[ai], tot));
+          for (let h = 1; h <= maxHop; h++) { if (b[h] <= 0) continue; const take = tr * b[h] / tot; b[h] -= take;
+            if (take >= 1) deliver(i, take, h, last.get(ai) ?? r[1], abox.get(ai) || ""); else crumbAdd(ai, take, r[1], h); }
+          let left = 0; for (let h = 1; h <= maxHop; h++) left += b[h];
+          if (left < 1) { crumbAdd(ai, left, r[1], 1); B.delete(ai); }
+        } }
+    }
+    bal[ai] -= r[3];
+  }
+  while (si < seedIn.length) { const s = seedIn[si++]; bucket(s.ai)[1] += s.amt; last.set(s.ai, s.t); }
+  for (const [ai, b] of B) for (let h = 1; h <= maxHop; h++) if (b[h] > 0.005) P.push({ id: P.length, par: -1, hop: h, t: last.get(ai) || 0, i: -1, from: ai, ci: -1, to: -1, amt: b[h], full: 0, t0: last.get(ai) || 0, end: "คงอยู่ในบัญชี (ยังไม่พบรายการโอนออก)", sbox: abox.get(ai) || "" });
+  for (const [ai, c] of crumb) if (c[0] > 0.005) P.push({ id: P.length, par: -1, hop: c[2], t: c[1], i: -1, from: ai, ci: -1, to: -1, amt: c[0], full: 0, t0: c[1], end: "เศษยอดย่อย (ต่ำกว่า 1 บาทต่อรายการ)", sbox: abox.get(ai) || "" });
+  return { P, cut };
+}
+const trMode = () => (F && F.flt === "pro" ? "pro" : "fifo");
+const trName = (m) => (m === "pro" ? "ตามสัดส่วน" : "เข้าก่อนออกก่อน");
+
 /* ---------- Timeline เส้นเงินเป็นทอด (ผู้ใช้สั่ง 19 พ.ย. 69) ----------
    ต้นสาย = รายการทอด 1 ของกล่องที่คลี่ในชาร์ต (F.chain[0]) หรือแถวใดก็ได้ที่กด (ตารางรายการ / ตาราง timeline) ; กรองช่วงวัน-เวลาเริ่มต้นได้
    วิธีไล่: เงินที่เข้าบัญชีที่มี statement ณ เวลาใด จับกับรายการเงินออกของบัญชีนั้นตั้งแต่เวลานั้น เรียงตามเวลาจนครบยอด (รายการเงินออก 1 รายการใช้ได้ไม่เกินยอดของมัน)
@@ -1543,7 +1630,11 @@ const tlCp = (ci) => { const c = DB.cps[ci]; return `${c[1] || DB.groups[c[3]][1
 const tlIso = (t, i) => { const s = min2iso(t); return `${s.slice(0, 10)} ${s.slice(11, 16)}${i != null && i >= 0 && txSec(i) >= 0 ? ":" + String(txSec(i)).padStart(2, "0") : ""}`; };
 const tlTh = (s) => `${dTh(s.slice(0, 10))} ${s.slice(11)}`;
 const tlMin = (s) => (s ? day2min(s.slice(0, 10)) + (+s.slice(11, 13) || 0) * 60 + (+s.slice(14, 16) || 0) : null);
-const tlGap = (m) => (m == null || m < 0 ? "" : m < 60 ? `${Math.round(m)} นาที` : m < 1440 ? `${(m / 60).toFixed(1)} ชม.` : `${(m / 1440).toFixed(1)} วัน`);
+const tlGap = (m) => {                                                  // ระยะเวลา: นาที / ชม. / ปี เดือน วัน (ผู้ใช้สั่ง 19 พ.ย. 69)
+  if (m == null || m < 0) return ""; if (m < 60) return `${Math.round(m)} นาที`; if (m < 1440) return `${Math.floor(m / 60)} ชม. ${Math.round(m % 60)} นาที`;
+  let d = Math.round(m / 1440); const y = Math.floor(d / 365); d -= y * 365; const mo = Math.floor(d / 30); d -= mo * 30;
+  return [y ? `${y} ปี` : "", mo ? `${mo} เดือน` : "", d || (!y && !mo) ? `${d} วัน` : ""].filter(Boolean).join(" ");
+};
 function tlSeedTx(i) {                                                  // แถวในตารางรายการ -> ต้นสาย
   const r = DB.tx[i], out = !IN_K.includes(r[2]);
   return { label: `${out ? "รายการโอนออก" : "เงินเข้า"} ${tlTh(tlIso(r[1], i))} · ${DB.accounts[r[0]].name || DB.accounts[r[0]].acc} ${out ? "→ " + tlCp(cpOf(i)) : ""} · ${fmt(r[3])} บาท`,
@@ -1551,41 +1642,16 @@ function tlSeedTx(i) {                                                  // แ�
 }
 function tlSeeds() {
   if (TLS.seed) return TLS.seed;
-  if (!F.chain.length || F.dn) return null;
-  const id = F.chain[0], det = F.flm === "d";
-  if (!/^[cg]\d/.test(id)) return null;
-  const items = [];
-  for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i); if ((det ? "c" + ci : "g" + DB.cps[ci][3]) === id) items.push({ i, amt: r[3] }); }
-  return { label: `${flowInfo0(id).lab} — รายการทอด 1 ตามชาร์ต`, items, chart: true };
+  const C0 = ((F.chain || [])[0] || []).filter((id) => /^[cg]\d/.test(id)); if (!C0.length || F.dn) return null;
+  const set = new Set(C0), det = F.flm === "d", items = [];
+  for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i); if (set.has(det ? "c" + ci : "g" + DB.cps[ci][3])) items.push({ i, amt: r[3] }); }
+  return { label: `${C0.map((id) => flowInfo0(id).lab).join(" + ")} — รายการทอด 1 ตามชาร์ต`, items, chart: true };
 }
 function tlTrace(sd) {
   const a = tlMin(TLS.from), b = tlMin(TLS.to), tOf = (x) => (x.i != null ? DB.tx[x.i][1] : x.t);
   const items = sd.items.filter((x) => sd.items.length === 1 || ((a == null || tOf(x) >= a) && (b == null || tOf(x) <= b))).sort((x, y) => tOf(x) - tOf(y));   // ต้นสายแถวเดียว ไม่ใช้ช่วงเวลา
-  const outs = new Map(), used = new Map(), jump = new Map();
-  const getOuts = (ai) => { let o = outs.get(ai); if (!o) { o = txOfAcc(ai).filter((i) => !IN_K.includes(DB.tx[i][2])).sort((p, q) => DB.tx[p][1] - DB.tx[q][1] || p - q); outs.set(ai, o); used.set(ai, new Float64Array(o.length)); jump.set(ai, Int32Array.from(o, (_, k) => k)); } return o; };
-  const find = (J, k) => { let r = k; while (r < J.length && J[r] !== r) r = J[r]; while (k < J.length && J[k] !== k) { const nx = J[k]; J[k] = r; k = nx; } return r; };
-  const P = []; let cut = false;
-  const endOf = (i, dai, from, hop) => (dai < 0 ? (DB.tx[i][2] === 3 ? "ถอนเงินสด" : "ปลายทางไม่มี statement") : dai === from ? "โอนภายในบัญชีเดียวกัน" : hop >= TL_MAX ? `ถึงทอดที่ ${TL_MAX} (หยุดไล่)` : "");
-  function addTx(i, take, hop, par, t0) {
-    if (P.length >= TL_CAP) { cut = true; return; }
-    const r = DB.tx[i], ci = cpOf(i), dai = accOfCp(ci), end = endOf(i, dai, r[0], hop);
-    const p = { id: P.length, par, hop, t: r[1], i, from: r[0], ci, to: dai, amt: take, full: r[3], t0, end };
-    P.push(p);
-    if (!end) push(dai, r[1], take, hop + 1, p.id);
-  }
-  function push(ai, t, amt, hop, par) {
-    const o = getOuts(ai), U = used.get(ai), J = jump.get(ai);
-    let lo = 0, hi = o.length; while (lo < hi) { const m = (lo + hi) >> 1; if (DB.tx[o[m]][1] < t) lo = m + 1; else hi = m; }
-    let k = find(J, lo), rem = amt;
-    while (rem > 0.005 && k < o.length && !cut) {
-      const i = o[k], take = Math.min(rem, DB.tx[i][3] - U[k]);
-      if (take > 0.005) { U[k] += take; rem -= take; addTx(i, take, hop, par, t); }
-      if (DB.tx[i][3] - U[k] <= 0.005) { J[k] = k + 1; k = find(J, k); } else break;
-    }
-    if (rem > 0.005 && !cut) P.push({ id: P.length, par, hop, t, i: -1, from: ai, ci: -1, to: -1, amt: rem, full: 0, t0: t, end: "คงอยู่ในบัญชี (ยังไม่พบรายการโอนออก)" });
-  }
-  for (const x of items) { if (cut) break; if (x.i != null) addTx(x.i, x.amt, 1, -1, DB.tx[x.i][1]); else push(x.ai, x.t, x.amt, 1, -1); }
-  return { P, cut, n: items.length, total: items.reduce((t, x) => t + x.amt, 0), label: sd.label, t1: items.length ? tOf(items[0]) : null, t2: items.length ? tOf(items[items.length - 1]) : null };
+  const { P, cut } = runTrace(items, trMode(), () => true, TL_MAX, () => "");
+  return { P, cut, n: items.length, total: items.reduce((t, x) => t + x.amt, 0), label: sd.label, mode: trMode(), t1: items.length ? tOf(items[0]) : null, t2: items.length ? tOf(items[items.length - 1]) : null };
 }
 const tlTo = (p) => (p.i < 0 ? "(คงอยู่ในบัญชี)" : p.to >= 0 ? tlAcc(p.to) : tlCp(p.ci));
 function tlRender() {
@@ -1593,18 +1659,18 @@ function tlRender() {
   box.onclick = (e) => { if (e.target.closest("#tlX")) return; const v = e.target.closest("[data-tlv]"); if (v) { TLS.v = v.dataset.tlv; TLS.keep = true; return tlRender(); }
     const b = e.target.closest("[data-tl]"); if (!b) return; if (b.dataset.tl === "back") { TLS.seed = TLS.hist.pop() || null; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "rep") tlReport(); };
   box.onchange = (e) => { if (e.target.id === "tlFrom" || e.target.id === "tlTo") { TLS[e.target.id === "tlFrom" ? "from" : "to"] = e.target.value; TLS.keep = true; tlRender(); } };
-  const ck = F.chain.join(">"); if (TLC.ck !== null && TLC.ck !== ck && TLS.seed && !TLS.keep) { TLS.seed = null; TLS.hist = []; } TLC.ck = ck; TLS.keep = false;
+  const ck = JSON.stringify(F.chain) + trMode(); if (TLC.ck !== null && TLC.ck !== ck && TLS.seed && !TLS.keep) { TLS.seed = null; TLS.hist = []; } TLC.ck = ck; TLS.keep = false;
   const sd = tlSeeds();
   const hd = `<div class="tlh"><h2>${IC("route")} Timeline เส้นเงินเป็นทอด</h2>${TLS.seed ? `<button class="chip" data-tl="back">← ${TLS.hist.length ? "ย้อนกลับ" : "กลับไปตามชาร์ต"}</button>` : ""}</div>`;
   if (!sd || !sd.items.length) { box.innerHTML = `<div class="card tlc">${hd}<p class="muted" style="margin:4px 0 0">กดกล่อง ▶ ในชาร์ตเพื่อเลือกต้นสาย หรือกดแถวในตารางรายการด้านล่าง</p></div>`; return; }
-  const key = [sd.label, sd.items.length, sd.items.reduce((t, x) => t + x.amt, 0).toFixed(2), TLS.from, TLS.to].join("|");
+  const key = [sd.label, sd.items.length, sd.items.reduce((t, x) => t + x.amt, 0).toFixed(2), TLS.from, TLS.to, trMode()].join("|");
   if (TLC.key !== key) { TLC.res = tlTrace(sd); TLC.key = key; }
   const T = TLC.res, P = T.P, L = P.filter((p) => p.end), sumE = (rx) => L.filter((p) => rx.test(p.end)).reduce((t, p) => t + p.amt, 0);
   const last = P.reduce((m, p) => Math.max(m, p.t), T.t1 || 0), hopMax = P.reduce((m, p) => Math.max(m, p.hop), 0);
   const kp = [["ยอดต้นสาย", M(T.total), `${fmt0(T.n)} รายการ`], ["ไล่ได้ลึกสุด", `${hopMax} ทอด`, `${fmt0(P.length)} รายการย่อย`], ["ระยะเวลาต้นสาย → สุดสาย", tlGap(last - (T.t1 || last)), T.t1 != null ? `${tlTh(tlIso(T.t1))} – ${tlTh(tlIso(last))}` : ""],
     ["ถอนเป็นเงินสด", M(sumE(/ถอนเงินสด/)), ""], ["ไปบัญชีที่ไม่มี statement", M(sumE(/ไม่มี statement/)), ""], ["คงอยู่ในบัญชี / หยุดไล่", M(sumE(/คงอยู่|หยุดไล่|บัญชีเดียวกัน/)), ""]];
   box.innerHTML = `<div class="card tlc">${hd}
-    <div class="tlsrc">${IC("flow", 15)} <b>ต้นสาย:</b> ${esc(T.label)}${T.cut ? ` <span class="badge r">ตัดที่ ${fmt0(TL_CAP)} รายการ — ใช้ช่วงเวลาให้แคบลง</span>` : ""}</div>
+    <div class="tlsrc">${IC("flow", 15)} <b>ต้นสาย:</b> ${esc(T.label)} · <b>วิธีไล่:</b> ${trName(T.mode)}${T.cut ? ` <span class="badge r">ตัดที่ ${fmt0(TL_CAP)} รายการ — ใช้ช่วงเวลาให้แคบลง</span>` : ""}</div>
     <div class="tlbar"><div class="seg">${TLV.map(([k, l]) => `<button data-tlv="${k}" class="${TLS.v === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <label class="tlt">เริ่ม <input type="datetime-local" id="tlFrom" value="${TLS.from}"></label><label class="tlt">ถึง <input type="datetime-local" id="tlTo" value="${TLS.to}"></label>
       <button class="chip" data-tl="rep">${IC("doc", 14)} รายงาน</button></div>
@@ -1671,69 +1737,66 @@ const accOfCp = (ci) => { if (!ACCNO) { ACCNO = new Map(); DB.accounts.forEach((
 let TXA = null;
 const txOfAcc = (ai) => { if (!TXA) { TXA = DB.accounts.map(() => []); DB.tx.forEach((r, i) => TXA[r[0]].push(i)); } return TXA[ai] || []; };
 function flowBuild(pair) {
+  // รุ่น 19 พ.ย. 69: F.chain = [[กล่องที่คลี่ในคอลัมน์ทอด 1], [ทอด 2], …] คลี่ได้หลายกล่องต่อคอลัมน์ ; โหมดไล่ตามเวลา (F.flt = fifo / pro) ใช้ runTrace บัญชีคุมยอดชุดเดียว
+  //   และเมื่อมีกล่องที่คลี่ ชาร์ตแสดงเฉพาะเส้นที่ไล่: คอลัมน์ 0–2 เหลือเฉพาะบัญชีที่โอนเข้ากล่องที่คลี่ (ผู้ใช้สั่ง "แสดงเฉพาะเส้นที่ไฮไลท์ ไม่ใช่ทุกรายการ")
   const det = F.flm === "d", N = F.fln, L = new Map(), R = new Map(), Mi = new Map();
   const lid = (ci) => (det ? "c" + ci : "g" + DB.cps[ci][3]), mid = (ai) => (det ? "a" + ai : "G" + DB.accounts[ai].g);
   const add = (m, k, v) => m.set(k, (m.get(k) || 0) + v);
-  for (const [key, v] of pair) { const ci = Math.floor(key / 64), ai = key % 64; if (v[0]) add(L, lid(ci), v[0]); if (v[1]) add(R, lid(ci), v[1]); add(Mi, mid(ai), v[0] + v[1]); }
   const top = (m) => new Set([...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, N).map((x) => x[0]));
-  const kL = top(L), kR = top(R), kM = top(Mi), cols = [new Map(), new Map(), new Map()], links = new Map();
-  const nd = (c, id) => { let n = cols[c].get(id); if (!n) cols[c].set(id, (n = { id, c, in: 0, out: 0 })); return n; };
+  const cols = [new Map(), new Map(), new Map()], links = new Map();
+  const nd = (c, id) => { while (cols.length <= c) cols.push(new Map()); let n = cols[c].get(id); if (!n) cols[c].set(id, (n = { id, c, in: 0, out: 0 })); return n; };
   const lk = (a, b, v, n) => { const k = a + ">" + b; let o = links.get(k); if (!o) links.set(k, (o = { a, b, v: 0, n: 0 })); o.v += v; o.n += n; };
+  const CH = (F.chain || []).filter((a) => a && a.length), time = F.flt !== false, chain = [];
+  if (time && CH.length) {
+    const s0 = new Set(CH[0]), seeds = [], srcA = new Map(), col2 = new Map();
+    for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i), d = lid(ci); if (!s0.has(d)) continue;
+      seeds.push({ i, amt: r[3] }); add(srcA, r[0], r[3]); const e = col2.get(r[0] + "|" + d) || [0, 0]; e[0] += r[3]; e[1]++; col2.set(r[0] + "|" + d, e); }
+    if (seeds.length) {
+      // คอลัมน์ 0–2 เฉพาะเส้นที่ไล่
+      //   (ไม่แสดงคอลัมน์เงินเข้าจาก เพราะเงินเข้าทั้งหมดของบัญชีต้นทางไม่ใช่เส้นที่ไล่ — ชาร์ตเริ่มที่บัญชีผู้โอนทอด 1)
+      for (const [ai, v] of srcA) add(Mi, mid(ai), v);
+      const kM = top(Mi);
+      for (const [k2, e] of col2) { const [ai, d] = k2.split("|"), m0 = mid(+ai), m = kM.has(m0) ? m0 : "O"; nd(1, m).out += e[0]; nd(2, d).in += e[0]; lk("1:" + m, "2:" + d, e[0], e[1]); }
+      // ทอดถัดไป
+      const maxHop = CH.length + 1;
+      const { P } = runTrace(seeds, F.flt === "pro" ? "pro" : "fifo", (hop, ci) => hop - 1 < CH.length && CH[hop - 1].includes(lid(ci)), maxHop, lid);
+      let reach = 1;
+      for (let h = 2; h <= maxHop; h++) {
+        const c = h + 1, ps = P.filter((p) => p.hop === h && p.sbox && cols[c - 1] && cols[c - 1].has(p.sbox)); if (!ps.length) break;
+        const agg = new Map(); ps.forEach((p) => { const d = p.i < 0 ? "rem" : lid(p.ci), e = agg.get(d) || [0, 0]; e[0] += p.amt; e[1]++; agg.set(d, e); });
+        const kk = new Set([...agg.entries()].filter(([d]) => d !== "rem").sort((a, b) => b[1][0] - a[1][0]).slice(0, N).map((x) => x[0]));
+        CH[h - 2].forEach((id) => { if (cols[c - 1].has(id)) cols[c - 1].get(id).out = 0; });
+        const lagg = new Map();
+        ps.forEach((p) => { const d0 = p.i < 0 ? "rem" : lid(p.ci), d = d0 === "rem" || kk.has(d0) ? d0 : "o", k = p.sbox + ">" + d, e = lagg.get(k) || [0, 0]; e[0] += p.amt; e[1] += p.i < 0 ? 0 : 1; lagg.set(k, e); });
+        for (const [k, e] of lagg) { const [sb, d] = k.split(">"); nd(c, d).in += e[0]; nd(c - 1, sb).out += e[0]; lk((c - 1) + ":" + sb, c + ":" + d, e[0], e[1]); }
+        chain.push(CH[h - 2].filter((id) => cols[c - 1].has(id))); reach = h;
+      }
+      return { cols, links: [...links.values()], chain };
+    }
+  }
+  // ไม่มีกล่องที่คลี่ หรือโหมด "ทุกรายการในช่วง": ชาร์ตตามตัวกรองเดิม
+  for (const [key, v] of pair) { const ci = Math.floor(key / 64), ai = key % 64; if (v[0]) add(L, lid(ci), v[0]); if (v[1]) add(R, lid(ci), v[1]); add(Mi, mid(ai), v[0] + v[1]); }
+  const kL = top(L), kR = top(R), kM = top(Mi);
   for (const [key, v] of pair) {
     const ci = Math.floor(key / 64), ai = key % 64, m0 = mid(ai), m = kM.has(m0) ? m0 : "O", l0 = lid(ci);
     if (v[0]) { const l = kL.has(l0) ? l0 : "o"; nd(0, l).out += v[0]; nd(1, m).in += v[0]; lk("0:" + l, "1:" + m, v[0], v[2]); }
     if (v[1]) { const r = kR.has(l0) ? l0 : "o"; nd(2, r).in += v[1]; nd(1, m).out += v[1]; lk("1:" + m, "2:" + r, v[1], v[3]); }
   }
-  // ทอดถัดไปตาม F.chain
-  const a0 = day2min(F.from), b0 = day2min(F.to) + 1440;
-  const chain = [];
-  if (F.flt !== false && F.chain.length) {
-    // ไล่ตามเวลา (ผู้สั่งงาน 18 พ.ย. 69): เงินที่เข้ากล่องที่กด ณ วัน-เวลาใด จับกับรายการเงินออกของบัญชีนั้นที่เกิดตั้งแต่เวลานั้นเป็นต้นไป เรียงตามเวลา จนครบยอดที่รับ
-    //   (รายการเงินออก 1 รายการใช้ได้ไม่เกินยอดของมัน ; ส่วนที่ไม่พบรายการออก = กล่อง rem ; ปลายทางที่ไม่มี statement = กล่อง nst) — เป็นการไล่ตามลำดับเวลา ไม่ใช่การระบุตัวเงิน
-    const outs = new Map(), used = new Map();
-    const getOuts = (ai) => { let o = outs.get(ai); if (!o) { o = txOfAcc(ai).filter((i) => !IN_K.includes(DB.tx[i][2])).sort((x, y) => DB.tx[x][1] - DB.tx[y][1] || x - y); outs.set(ai, o); used.set(ai, new Float64Array(o.length)); } return o; };
-    let arr = [], nst = 0, nstN = 0;
-    for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i), d0 = lid(ci);
-      if ((kR.has(d0) ? d0 : "o") !== F.chain[0]) continue;
-      const dai = accOfCp(ci); if (dai < 0 || dai === r[0]) { nst += r[3]; nstN++; } else arr.push({ ai: dai, t: r[1], amt: r[3] }); }
-    for (let k = 0; k < F.chain.length; k++) {
-      const c = 2 + k, id = F.chain[k];
-      if (!cols[c] || !cols[c].has(id) || !srcAccs(id).length || (!arr.length && nst <= 0.005)) break;
-      arr.sort((x, y) => x.t - y.t);
-      const out = new Map(), pieces = []; let rem = 0;
-      for (const a of arr) { const o = getOuts(a.ai), U = used.get(a.ai);
-        let lo = 0, hi = o.length; while (lo < hi) { const m = (lo + hi) >> 1; if (DB.tx[o[m]][1] < a.t) lo = m + 1; else hi = m; }
-        let need = a.amt;
-        for (let j = lo; j < o.length && need > 0.005; j++) { const i = o[j], av = DB.tx[i][3] - U[j]; if (av <= 0.005) continue;
-          const take = Math.min(av, need); U[j] += take; need -= take;
-          const ci = cpOf(i), d = lid(ci), e = out.get(d) || [0, 0]; e[0] += take; e[1]++; out.set(d, e); pieces.push([d, ci, DB.tx[i][1], take, a.ai]); }
-        rem += need; }
-      const kk = new Set([...out.entries()].sort((x, y) => y[1][0] - x[1][0]).slice(0, N).map((x) => x[0]));
-      cols[c + 1] = new Map();
-      const me = cols[c].get(id); me.out = 0;
-      for (const [d, v] of out) { const dd = kk.has(d) ? d : "o"; nd(c + 1, dd).in += v[0]; me.out += v[0]; lk(c + ":" + id, (c + 1) + ":" + dd, v[0], v[1]); }
-      if (rem > 0.005) { nd(c + 1, "rem").in += rem; lk(c + ":" + id, (c + 1) + ":rem", rem, 0); }
-      if (nst > 0.005) { nd(c + 1, "nst").in += nst; lk(c + ":" + id, (c + 1) + ":nst", nst, nstN); }
-      chain.push(id);
-      const nx = F.chain[k + 1]; arr = []; nst = 0; nstN = 0;
-      if (nx == null) break;
-      for (const [d, ci, t, take, from] of pieces) { if ((kk.has(d) ? d : "o") !== nx) continue; const dai = accOfCp(ci); if (dai < 0 || dai === from) { nst += take; nstN++; } else arr.push({ ai: dai, t, amt: take }); }
+  if (!time) {
+    const a0 = day2min(F.from), b0 = day2min(F.to) + 1440;
+    for (let k = 0; k < CH.length; k++) {
+      const c = 2 + k, ids = CH[k].filter((id) => cols[c] && cols[c].has(id) && srcAccs(id).length); if (!ids.length) break;
+      const out = new Map(), tot = new Map();
+      for (const id of ids) for (const ai of srcAccs(id)) for (const i of txOfAcc(ai)) { const r = DB.tx[i];
+        if (r[1] < a0 || r[1] >= b0 || IN_K.includes(r[2]) || r[3] < F.min) continue;
+        if (F.cpm === "pair" && !(txQ(i) && pqOn(txQ(i)))) continue;
+        const d = lid(cpOf(i)), k2 = id + ">" + d, o = out.get(k2) || [0, 0]; o[0] += r[3]; o[1] += r[5] || 1; out.set(k2, o); add(tot, d, r[3]); }
+      if (!out.size) break;
+      const kk = new Set([...tot.entries()].sort((x, y) => y[1] - x[1]).slice(0, N).map((x) => x[0]));
+      ids.forEach((id) => (cols[c].get(id).out = 0));
+      for (const [k2, v] of out) { const [id, d] = k2.split(">"), dd = kk.has(d) ? d : "o"; nd(c + 1, dd).in += v[0]; cols[c].get(id).out += v[0]; lk(c + ":" + id, (c + 1) + ":" + dd, v[0], v[1]); }
+      chain.push(ids);
     }
-  } else for (let k = 0; k < F.chain.length; k++) {
-    const c = 2 + k, id = F.chain[k];
-    if (!cols[c] || !cols[c].has(id)) break;
-    const src = srcAccs(id); if (!src.length) break;
-    const out = new Map();
-    for (const ai of src) for (const i of txOfAcc(ai)) { const r = DB.tx[i];
-      if (r[1] < a0 || r[1] >= b0 || IN_K.includes(r[2]) || r[3] < F.min) continue;
-      if (F.cpm === "pair" && !(txQ(i) && pqOn(txQ(i)))) continue;
-      const d = lid(cpOf(i)); const o = out.get(d) || [0, 0]; o[0] += r[3]; o[1] += r[5] || 1; out.set(d, o); }
-    if (!out.size) break;
-    const kk = new Set([...out.entries()].sort((x, y) => y[1][0] - x[1][0]).slice(0, N).map((x) => x[0]));
-    cols[c + 1] = new Map();
-    cols[c].get(id).out = 0;
-    for (const [d, v] of out) { const dd = kk.has(d) ? d : "o"; nd(c + 1, dd).in += v[0]; cols[c].get(id).out += v[0]; lk(c + ":" + id, (c + 1) + ":" + dd, v[0], v[1]); }
-    chain.push(id);
   }
   return { cols, links: [...links.values()], chain };
 }
@@ -1819,14 +1882,14 @@ function drawFlow(box, pair) {
       const last = fb.cols[2 + fb.chain.length]; if (!last) break;
       const nx = [...last.values()].filter((n) => n.id.length > 1 && n.id !== "rem" && n.id !== "nst" && srcAccs(n.id).length).sort((a, b) => Math.max(b.in, b.out) - Math.max(a.in, a.out))[0];
       if (!nx) break;
-      F.chain = fb.chain.concat([nx.id]); const nb = flowBuild(pair); if (nb.chain.length <= fb.chain.length) break; fb = nb;
+      F.chain = fb.chain.map((a) => [...a]).concat([[nx.id]]); const nb = flowBuild(pair); if (nb.chain.length <= fb.chain.length) break; fb = nb;
     }
   }
   const { cols: C0, links: L0, chain } = fb;
   if (!L0.length) { box.innerHTML = '<p class="muted" style="padding:20px">ไม่มีรายการตามตัวกรอง</p>'; return; }
-  const nc = C0.length, first = dn ? 0 : Math.max(0, nc - Math.max(3, F.flc)), vis = [];
+  const nc = C0.length, first = dn ? 0 : Math.max(C0[0] && C0[0].size ? 0 : 1, nc - Math.max(3, F.flc)), vis = [];
   for (let c = first; c < nc; c++) vis.push(c);
-  const cols = vis.map((c) => [...C0[c].values()].map((n) => ({ ...n, v: c === vis[0] && c === 0 ? n.out : Math.max(n.in, n.out), exp: !dn && c >= 2 && n.id !== "o" && srcAccs(n.id).length > 0, sel: !dn && c >= 2 && chain[c - 2] === n.id }))
+  const cols = vis.map((c) => [...C0[c].values()].map((n) => ({ ...n, v: c === vis[0] && c === 0 ? n.out : Math.max(n.in, n.out), exp: !dn && c >= 2 && n.id !== "o" && srcAccs(n.id).length > 0, sel: !dn && c >= 2 && (chain[c - 2] || []).includes(n.id) }))
     .sort((a, b) => (a.id.length === 1) - (b.id.length === 1) || b.v - a.v));
   const links = L0.filter((l) => +l.a.split(":")[0] >= first);
   const W = Math.max(720, box.clientWidth, vis.length * 250), wide = W > 1000, bw = 14, pad = 7, minH = 20, top = 26;
@@ -1847,7 +1910,7 @@ function drawFlow(box, pair) {
   }
   cols.forEach((c, j) => c.forEach((n) => {
     const ci = vis[j], f = n.inf, isL = j === 0 && ci === 0, last = j === cols.length - 1, mc = isL ? mcL : last ? mcR : mcM;
-    const io = ci === 1 || n.sel || (dn && n.in > 0 && n.out > 0);
+    const io = (ci === 1 && n.in > 0) || n.sel || (dn && n.in > 0 && n.out > 0);
     const amt = io ? `เข้า ${M(n.in)} · ออก ${M(n.out)}` : M(n.v);
     const tip = `${f.lab}${f.sub ? " " + f.sub : ""} : ` + (io ? `เงินเข้า ${fmt(n.in)} / เงินออก ${fmt(n.out)} บาท` : `${fmt(n.v)} บาท`) + (n.exp ? (n.sel ? " · กดอีกครั้งเพื่อยุบ" : " · กดเพื่อไล่ทอดถัดไป") : "");
     const tx = isL ? n.x - 6 : n.x + bw + 6, an = isL ? "end" : "start", cy = n.y + n.h / 2, two = n.h >= 32;
@@ -1856,11 +1919,12 @@ function drawFlow(box, pair) {
       (two ? `<text x="${tx}" y="${(cy - 3).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, mc))}${mark}</text><text x="${tx}" y="${(cy + 12).toFixed(1)}" text-anchor="${an}" class="fl2">${amt}${wide && f.sub && (isL || last) ? " · " + esc(cut(f.sub, 22)) : ""}</text>`
         : `<text x="${tx}" y="${(cy + 4).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, Math.max(8, mc - 6)))}${mark} <tspan class="fl2">${ci === 1 ? M(n.v) : amt}</tspan></text>`) + `</g>`;
   }));
-  const hdT = (ci) => (dn ? (ci === 0 ? "ผู้บริจาค" : ci === 1 ? "บัญชีรับบริจาค" : `โอนต่อ ทอด ${ci - 1}`) : ci === 0 ? "เงินเข้าจาก" : ci === 1 ? "บัญชี (statement)" : ci === 2 ? "เงินออกไป (ทอด 1)" : `ทอด ${ci - 1}${F.flt !== false ? " · ไล่ตามเวลา" : ""}`);
+  const hdT = (ci) => (dn ? (ci === 0 ? "ผู้บริจาค" : ci === 1 ? "บัญชีรับบริจาค" : `โอนต่อ ทอด ${ci - 1}`) : ci === 0 ? "เงินเข้าจาก" : ci === 1 ? "บัญชี (statement)" : ci === 2 ? "เงินออกไป (ทอด 1)" : `ทอด ${ci - 1}${F.flt !== false ? " · " + trName(trMode()) : ""}`);
   const hd = vis.map((ci, j) => `<text x="${j === 0 && ci === 0 ? LW + bw : LW + j * gap}" y="14" text-anchor="${j === 0 && ci === 0 ? "end" : "start"}" class="flh">${hdT(ci)}</text>`).join("");
   const ban = dn ? `<div class="dnban" style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:8px 10px;margin:0 0 6px;font-size:.86rem"><b>ไล่เงินผู้บริจาค:</b> ${esc(dn.name)} — บริจาครวม ${fmt(dn.total)} บาท (${fmt0(dn.n)} ครั้งที่มีวันเวลา) · ไล่ตามรายการโอนออกถัดไปตามเวลาจนครบยอด${dn.rem > 0.5 ? ` · ยังไม่พบรายการโอนออกต่อ ${fmt(dn.rem)} บาท` : ""}${dn.undated > 0.5 ? ` · ยอดรวมรายย่อยไม่มีวันที่ ${fmt(dn.undated)} บาท` : ""}
       <button class="chip" data-dnoff="1" style="margin-left:6px">✕ กลับชาร์ตตามตัวกรอง</button><br><span class="muted">เป็นการไล่ตามลำดับเวลา (สันนิษฐาน) ไม่ใช่การระบุตัวเงิน · ไม่ใช้ตัวกรองช่วงเวลา/บัญชี · เปลี่ยน กลุ่ม/รายบัญชี และจำนวนกล่องได้</span></div>` : "";
-  box.innerHTML = ban + (first ? `<div class="muted" style="font-size:.8rem;padding:4px 8px">◀ ซ่อน ${first} คอลัมน์แรก (เพิ่มจำนวนคอลัมน์ที่แสดงได้ที่ปุ่ม "แสดง … คอลัมน์")</div>` : "") +
+  const sk0 = C0[0] && C0[0].size ? 0 : 1;
+  box.innerHTML = ban + (sk0 ? `<div class="muted" style="font-size:.8rem;padding:4px 8px">แสดงเฉพาะเส้นที่ไล่ (${trName(trMode())}) — กดกล่องเพิ่มได้หลายกล่องต่อคอลัมน์ · กดซ้ำเพื่อเอาออก</div>` : "") + (first > sk0 ? `<div class="muted" style="font-size:.8rem;padding:4px 8px">◀ ซ่อน ${first - sk0} คอลัมน์แรก (เพิ่มจำนวนคอลัมน์ที่แสดงได้ที่ปุ่ม "แสดง … คอลัมน์")</div>` : "") +
     `<svg width="${W}" height="${Math.ceil(H + 8)}" viewBox="0 0 ${W} ${Math.ceil(H + 8)}">${hd}${svg}</svg>`;
 }
 
