@@ -378,7 +378,7 @@ const BRF = {
     const ph = photoOf(s.name), com = ["prp", "srk", "prc"].includes(k), why = WHY[com ? "com" : k] || {};
     const fromSus = Object.values(s.from_sus || {}).reduce((a, v) => a + v, 0), toSus = Object.values(s.to_sus || {}).reduce((a, v) => a + v, 0);
     const yrs = Object.keys(s.yr || {}).filter((y) => Object.values(s.yr[y]).some((v) => v >= 1000));
-    return picks + `<div class="prof" style="--c:${SCOL[k]}">${ph ? thumbEl(ph, "av lg") : `<span class="av lg ph">${IC("user", 40)}</span>`}<div><span class="eyebrow">ผู้ต้องหาที่ ${s.no}</span><h2>${esc(s.name)}</h2><p>${esc(s.role)}</p><div class="chips">${chChips(s.charges)}</div></div></div>
+    return picks + `<div class="prof glass" style="--c:${SCOL[k]}">${ph ? thumbEl(ph, "av lg") : `<span class="av lg ph">${IC("user", 40)}</span>`}<div><span class="eyebrow">ผู้ต้องหาที่ ${s.no}</span><h2>${esc(s.name)}</h2><p>${esc(s.role)}</p><div class="chips">${chChips(s.charges)}</div></div></div>
       <div class="hero-k sm">${kpiC(M(s.in_t1 + (k === "con" ? 0 : 0)), "รับจากบัญชีรับบริจาค", `${fmt0(s.in_t1_n)} ครั้ง`, "#1565C0")}${kpiC(M(fromSus), "รับจากผู้ต้องหาอื่น", "", SCOL.ath)}${kpiC(M(toSus), "โอนให้ผู้ต้องหาอื่น", "", "#B3261E")}
         ${kpiC(M(cashOf(k)), "ถอนเงินสด", "บัญชีที่มี statement", "#616161")}${kpiC(M(perOf(k)), "ใช้ส่วนตัว / ทรัพย์สิน", "", "#263238")}${q.amt >= 1e6 ? kpiC(pc(q.f24, q.amt), "โอนต่อภายใน 24 ชม.", `ของ ${M(q.amt)}`, "#E65100") : ""}</div>
       ${secH("scale", "ทำไมจึงแจ้งข้อหา")}<div class="why">${["F", "C", "M"].filter((x) => s.charges.includes(x)).map((x) => `<div class="w" style="--c:${CHC[x][1]}"><b>${CHC[x][0]}</b><p>${why[x] || "—"}</p></div>`).join("")}</div>
