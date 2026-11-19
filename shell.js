@@ -61,7 +61,7 @@ function openPrefs() {
 function closePrefs() { const s = $("#prefs"); s.classList.remove("open"); setTimeout(() => (s.hidden = true), 200); }
 
 /* ---------- เมนู ---------- */
-const GROUPS = [["", ["home", "brief", "charges", "case"]], ["สืบสวนเส้นเงิน", ["ana", "acct", "cc", "over"]], ["ดำเนินคดี", ["recs", "asset", "work", "defences", "srch"]], ["เอกสาร", ["img"]]];
+const GROUPS = [["", ["home", "brief", "case"]], ["สืบสวนเส้นเงิน", ["ana", "acct", "cc", "over"]], ["ดำเนินคดี", ["recs", "asset", "work", "defences", "srch"]], ["เอกสาร", ["img"]]];
 const BNAV = ["home", "brief", "ana", "acct", "asset"];
 const BNAV_L = { home: "หน้าแรก", brief: "สรุป", ana: "เส้นเงิน", acct: "บัญชี", asset: "ทรัพย์สิน" };
 const tabOf = (k) => TABS.find((t) => t[0] === k) || [k, k, "doc"];
@@ -341,7 +341,7 @@ const BRF = {
     return `<div class="facts">${L.map(([ic, t, s, c]) => `<div class="fact" style="--c:${c}">${IC(ic, 22)}<div><b>${t}</b><p>${s}</p></div></div>`).join("")}</div>
       ${secH("pie", "เงินออกจากบัญชีรับบริจาค แยกผู้รับ")}<div class="card"><div class="chartbox tall"><canvas id="bOut"></canvas></div></div>`;
   },
-  chg: ({ X, S }) => `<p class="muted">✓ = ข้อหาที่แจ้ง / มีมติ ; สถานะตามข้อมูลชุดสืบสวน (บางรายการตามข่าว ต้องตรวจทานกับสำนวน)</p>` + tbl(["ที่", "ผู้ต้องหา", "ฉ้อโกงประชาชน", "พ.ร.บ.คอมพิวเตอร์", "ฟอกเงิน", "รับเงินบริจาคโดยตรง", "สถานะ"],
+  chg: ({ X, S }) => `<div id="chgBox"></div>${secH("coin", "ข้อหา กับเงินที่รับจากบัญชีรับบริจาคโดยตรง")}<p class="muted">✓ = ข้อหาที่แจ้ง / มีมติ ; สถานะตามข้อมูลชุดสืบสวน (บางรายการตามข่าว ต้องตรวจทานกับสำนวน)</p>` + tbl(["ที่", "ผู้ต้องหา", "ฉ้อโกงประชาชน", "พ.ร.บ.คอมพิวเตอร์", "ฟอกเงิน", "รับเงินบริจาคโดยตรง", "สถานะ"],
     susKeys().map((k) => { const s = S[k], c = chgOf(s.name) || {}; return [s.no, `<a href="#" data-sus="${k}"><b>${esc(s.name)}</b></a><br><small class="muted">${esc(s.role.split(" ; ")[0])}</small>`, ...["F", "C", "M"].map((q) => (s.charges.includes(q) ? `<b style="color:${CHC[q][1]}">✓</b>` : "–")), M(s.in_t1), esc(c.status || "")]; }), [5]) +
     `<div class="note">ฉ้อโกงประชาชน ป.อ. ม.341 ประกอบ ม.343 · นำเข้าข้อมูลเท็จ พ.ร.บ.คอมพิวเตอร์ ม.14 (1) · ฟอกเงิน พ.ร.บ.ป้องกันและปราบปรามการฟอกเงิน ม.5 ประกอบ ม.60 — เลขมาตราต้องตรวจทานกับตัวบทฉบับปัจจุบัน</div>`,
   t1: ({ X }) => {
@@ -410,6 +410,7 @@ const BRF = {
     tbl(["ที่", "บัญชี", "กลุ่ม", "จากบัญชีรับบริจาค", "จากบัญชีผู้ต้องหา", "รวม", "ล่าสุด"], X.pending.map((x, i) => [i + 1, labAcc(x.acc), esc(X.suspects[x.ent] ? `ผู้ต้องหาที่ ${X.suspects[x.ent].no}` : (X.ent[x.ent] || x.ent)), M(x.t1), M(x.sus), `<b>${M(x.t1 + x.sus)}</b>`, dTh(x.last)]), [3, 4, 5]),
 };
 const BRP = {
+  chg: () => { const el = $("#chgBox"); if (el) pCharges(el); },
   sum: ({ X, K }) => { const L = Object.entries(X.t1_out).filter(([, v]) => v[0] > 0).sort((a, b) => b[1][0] - a[1][0]).slice(0, 16);
     CH.bOut = new Chart($("#bOut"), { type: "bar", data: { labels: L.map(([k]) => entLab(k)), datasets: [{ data: L.map(([, v]) => v[0] / 1e6), backgroundColor: L.map(([k]) => ENTC[k] || "#90A4AE") }] },
       options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${M(c.raw * 1e6)} (${pc(c.raw * 1e6, K.t1_out)})` } } } } }); },
