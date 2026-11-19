@@ -3,9 +3,15 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const fmt = (x) => Number(x || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const PREF = (() => { try { return JSON.parse(localStorage.getItem("cib_prefs")) || {}; } catch (e) { return {}; } })();   // ตั้งค่าการแสดงผล (shell.js)
+const nf = (v, d) => v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d });
+const moneyS = (x) => { const v = Number(x || 0), a = Math.abs(v), m = PREF.money || "m";
+  if (m === "full") return nf(v, 2);
+  if (m === "auto") return a >= 1e6 ? nf(v / 1e6, 2) + " ล." : a >= 1e5 ? nf(v / 1e5, 2) + " แสน" : nf(v, 0);
+  return nf(v / 1e6, 2) + " ล."; };
+const fmt = (x) => (PREF.tblShort ? moneyS(x) : nf(Number(x || 0), 2));
 const fmt0 = (x) => Number(x || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
-const M = (x) => (Number(x || 0) / 1e6).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ล.";
+const M = (x) => moneyS(x);
 const MTH = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const dTh = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return y ? `${d} ${MTH[m]} ${String(y + 543).slice(2)}` : String(iso); };
 const toast = (t) => { const e = $("#toast"); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 3200); };
@@ -49,7 +55,6 @@ $("#loginForm").addEventListener("submit", async (ev) => {
   if (!k) return;
   try { await unlock(null, Uint8Array.from(atob(k), (c) => c.charCodeAt(0))); start(); } catch (e) { try { sessionStorage.removeItem("cib_k"); } catch (e2) { } }
 })();
-$("#outBtn").onclick = () => { try { sessionStorage.removeItem("cib_k"); } catch (e) { } location.reload(); };
 
 /* ---------- เนื้อหาที่แก้ไขได้ (ฐานข้อมูล Google Sheet) ---------- */
 const SEC = {
@@ -59,6 +64,7 @@ const SEC = {
   charges: { label: "ข้อหา", f: [["title", "บุคคล"], ["extra1", "บทบาท"], ["detail", "ข้อหา", "ta"], ["status", "สถานะ"]] },
   defences: { label: "ข้อต่อสู้ที่ต้องพิสูจน์", f: [["extra1", "ผู้อ้าง"], ["title", "ข้อต่อสู้"], ["detail", "สิ่งที่ต้องพิสูจน์", "ta"], ["extra2", "หลักฐานที่มี", "ta"], ["status", "สถานะ"]] },
   done: { label: "สิ่งที่ทำไปแล้ว", f: [["title", "งาน"], ["detail", "รายละเอียด", "ta"], ["date", "วันที่", "date"]] },
+  recs: { label: "ข้อเสนอแนะ", f: [["title", "ข้อเสนอ"], ["detail", "รายละเอียด", "ta"], ["extra2", "หมวด (เลือกหรือพิมพ์เอง)", "list"], ["extra1", "ผู้รับผิดชอบ"], ["status", "สถานะ", "sel:เสนอ|กำลังดำเนินการ|เสร็จแล้ว"]] },
   todo: { label: "งาน", f: [["title", "งาน"], ["detail", "รายละเอียด", "ta"], ["extra2", "หมวดงาน (เลือกหรือพิมพ์เอง)", "list"], ["extra1", "ผู้รับผิดชอบ"], ["date", "กำหนด / วันที่", "date"],
     ["status", "สถานะ", "sel:ต้องทำ|กำลังดำเนินการ|รอผล|เสร็จแล้ว"]] },
 };
@@ -76,9 +82,11 @@ const rowsToContent = (rows) => { const o = {}; Object.keys(SEC).forEach((k) => 
 const contentToRows = (c) => Object.keys(SEC).flatMap((s) => (c[s] || []).map((it, i) => ({ section: s, id: it.id, order: i + 1, title: it.title || "", detail: it.detail || "", extra1: it.extra1 || "", extra2: it.extra2 || "", status: it.status || "", date: it.date || "" })));
 async function loadContent() {
   C = LS.get("cib_content") || JSON.parse(JSON.stringify(DB.content));
-  Object.keys(SEC).forEach((k) => (C[k] = C[k] || []));
+  Object.keys(SEC).forEach((k) => (C[k] = C[k] || (DB.content[k] ? JSON.parse(JSON.stringify(DB.content[k])) : [])));   // หมวดใหม่ (เช่น ข้อเสนอแนะ) ใช้ค่าตั้งต้นจากข้อมูลคดี
   if (sheetCfg().url) {
-    try { const j = await sheetCall({ action: "list" }); if (j && j.rows && j.rows.length) { C = rowsToContent(j.rows); LS.set("cib_content", C); toast("ดึงข้อมูลจาก Google Sheet แล้ว"); render(); } }
+    try { const j = await sheetCall({ action: "list" }); if (j && j.rows && j.rows.length) { C = rowsToContent(j.rows);
+      Object.keys(SEC).forEach((k) => { if (!j.rows.some((r) => r.section === k) && (DB.content[k] || []).length) C[k] = JSON.parse(JSON.stringify(DB.content[k])); });   // หมวดที่ยังไม่มีในชีต
+      LS.set("cib_content", C); toast("ดึงข้อมูลจาก Google Sheet แล้ว"); render(); } }
     catch (e) { toast("เชื่อม Google Sheet ไม่ได้ — ใช้ข้อมูลในเครื่อง"); }
   }
 }
@@ -97,15 +105,14 @@ function editItem(sec, id) {
   openModal(`<h3>${id ? "แก้ไข" : "เพิ่ม"} — ${SEC[sec].label}</h3>` + SEC[sec].f.map(([k, l, t]) =>
     `<label>${l}</label>` + (t === "ta" ? `<textarea data-k="${k}">${esc(it[k])}</textarea>`
       : t && t.startsWith("sel:") ? `<select data-k="${k}">${[...new Set([...t.slice(4).split("|"), it[k] || ""])].filter(Boolean).map((o) => `<option${(it[k] || t.slice(4).split("|")[0]) === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`
-      : t === "list" ? `<input data-k="${k}" list="dl_${k}" value="${esc(it[k])}" placeholder="เช่น ขอข้อมูลธนาคาร / สอบปากคำ / รายงาน"><datalist id="dl_${k}">${[...new Set(typeof workRows === "function" ? workRows().map((r) => r.type) : [])].map((o) => `<option value="${esc(o)}">`).join("")}</datalist>`
+      : t === "list" ? `<input data-k="${k}" list="dl_${k}" value="${esc(it[k])}" placeholder="เช่น ขอข้อมูลธนาคาร / สอบปากคำ / รายงาน"><datalist id="dl_${k}">${[...new Set(sec === "recs" ? (C.recs || []).map((r) => r.extra2).filter(Boolean) : typeof workRows === "function" ? workRows().map((r) => r.type) : [])].map((o) => `<option value="${esc(o)}">`).join("")}</datalist>`
       : `<input data-k="${k}" type="${t === "date" ? "date" : "text"}" value="${esc(it[k])}">`)).join("") +
     `<div class="modal-foot">${id ? '<button class="btn o" id="mDel">ลบ</button>' : ""}<button class="btn o" id="mCancel">ยกเลิก</button><button class="btn" id="mSave">บันทึก</button></div>`);
   $("#mCancel").onclick = closeModal;
   $("#mSave").onclick = () => { $$("[data-k]", $("#modalBox")).forEach((e) => (it[e.dataset.k] = e.value.trim())); closeModal(); saveItem(sec, it); };
   if (id) $("#mDel").onclick = () => { if (confirm("ลบรายการนี้?")) { closeModal(); saveItem(sec, it, true); } };
 }
-$("#editBtn").onclick = () => { document.body.classList.toggle("edit"); $("#editBtn").classList.toggle("on"); };
-$("#setBtn").onclick = () => {
+function SETDB() {                                                     // ตั้งค่าฐานข้อมูล Google Sheet (เรียกจากแผงตั้งค่า)
   const c = sheetCfg();
   openModal(`<h3>ตั้งค่าฐานข้อมูล Google Sheet</h3>
     <p class="muted" style="margin:0;font-size:.88rem">วาง URL ของ Apps Script Web App (ดูวิธีตั้งค่าใน README) — ถ้าเว้นว่าง การแก้ไขจะเก็บในเครื่องนี้เท่านั้น</p>
@@ -118,7 +125,7 @@ $("#setBtn").onclick = () => {
   $("#sPush").onclick = async () => { keep(); try { const r = await sheetCall({ action: "replaceAll", rows: contentToRows(C) }); toast(r ? `ส่งขึ้น Sheet แล้ว ${r.n || ""} แถว` : "ยังไม่ได้ใส่ URL"); } catch (e) { toast("ส่งไม่สำเร็จ: " + e.message); } };
   $("#sExp").onclick = () => download("content.json", JSON.stringify(C, null, 1), "application/json");
   $("#sReset").onclick = () => { if (confirm("คืนเนื้อหาเป็นค่าตั้งต้น (เฉพาะในเครื่องนี้)?")) { try { localStorage.removeItem("cib_content"); } catch (e) { } C = JSON.parse(JSON.stringify(DB.content)); closeModal(); render(); } };
-};
+}
 function download(name, text, type) { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + text], { type: type + ";charset=utf-8" })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 
 function download2(name, blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
@@ -205,6 +212,7 @@ function enhance(root) {
     bar.innerHTML = `${hr && !custom ? '<button class="chip" data-xr="1" title="กลับลำดับเดิม">↺ ลำดับเดิม</button>' : ""}<button class="chip" data-xl="1">${IC("doc", 13)} Excel</button>`;
     bar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; e.stopPropagation();
       if (b.dataset.xl) exportTable(tbl, titleNear(host)); else { tbl._sort = []; sortTable(tbl); } };
+    while (host.previousElementSibling && host.previousElementSibling.classList.contains("xbar")) host.previousElementSibling.remove();   // ตารางที่ถูกวาดใหม่ในกล่องเดิม: เอาแถบปุ่มเก่าออก (กันปุ่ม Excel ซ้อนเป็นแถวยาว ; ผู้ใช้แจ้ง 19 พ.ย. 69)
     host.parentNode.insertBefore(bar, host);
   }
   for (const cv of root.querySelectorAll(".chartbox canvas")) {
@@ -222,24 +230,32 @@ let ENT = 0;
 new MutationObserver(() => { clearTimeout(ENT); ENT = setTimeout(() => { const m = $("#main"); if (m) enhance(m); }, 120); }).observe(document.getElementById("main") || document.body, { childList: true, subtree: true });
 
 /* ---------- โครงหน้า ---------- */
-const TABS = [["over", "ภาพรวม", "chart"], ["case", "คดี", "book"], ["charges", "ข้อหา", "scale"], ["defences", "ข้อต่อสู้", "shield"], ["work", "งาน / ความคืบหน้า", "list"], ["acct", "บัญชี / บุคคล", "bank"], ["asset", "ทรัพย์สิน", "coin"], ["cc", "บัตรเครดิต", "card"], ["srch", "ตรวจค้น", "bag"], ["ana", "วิเคราะห์", "flow"], ["img", "ภาพ", "img"]];
-let TAB = "over";
+const TABS = [["home", "หน้าแรก", "home"], ["brief", "สรุปทางการ", "book"], ["charges", "ผู้ต้องหา / ข้อหา", "scale"], ["case", "ลำดับเหตุการณ์", "cal"], ["ana", "วิเคราะห์เส้นเงิน", "flow"], ["acct", "บัญชี / บุคคล", "bank"], ["cc", "บัตรเครดิต", "card"], ["over", "สถิติบัญชีรับบริจาค", "chart"],
+  ["recs", "ข้อเสนอแนะ", "bulb"], ["asset", "ทรัพย์สิน", "coin"], ["work", "งาน / ความคืบหน้า", "list"], ["defences", "ข้อต่อสู้", "shield"], ["srch", "ตรวจค้น", "bag"], ["img", "ภาพ", "img"]];
+let TAB = "home";
 function start() {
   $("#login").hidden = true; $("#app").hidden = false;
   $("#caseTitle").textContent = DB.case || "ข้อมูลคดี";
   $("#madeAt").textContent = "ข้อมูล ณ " + dTh(DB.made) + " " + DB.made.slice(11);
-  $("#tabs").innerHTML = TABS.map(([k, l, ic]) => `<button data-t="${k}">${IC(ic, 20)}<span class="tx"><span>${l}</span><small></small></span></button>`).join("");
-  $("#tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) go(b.dataset.t); };
   prep();
   C = LS.get("cib_content") || JSON.parse(JSON.stringify(DB.content));
-  Object.keys(SEC).forEach((k) => (C[k] = C[k] || []));
-  go((location.hash || "#over").slice(1));
+  Object.keys(SEC).forEach((k) => (C[k] = C[k] || (DB.content[k] ? JSON.parse(JSON.stringify(DB.content[k])) : [])));
+  shellInit();
+  const h0 = (location.hash || "#home").slice(1);
+  history.replaceState({ t: h0 }, "", "#" + h0);
+  go(h0, true);
   loadContent();
   if (window.aiMount) window.aiMount();
 }
-function go(t) { PV = ""; AV = ""; if (t === "prog") t = "work"; if (t === "stm" || t === "acc") { ACS = "tbl"; t = "acct"; } else if (t === "ppl" || t === "trace") { ACS = t; t = "acct"; } TAB = TABS.some((x) => x[0] === t) ? t : "over"; history.replaceState(null, "", "#" + TAB); $$("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB)); render(); window.scrollTo(0, 0); }
+function go(t, noHist) {                                                // noHist = มาจากปุ่มย้อนกลับ / เปิดครั้งแรก (ไม่เพิ่มประวัติ)
+  PV = ""; AV = ""; if (t === "prog") t = "work"; if (t === "stm" || t === "acc") { ACS = "tbl"; t = "acct"; } else if (t === "ppl" || t === "trace") { ACS = t; t = "acct"; }
+  const prev = TAB; TAB = TABS.some((x) => x[0] === t) ? t : "home";
+  if (!noHist && prev !== TAB) { history.pushState({ t: TAB, v: TAB === "brief" ? BRV : undefined }, "", "#" + TAB); NAVD++; }
+  else history.replaceState({ t: TAB, v: TAB === "brief" ? BRV : undefined }, "", "#" + TAB);
+  render(); shellSync(); window.scrollTo(0, 0);
+}
 function killCharts() { Object.values(CH).forEach((c) => c.destroy()); CH = {}; }
-function render() { killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, cc: pCc, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
+function render() { killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ home: pHome, brief: pBrief, recs: pRecs, over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, cc: pCc, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
 const acts = (sec, id) => `<span class="acts"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></span>`;
 const addBtn = (sec) => `<button class="add" onclick="editItem('${sec}')">+ เพิ่ม</button>`;
 const badge = (s) => { if (!s) return ""; const c = /ค้าง|ต้อง|รอ/.test(s) ? "r" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s) ? "g" : /พัก|มติ/.test(s) ? "y" : ""; return `<span class="badge ${c}">${esc(s)}</span>`; };
@@ -252,8 +268,6 @@ function pOver() {
   const yl = o.yearly || [];
   $("#main").innerHTML = `
   ${overExtra(o, ntx)}
-  <h2>${IC("book")} เนื้อเรื่อง <small>${C.story.length} ตอน</small> ${addBtn("story")}</h2>
-  <div class="accs">${C.story.map((s, i) => accd(`<span class="num">${i + 1}</span> ${esc(s.title)}`, "", `<div class="pgd">${esc(s.detail)}</div>${acts2("story", s.id)}`, isWide())).join("")}</div>
   <div class="grid g2w"><div><h2>${IC("route")} เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small>แถว 1 → แถว 2 (ทุกช่วงเวลา)</small></h2>
   <div class="card"><div class="chartbox tall"><canvas id="cHop"></canvas></div></div></div>
   <div><h2>${IC("chart")} เงินบริจาคเข้า – ออก รายปี <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
@@ -553,13 +567,13 @@ function pCc() {                                                        // เ�
   m.onchange = (e) => { if (e.target.id === "ccSrc") { CCS = e.target.value; ccPayView(DB.cc); } };
 }
 // ชาร์ต "ค่าบัตรจ่ายโดยบัญชีใด" (ผู้สั่งงาน 18 พ.ย. 69): บัญชีต้นทาง -> บัตร + รายเดือน + รายการรายครั้ง ; กดแถวบัญชีต้นทางในตารางเพื่อดูเฉพาะบัญชีนั้น
-function miniFlow(el, L, R, links) {                                    // L, R: [{id, lab, sub, v, col}] ; links: [{a, b, v}]
+function miniFlow(el, L, R, links, hd) {                                    // L, R: [{id, lab, sub, v, col}] ; links: [{a, b, v}]
   const W = Math.max(560, el.clientWidth || 760), LW = W > 900 ? 360 : 200, bw = 14, pad = 8, tot = L.reduce((t, x) => t + x.v, 0) || 1;
   const H0 = Math.max(180, Math.max(L.length, R.length) * 48), sc = (H0 - pad * (Math.max(L.length, R.length) - 1)) / tot;
   const put = (A) => { let y = 22; A.forEach((n) => { n.h = Math.max(16, n.v * sc); n.y = y; n.o = y; y += n.h + pad; }); return y; };
   const H = Math.max(put(L), put(R)), xL = LW, xR = W - (W > 900 ? 300 : 170) - bw, cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
   const byL = Object.fromEntries(L.map((n) => [n.id, n])), byR = Object.fromEntries(R.map((n) => [n.id, n]));
-  let svg = `<text x="${xL + bw}" y="13" text-anchor="end" class="flh">บัญชีที่จ่าย</text><text x="${xR}" y="13" class="flh">บัตรเครดิต</text>`;
+  let svg = `<text x="${xL + bw}" y="13" text-anchor="end" class="flh">${hd ? hd[0] : "บัญชีที่จ่าย"}</text><text x="${xR}" y="13" class="flh">${hd ? hd[1] : "บัตรเครดิต"}</text>`;
   links.forEach((l) => { const a = byL[l.a], b = byR[l.b]; if (!a || !b) return; const th = Math.max(1, l.v * sc), y0 = a.o + th / 2, y1 = b.o + th / 2, mx = (xL + bw + xR) / 2; a.o += th; b.o += th;
     svg += `<path class="fl" d="M${xL + bw},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${xR},${y1.toFixed(1)}" stroke="${a.col}" stroke-width="${th.toFixed(1)}" data-tip="${esc(a.lab)} → ${esc(b.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)"><title>${esc(a.lab)} → ${esc(b.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)</title></path>`; });
   L.forEach((n) => { svg += `<g><rect x="${xL}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xL - 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" text-anchor="end" class="fl1">${esc(cut(n.lab, W > 900 ? 44 : 24))}</text><text x="${xL - 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" text-anchor="end" class="fl2">${M(n.v)} · ${esc(n.sub)}</text></g>`; });
@@ -1089,6 +1103,7 @@ function navStats() {
   try {
     const S = tsSum(), fz = tsFrz().secs.flatMap((s) => s.rows), T = progTasks(), W = tsWit().flatMap((s) => s.rows), A = tsAcc(), SR = DB.search || { rows: [] };
     const st = {
+      home: "เรื่องราวคดีโดยย่อ", brief: DB.formal ? `${Object.keys(DB.formal.suspects).length} ผู้ต้องหา · 9 บท` : "", recs: `${(C.recs || []).length} ข้อ · เสร็จ ${(C.recs || []).filter((r) => r.status === "เสร็จแล้ว").length}`,
       over: M(DB.over.donor_in) + " เงินเข้า 3 บัญชี", case: `${(C.events || []).length} เหตุการณ์`, charges: `${C.charges.length} ราย`, defences: `${C.defences.length} ประเด็น`,
       work: (() => { const R = workRows(); return `เสร็จ ${R.filter((r) => r.st === "done").length}/${R.length} งาน`; })(),
       asset: `${M(S.reduce((t, s) => t + s.tot[0] + s.tot[1], 0))} · อายัด ${M(fz.reduce((t, r) => t + r.amt, 0))}`,
@@ -1269,7 +1284,12 @@ function donorShow(ids, name) {                                         // เ�
   if (ANA_UPD) ANA_UPD();
   const el = $("#flow"); if (el) el.closest(".flowcard").scrollIntoView({ behavior: "smooth", block: "start" });
 }
-function flowInfo(id) {
+function flowInfo(id) {                                                 // ป้ายตามตั้งค่า (ชื่อ / เลขบัญชี / ทั้งสอง)
+  const o = flowInfo0(id), m = PREF.chartLab || "name";
+  if (m === "name" || !o.sub || !/\d{4}/.test(o.sub)) return o;
+  return m === "acc" ? { ...o, lab: o.sub, sub: o.lab } : { ...o, lab: `${o.lab} · ${o.sub}`, sub: "" };
+}
+function flowInfo0(id) {
   const t = id[0], k = +id.slice(1);
   if (id === "o" || id === "O") return { lab: "อื่นๆ (รวม)", sub: "", col: "#B0B8C4" };
   if (id === "D") return { lab: DNQ ? DNQ.name : "ผู้บริจาค", sub: "ผู้บริจาค", col: "#F9A825" };
@@ -1285,7 +1305,16 @@ function drawFlow(box, pair) {
   const dkey = `${F.flm}|${F.fln}|${F.cpm}|${[...F.pq].join(",")}`;
   if (F.dn && DN && DNQ && (!DNT || DNT.key !== dkey)) DNT = donorTrace();
   const dn = F.dn && DNT ? DNT : null;
-  const { cols: C0, links: L0, chain } = dn ? { cols: dn.cols, links: dn.links, chain: [] } : flowBuild(pair);
+  let fb = dn ? { cols: dn.cols, links: dn.links, chain: [] } : flowBuild(pair);
+  if (!dn && PREF.flAuto !== false) {                                   // ผู้ใช้เลือกแสดง N คอลัมน์ -> คลี่กล่องใหญ่สุดที่ไล่ต่อได้ของคอลัมน์สุดท้ายจนครบ (ผู้สั่งงาน 19 พ.ย. 69)
+    for (let g = 0; g < 8 && 3 + fb.chain.length < F.flc; g++) {
+      const last = fb.cols[2 + fb.chain.length]; if (!last) break;
+      const nx = [...last.values()].filter((n) => n.id.length > 1 && n.id !== "rem" && n.id !== "nst" && srcAccs(n.id).length).sort((a, b) => Math.max(b.in, b.out) - Math.max(a.in, a.out))[0];
+      if (!nx) break;
+      F.chain = fb.chain.concat([nx.id]); const nb = flowBuild(pair); if (nb.chain.length <= fb.chain.length) break; fb = nb;
+    }
+  }
+  const { cols: C0, links: L0, chain } = fb;
   if (!L0.length) { box.innerHTML = '<p class="muted" style="padding:20px">ไม่มีรายการตามตัวกรอง</p>'; return; }
   const nc = C0.length, first = dn ? 0 : Math.max(0, nc - Math.max(3, F.flc)), vis = [];
   for (let c = first; c < nc; c++) vis.push(c);
@@ -1435,7 +1464,9 @@ function accRows() {                                                    // ร�
   const ccAcc = new Map(CCI.map((c) => [c.acc, c])), ccG = CCI.map((c) => cpG.get(c.acc)).find((g) => g != null);
   map.forEach((e) => { if (e.card) { e.acc = e.k; if (e.g == null && !cpG.has(e.k) && ccG != null) e.g = ccG; } });
   const rows = [...map.values()].map((e) => { const s = e.ai >= 0 ? S[e.ai] : null, x = rx.get(e.k) || { all: 0, t1: 0, n: 0, by: {} }, a = e.ai >= 0 ? DB.accounts[e.ai] : null;
-    const g = e.g != null ? e.g : (cpG.has(e.k) ? cpG.get(e.k) : DB.groups.findIndex((gg) => gg[0] === "oth"));
+    const pc = { kpk: "kpk", lnd: "lnd", ctr: "ctr", con: "con", bld: "bld", sst: "sst", adm: "nom", pco: "pco", relp: "rel", rela: "rel" }[(DB.pmap || {})[nk(e.name || "")]];   // บัญชีในชีตที่ไม่ปรากฏใน statement: ใช้หมวดบุคคล (ชื่อ) จัดกลุ่ม
+    const gp = pc ? DB.groups.findIndex((gg) => gg[0] === pc) : -1;
+    const g = e.g != null ? e.g : (cpG.has(e.k) ? cpG.get(e.k) : gp >= 0 ? gp : DB.groups.findIndex((gg) => gg[0] === "oth"));
     const st = e.sheet ? e.sheet.data : "";
     if (e.ai < 0 && ccAcc.has(e.k)) return { ...e, g, s, x, fz: fzm.get(e.k) || null, st: "มี statement บัตรเครดิต", stx: st, cc: ccAcc.get(e.k), bal: null, first: "", last: "" };
     return { ...e, g, s, x, fz: fzm.get(e.k) || null, st: e.ai >= 0 ? "ในระบบวิเคราะห์" : /ได้แล้ว/.test(st) ? "ได้แล้ว รอนำเข้า" : st || "ยังไม่ขอ",
