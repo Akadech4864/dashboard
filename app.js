@@ -1055,35 +1055,34 @@ function workRows() {
   tsCo().forEach((r) => R.push({ type: "หมายเรียกนิติบุคคล", ic: "build", title: r.name, detail: r.type, own: "", date: "", stx: "", st: "none" }));
   return R;
 }
+/* งาน / ความคืบหน้า รุ่น 19 พ.ย. 69 (ผู้ใช้สั่ง "ธีมเดียวกัน ... แสดงเป็นรายการมีตัวกรองเหมือนหน้าอื่น ๆ"):
+   การ์ดสถานะ (กดกรอง) + ความคืบหน้ารายหมวด (กดกรอง) + ตารางรายการกลาง XT */
 function pWork() {
-  const R = workRows(), types = [...new Set(R.map((r) => r.type))], owners = [...new Set(R.map((r) => r.own).filter(Boolean))].sort();
-  const q = WF.q.trim().toLowerCase();
-  const pass = (r, skip) => (skip === "type" || !WF.type || r.type === WF.type) && (skip === "st" || !WF.st || r.st === WF.st) && (!WF.own || r.own === WF.own) && (!q || (r.title + r.detail + r.own + r.stx).toLowerCase().includes(q));
-  const show = R.filter((r) => pass(r)).sort((a, b) => (a.st === "done") - (b.st === "done") || String(b.date).localeCompare(String(a.date)));
-  const done = R.filter((r) => r.st === "done").length, pct = R.length ? Math.round(done / R.length * 100) : 0;
-  const tcard = (t) => { const v = R.filter((r) => r.type === t), d = v.filter((r) => r.st === "done").length, ic = v[0].ic;
-    return `<button class="tile ${WF.type === t ? "on" : ""}" data-wk="type" data-wv="${esc(t)}"><span class="ico">${IC(ic)}</span><span class="v">${d}<small>/${v.length}</small></span><span class="l">${esc(t)}</span><span class="s"><span class="bar"><i style="width:${v.length ? d / v.length * 100 : 0}%;background:var(--green)"></i></span></span></button>`; };
-  const m = $("#main");
-  m.innerHTML = `<h2>${IC("list")} งานและความคืบหน้า <small>${tsStamp()}</small> ${syncBtn()} <button class="btn" style="display:inline-block;padding:4px 14px;font-size:.9rem" onclick="editItem('todo')">+ เพิ่มงาน</button></h2>
-  <div class="hero"><div class="l">ความคืบหน้ารวมทุกงาน</div><div class="v">${pct}% <small style="font-size:.5em">เสร็จ ${fmt0(done)} / ${fmt0(R.length)} งาน</small></div>
-    <div class="split">${Object.entries(WST).map(([k, v]) => `<i style="width:${R.length ? R.filter((r) => r.st === k).length / R.length * 100 : 0}%;background:${v[2]}"></i>`).join("")}</div>
-    <div class="leg">${Object.entries(WST).map(([k, v]) => `<span style="--c:${v[2]}">${v[0]} ${R.filter((r) => r.st === k).length}</span>`).join("")}</div></div>
-  <div class="tiles" style="margin-top:12px">${types.map(tcard).join("")}</div>
-  <div class="card fcard"><div class="fline">${fSearch("wkQ", WF.q, "ค้นหางาน / ชื่อ / รายละเอียด")}
-    ${fSel('data-ws="st"', WF.st, "ทุกสถานะ", Object.entries(WST).map(([k, v]) => [k, `${v[0]} · ${R.filter((r) => pass(r, "st") && r.st === k).length}`]))}
-    ${owners.length ? fSel('data-ws="own"', WF.own, "ทุกผู้รับผิดชอบ", owners.map((o) => [o, `${o} · ${R.filter((r) => r.own === o).length}`])) : ""}
-    ${fClr('data-wk="clear"', WF.type || WF.st || WF.own || WF.q)}</div></div>
-  <h2>${IC("list")} ตารางงาน <small>${show.length} / ${R.length} งาน · ค้างอยู่ด้านบน</small></h2>
-  <div class="tblwrap tall"><table><tr><th>#</th><th>วันที่</th><th>หมวด</th><th>งาน</th><th>ผู้รับผิดชอบ</th><th>สถานะ</th><th></th></tr>
-    ${show.map((r, i) => `<tr${r.go ? ` class="click" data-go="${r.go}"` : ""}><td>${i + 1}</td><td>${r.date ? dTh(r.date) : ""}</td><td>${IC(r.ic, 14)} ${esc(r.type)}</td><td><b>${esc(r.title)}</b>${r.detail ? `<br><small class="muted">${esc(r.detail.length > 180 ? r.detail.slice(0, 179) + "…" : r.detail)}</small>` : ""}</td><td>${esc(r.own)}</td>
-      <td><span class="badge ${WST[r.st][1]}">${WST[r.st][0]}</span>${r.stx && r.stx !== WST[r.st][0] ? `<br><small class="muted">${esc(r.stx)}</small>` : ""}</td><td>${r.sec ? `<button class="chip" onclick="editItem('${r.sec}','${r.id}')">แก้ไข</button>` : ""}</td></tr>`).join("")}</table></div>
-  <p class="muted" style="font-size:.82rem">งานที่เพิ่มในเว็บ (ปุ่ม + เพิ่มงาน / แก้ไข — เก็บในเครื่องนี้ หรือ Google Sheet ถ้าตั้งค่าไว้ที่ปุ่มตั้งค่า) + แท็บชีตชุดทำคดี: สิ่งที่ดำเนินการ / หมายเรียกผู้ต้องหา / พยาน / เอกสาร-รถ / คุมบัญชี / นิติบุคคล (อ่านอย่างเดียว) · กดหัวคอลัมน์เพื่อเรียง · ส่งออก Excel ได้จากปุ่มเหนือตาราง</p>`;
-  m.onclick = (e) => { const b = e.target.closest("button"); const tr = e.target.closest("tr[data-go]");
-    if (tr && !b) return go(tr.dataset.go);
-    if (!b || tsClick(b)) return; const k = b.dataset.wk; if (!k) return;
-    if (k === "clear") WF = { type: "", st: "", own: "", q: "" }; else WF[k] = WF[k] === b.dataset.wv ? "" : b.dataset.wv; render(); };
-  m.onchange = (e) => { const k = e.target.dataset.ws; if (!k) return; WF[k] = e.target.value; render(); };
-  let tm; m.oninput = (e) => { if (e.target.id !== "wkQ") return; clearTimeout(tm); tm = setTimeout(() => { WF.q = e.target.value; render(); const x = $("#wkQ"); if (x) { x.focus(); x.setSelectionRange(WF.q.length, WF.q.length); } }, 300); };
+  const R = workRows().sort((a, b) => (a.st === "done") - (b.st === "done") || String(b.date).localeCompare(String(a.date)));
+  const types = [...new Set(R.map((r) => r.type))], done = R.filter((r) => r.st === "done").length, pct = R.length ? Math.round(done / R.length * 100) : 0;
+  const n = (k) => R.filter((r) => r.st === k).length, m = $("#main");
+  m.innerHTML = `<div class="ahd"><h2>${IC("list")} งานและความคืบหน้า <small>${tsStamp()}</small> ${syncBtn()}</h2><button class="btn" onclick="editItem('todo')">+ เพิ่มงาน</button></div>
+  <div class="acards"><button class="acard tot" data-wst=""><span class="aic">${IC("check", 24)}</span><span class="acv">${pct}%</span><span class="acl">ความคืบหน้ารวมทุกงาน</span><span class="acs">เสร็จ ${fmt0(done)} / ${fmt0(R.length)} งาน</span>
+      <span class="abar dfbar">${Object.entries(WST).map(([k, v]) => `<i style="width:${R.length ? (n(k) / R.length * 100).toFixed(1) : 0}%;background:${v[2]}"></i>`).join("")}</span></button>
+    ${Object.entries(WST).filter(([k]) => n(k)).map(([k, v]) => `<button class="acard" data-wst="${k}" style="--c:${v[2]}"><span class="aic">${IC({ done: "check", doing: "clock", wait: "cal", todo: "warn", none: "list" }[k], 24)}</span><span class="acv">${fmt0(n(k))}</span><span class="acl">${v[0]}</span><span class="acs">${R.length ? Math.round(n(k) / R.length * 100) : 0}% ของงานทั้งหมด</span><span class="abar"><i style="width:${R.length ? (n(k) / R.length * 100).toFixed(1) : 0}%"></i></span></button>`).join("")}</div>
+  <div class="card wprog"><div class="lab" style="margin-top:0">ความคืบหน้ารายหมวดงาน — กดเพื่อกรอง</div>${types.map((t) => { const v = R.filter((r) => r.type === t), d = v.filter((r) => r.st === "done").length;
+    return `<button class="wpr" data-wty="${esc(t)}"><span class="wpi">${IC(v[0].ic, 16)}</span><span class="wpt">${esc(t)}</span><span class="wpb"><i style="width:${v.length ? d / v.length * 100 : 0}%"></i></span><span class="wpn">${d}/${v.length}</span></button>`; }).join("")}</div>
+  <div id="wkX"></div>`;
+  const S = xtS("work");
+  const X = xtMount($("#wkX"), { id: "work", title: "ตารางงาน", ph: "ค้นหางาน / ชื่อ / รายละเอียด / ผู้รับผิดชอบ", rows: R, xl: "ตารางงาน (ตามตัวกรอง)",
+    search: (r) => `${r.title} ${r.detail} ${r.own} ${r.stx} ${r.type}`,
+    cols: [["#", () => 0, "n"], ["วันที่", (r) => r.date || "", "d"], ["หมวด", (r) => r.type, "t", (r) => `${IC(r.ic, 14)} ${esc(r.type)}`],
+      ["งาน", (r) => `${r.title} ${r.detail || ""}`, "t", (r) => `<b>${esc(r.title)}</b>${r.detail ? `<br><small class="muted">${esc(r.detail.length > 180 ? r.detail.slice(0, 179) + "…" : r.detail)}</small>` : ""}`],
+      ["ผู้รับผิดชอบ", (r) => r.own || "", "t"], ["สถานะ", (r) => WST[r.st][0], "t", (r) => `<span class="badge ${WST[r.st][1]}">${WST[r.st][0]}</span>${r.stx && r.stx !== WST[r.st][0] ? `<br><small class="muted">${esc(r.stx)}</small>` : ""}`],
+      ["", () => "", "x", (r) => (r.sec ? `<button class="chip" onclick="editItem('${r.sec}','${r.id}')">แก้ไข</button>` : r.go ? `<span class="muted">${IC("next", 14)}</span>` : "")]],
+    facets: [["type", "ทุกหมวดงาน", (r) => r.type], ["st", "ทุกสถานะ", (r) => r.st, Object.entries(WST).filter(([k]) => n(k)).map(([k, v]) => [k, v[0], v[2]])], ["own", "ทุกผู้รับผิดชอบ", (r) => r.own || "(ไม่ระบุ)"]],
+    rowAttr: (r) => (r.go ? 'class="click"' : ""), onRow: (r, e) => { if (r.go && !e.target.closest("button")) go(r.go); },
+    onUpdate: () => { $$("[data-wst]", m).forEach((b) => b.classList.toggle("on", b.dataset.wst ? !!(S.f.st && S.f.st.has(b.dataset.wst)) : !(S.f.st && S.f.st.size)));
+      $$("[data-wty]", m).forEach((b) => b.classList.toggle("on", !!(S.f.type && S.f.type.has(b.dataset.wty)))); },
+    note: "งานที่เพิ่มในเว็บ (ปุ่ม + เพิ่มงาน / แก้ไข — เก็บในเครื่องนี้ หรือ Google Sheet ถ้าตั้งค่าไว้) + แท็บชีตชุดทำคดี: สิ่งที่ดำเนินการ / หมายเรียกผู้ต้องหา / พยาน / เอกสาร-รถ / คุมบัญชี / นิติบุคคล (อ่านอย่างเดียว) · งานค้างเรียงไว้ด้านบน" });
+  m.onclick = (e) => { const b = e.target.closest("button"); if (b && tsClick(b)) return;
+    const s = e.target.closest("[data-wst]"); if (s) { xtSet("work", "st", s.dataset.wst, true); return X.upd(); }
+    const t = e.target.closest("[data-wty]"); if (t) { xtSet("work", "type", t.dataset.wty, true); X.upd(); return $("#wkX").scrollIntoView({ behavior: "smooth", block: "start" }); } };
 }
 
 /* ---------- วิเคราะห์เส้นเงิน ---------- */
@@ -1923,41 +1922,33 @@ function accDetail(k) {
 }
 
 /* ---------- ผลการตรวจค้น / ของกลาง ---------- */
-/* ตรวจค้น รุ่น 19 พ.ย. 69 (ผู้ใช้สั่ง "ให้ดูดี ธีมเดียวกัน ดูง่ายกว่านี้"): การ์ดสรุป + เลือกจุดตรวจค้น/ชนิดของกลาง/ค้นหา + การ์ดของกลางรายชิ้น (ยี่ห้อ รุ่น ราคาประเมิน ความมั่นใจ) + ภาพแยกจุด */
-let SRS = { site: "", item: "", q: "" };
+/* ตรวจค้น รุ่น 19 พ.ย. 69 (ผู้ใช้สั่ง "แสดงเป็นรายการ มีตัวกรอง เหมือนหน้าอื่น ๆ"): การ์ดชนิดของกลาง (กดกรอง) + ที่ตั้งจุดตรวจค้น/ภาพรวม + ตารางรายการกลาง XT + ภาพของกลาง */
 const SRIC = (it) => (/กระเป๋า/.test(it) ? ["bag", "#C2185B"] : /ผ้าพันคอ/.test(it) ? ["scarf", "#7B3FB8"] : /เครื่องประดับ|นาฬิกา/.test(it) ? ["gem", "#D4407A"] : ["box", "#8D6E63"]);
 function pSrch() {
-  const S = DB.search || { rows: [], sites: {}, report: "" }, ims = imgBy((i) => i.cat === "ตรวจค้น");
+  const S = DB.search || { rows: [], sites: {}, report: "" }, ims = imgBy((i) => i.cat === "ตรวจค้น"), m = $("#main");
   const sites = [...new Set([...Object.keys(S.sites || {}), ...S.rows.map((r) => String(r.site))])].sort(), kinds = [...new Set(S.rows.map((r) => r.item))];
-  const sm = (rs, k) => rs.reduce((t, r) => t + (r[k] || 0) * (r.n || 1), 0), qty = (rs) => rs.reduce((t, r) => t + (r.n || 1), 0), q = SRS.q.trim().toLowerCase();
-  const show = S.rows.filter((r) => (!SRS.site || String(r.site) === SRS.site) && (!SRS.item || r.item === SRS.item) && (!q || `${r.item} ${r.model} ${r.look} ${r.note}`.toLowerCase().includes(q)));
-  const pr = S.rows.filter((r) => r.used_lo != null), maxHi = Math.max(1, ...S.rows.map((r) => r.used_hi || 0));
+  const sm = (rs, k) => rs.reduce((t, r) => t + (r[k] || 0) * (r.n || 1), 0), qty = (rs) => rs.reduce((t, r) => t + (r.n || 1), 0), pr = S.rows.filter((r) => r.used_lo != null);
   const brand = (r) => String(r.model || "").split(/\s+[—-]\s+/)[0] || r.item, mdl = (r) => String(r.model || "").split(/\s+[—-]\s+/).slice(1).join(" — ");
   const confC = (c) => (/สูง/.test(c || "") ? "#1B7A4A" : /ปานกลาง/.test(c || "") ? "#C98A00" : "#B3261E");
-  const ov = ims.filter((i) => /ภาพรวม/.test(i.title) && (!SRS.site || i.key === "s" + SRS.site)), ph = ims.filter((i) => !/ภาพรวม/.test(i.title) && (!SRS.site || i.key === "s" + SRS.site));
-  $("#main").innerHTML = `<div class="ahd"><h2>${IC("bag")} ผลการตรวจค้น / ของกลาง <small>ตรวจค้น ${esc(S.made || "")} · ${sites.length} จุด</small></h2></div>
-  <div class="acards"><button class="acard tot ${!SRS.item ? "on" : ""}" data-sri=""><span class="aic">${IC("bag", 24)}</span><span class="acv">${qty(S.rows)} รายการ</span><span class="acl">ของกลางที่ตรวจยึดทั้งหมด</span><span class="acs">ประเมินมือสอง ${M(sm(pr, "used_lo"))} – ${M(sm(pr, "used_hi"))}</span><span class="abar"><i style="width:100%"></i></span></button>
-    ${kinds.map((k) => { const rs = S.rows.filter((r) => r.item === k), [ic, c] = SRIC(k); return `<button class="acard ${SRS.item === k ? "on" : ""}" data-sri="${esc(k)}" style="--c:${c}"><span class="aic">${IC(ic, 24)}</span><span class="acv">${qty(rs)}</span><span class="acl">${esc(k)}</span><span class="acs">${sm(rs, "used_hi") ? `มือสอง ${M(sm(rs, "used_lo"))} – ${M(sm(rs, "used_hi"))}` : "ยังไม่ประเมินราคา"}</span><span class="abar"><i style="width:${(qty(rs) / qty(S.rows) * 100).toFixed(1)}%"></i></span></button>`; }).join("")}</div>
-  <div class="card fcard"><div class="fline"><div class="seg">${[["", "ทุกจุด"], ...sites.map((s) => [s, "จุดที่ " + s])].map(([v, l]) => `<button data-srs="${v}" class="${SRS.site === v ? "on" : ""}">${l} <small>${qty(S.rows.filter((r) => !v || String(r.site) === v))}</small></button>`).join("")}</div>
-    ${fSearch("srQ", SRS.q, "ค้นหายี่ห้อ / รุ่น / ลักษณะ")}${fClr('data-srclr="1"', SRS.site || SRS.item || SRS.q)}</div></div>
-  ${(SRS.site ? [SRS.site] : sites).map((s) => `<div class="srsite">${IC("pin", 16)} <b>จุดที่ ${s}</b> <span class="muted">${esc((S.sites || {})[s] || "")}</span></div>`).join("")}
-  ${ov.length ? `<div class="shots big" style="margin-top:8px">${ov.map((i) => shot(i)).join("")}</div>` : ""}
-  <h2>${IC("list")} ของกลางรายชิ้น <small>${qty(show)} รายการ · มือสอง ${M(sm(show.filter((r) => r.used_lo != null), "used_lo"))} – ${M(sm(show.filter((r) => r.used_lo != null), "used_hi"))}</small></h2>
-  <div class="srgrid">${show.map((r) => { const [ic, c] = SRIC(r.item); return `<article class="src" style="--c:${c}"><header><span class="aic">${IC(ic, 20)}</span><div><small>${esc(r.item)} · จุดที่ ${r.site}${r.n > 1 ? ` · ${r.n} ชิ้น` : ""}</small><b>${esc(brand(r))}</b></div></header>
-      ${mdl(r) ? `<div class="srm">${esc(mdl(r))}</div>` : ""}${r.look ? `<p class="srl">${esc(r.look)}</p>` : ""}
-      <div class="srp"><div class="srpl"><span>ประเมินมือสอง / ชิ้น</span><b>${r.used_lo != null ? `${fmt0(r.used_lo)} – ${fmt0(r.used_hi)}` : "ประเมินไม่ได้"}</b></div>
-        ${r.used_lo != null ? `<div class="srbar"><i style="left:${(r.used_lo / maxHi * 100).toFixed(1)}%;width:${Math.max(1.5, (r.used_hi - r.used_lo) / maxHi * 100).toFixed(1)}%"></i></div>` : ""}
-        ${r.new_lo != null ? `<small class="muted">ราคาใหม่ ${fmt0(r.new_lo)} – ${fmt0(r.new_hi)} บาท</small>` : ""}</div>
-      <div class="srf">${r.conf ? `<span class="srcf" style="--k:${confC(r.conf)}">ความมั่นใจ ${esc(r.conf)}</span>` : ""}${r.note ? `<small class="muted">${esc(r.note)}</small>` : ""}</div></article>`; }).join("") || `<p class="muted">ไม่พบของกลางตามตัวกรอง</p>`}</div>
-  ${ph.length ? accd(`${IC("img", 16)} ภาพของกลาง${SRS.site ? " จุดที่ " + SRS.site : ""}`, `${ph.length} ภาพ`, `<div class="shots">${ph.map((i) => shot(i, false)).join("")}</div>`) : ""}
-  ${S.report ? accd(`${IC("doc", 16)} รายงานผลการตรวจค้น (ฉบับเต็ม)`, "", `<div class="pgd" style="white-space:pre-wrap">${esc(S.report)}</div>`) : ""}
-  <p class="muted" style="font-size:.82rem">ราคาต่อชิ้น (บาท) เป็นช่วงราคามือสองโดยประมาณจากภาพถ่าย ไม่ใช่ราคาประเมินทางการ ต้องให้ผู้เชี่ยวชาญ / ตัวแทนเจ้าของเครื่องหมายการค้าตรวจยืนยัน</p>`;
-  const m = $("#main"); let tm;
-  m.onclick = (e) => { const a = e.target.closest("[data-sri]"), s = e.target.closest("[data-srs]");
-    if (a) { SRS.item = SRS.item === a.dataset.sri ? "" : a.dataset.sri; return render(); }
-    if (s) { SRS.site = s.dataset.srs; return render(); }
-    if (e.target.closest("[data-srclr]")) { SRS = { site: "", item: "", q: "" }; render(); } };
-  m.oninput = (e) => { if (e.target.id !== "srQ") return; clearTimeout(tm); tm = setTimeout(() => { SRS.q = e.target.value; render(); const x = $("#srQ"); if (x) { x.focus(); x.setSelectionRange(SRS.q.length, SRS.q.length); } }, 300); };
+  m.innerHTML = `<div class="ahd"><h2>${IC("bag")} ผลการตรวจค้น / ของกลาง <small>ตรวจค้น ${esc(S.made || "")} · ${sites.length} จุด</small></h2></div>
+  <div class="acards"><button class="acard tot" data-sri=""><span class="aic">${IC("bag", 24)}</span><span class="acv">${qty(S.rows)} รายการ</span><span class="acl">ของกลางที่ตรวจยึดทั้งหมด</span><span class="acs">ประเมินมือสอง ${M(sm(pr, "used_lo"))} – ${M(sm(pr, "used_hi"))}</span><span class="abar"><i style="width:100%"></i></span></button>
+    ${kinds.map((k) => { const rs = S.rows.filter((r) => r.item === k), [ic, c] = SRIC(k); return `<button class="acard" data-sri="${esc(k)}" style="--c:${c}"><span class="aic">${IC(ic, 24)}</span><span class="acv">${qty(rs)}</span><span class="acl">${esc(k)}</span><span class="acs">${sm(rs, "used_hi") ? `มือสอง ${M(sm(rs, "used_lo"))} – ${M(sm(rs, "used_hi"))}` : "ยังไม่ประเมินราคา"}</span><span class="abar"><i style="width:${(qty(rs) / qty(S.rows) * 100).toFixed(1)}%"></i></span></button>`; }).join("")}</div>
+  ${sites.map((s) => `<div class="srsite">${IC("pin", 16)} <b>จุดที่ ${s}</b> <span class="muted">${esc((S.sites || {})[s] || "")}</span> <small class="muted">· ${qty(S.rows.filter((r) => String(r.site) === s))} รายการ</small></div>`).join("")}
+  ${ims.some((i) => /ภาพรวม/.test(i.title)) ? accd(`${IC("img", 16)} ภาพรวมจุดตรวจค้น`, `${ims.filter((i) => /ภาพรวม/.test(i.title)).length} ภาพ`, `<div class="shots big">${ims.filter((i) => /ภาพรวม/.test(i.title)).map((i) => shot(i)).join("")}</div>`, true) : ""}
+  <div id="srX"></div>
+  ${ims.some((i) => !/ภาพรวม/.test(i.title)) ? accd(`${IC("img", 16)} ภาพของกลาง`, `${ims.filter((i) => !/ภาพรวม/.test(i.title)).length} ภาพ`, `<div class="shots">${ims.filter((i) => !/ภาพรวม/.test(i.title)).map((i) => shot(i, false)).join("")}</div>`) : ""}
+  ${S.report ? accd(`${IC("doc", 16)} รายงานผลการตรวจค้น (ฉบับเต็ม)`, "", `<div class="pgd" style="white-space:pre-wrap">${esc(S.report)}</div>`) : ""}`;
+  const XS = xtS("srch");
+  const X = xtMount($("#srX"), { id: "srch", title: "รายการของกลาง", ph: "ค้นหายี่ห้อ / รุ่น / ลักษณะ / หมายเหตุ", rows: S.rows, xl: "รายการของกลาง (ตามตัวกรอง)",
+    search: (r) => `${r.item} ${r.model} ${r.look} ${r.note} ${r.conf}`, sum: (R) => { const p = R.filter((r) => r.used_lo != null); return `${qty(R)} ชิ้น · มือสอง ${M(sm(p, "used_lo"))} – ${M(sm(p, "used_hi"))}`; },
+    cols: [["#", () => 0, "n"], ["จุด", (r) => "จุดที่ " + r.site, "t"], ["ชนิด", (r) => r.item, "t", (r) => { const [ic, c] = SRIC(r.item); return `<span class="acat" style="--c:${c}">${IC(ic, 14)}</span> ${esc(r.item)}`; }],
+      ["ยี่ห้อ", brand, "t", (r) => `<b>${esc(brand(r))}</b>`], ["รุ่น / ลักษณะ", (r) => `${mdl(r)} ${r.look || ""}`, "t", (r) => `${mdl(r) ? `<b style="font-weight:600">${esc(mdl(r))}</b><br>` : ""}<small class="muted">${esc(r.look || "")}</small>`],
+      ["จำนวน", (r) => r.n || 1, "a"], ["มือสอง ต่ำสุด / ชิ้น", (r) => r.used_lo || 0, "a"], ["มือสอง สูงสุด / ชิ้น", (r) => r.used_hi || 0, "a"], ["ราคาใหม่ สูงสุด", (r) => r.new_hi || 0, "a"],
+      ["ความมั่นใจ", (r) => r.conf || "", "t", (r) => (r.conf ? `<span class="srcf" style="--k:${confC(r.conf)}">${esc(r.conf)}</span>` : "")], ["หมายเหตุ", (r) => r.note || "", "t", (r) => `<small>${esc(r.note || "")}</small>`]],
+    facets: [["site", "ทุกจุดตรวจค้น", (r) => "จุดที่ " + r.site], ["item", "ทุกชนิด", (r) => r.item, kinds.map((k) => [k, k, SRIC(k)[1]])], ["conf", "ทุกระดับความมั่นใจ", (r) => r.conf || "(ไม่ระบุ)"]],
+    onUpdate: () => $$("[data-sri]", m).forEach((b) => b.classList.toggle("on", b.dataset.sri ? !!(XS.f.item && XS.f.item.has(b.dataset.sri)) : !(XS.f.item && XS.f.item.size))),
+    note: "ราคาต่อชิ้น (บาท) เป็นช่วงราคามือสองโดยประมาณจากภาพถ่าย ไม่ใช่ราคาประเมินทางการ ต้องให้ผู้เชี่ยวชาญ / ตัวแทนเจ้าของเครื่องหมายการค้าตรวจยืนยัน" });
+  m.onclick = (e) => { const a = e.target.closest("[data-sri]"); if (a) { xtSet("srch", "item", a.dataset.sri, true); X.upd(); } };
 }
 function overExtra(o, ntx) {
   const S = tsSum(), fz = tsFrz().secs.flatMap((s) => s.rows), W = tsWit().flatMap((s) => s.rows), A = tsAcc(), SR = DB.search || { rows: [] }, big = imgBy((i) => i.key === "big")[0];

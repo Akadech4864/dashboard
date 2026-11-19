@@ -433,25 +433,28 @@ const BRP = {
 };
 
 /* ---------- ข้อเสนอแนะ ---------- */
-let RCF = { c: "", st: "", q: "" };
+/* ข้อเสนอแนะ รุ่น 19 พ.ย. 69 (ผู้ใช้สั่ง "แสดงเป็นรายการมีตัวกรองเหมือนหน้าอื่น ๆ"): การ์ดสถานะ (กดกรอง) + ตารางรายการกลาง XT */
+const RCST = { "เสนอ": "#E0A800", "กำลังดำเนินการ": "#1565C0", "เสร็จแล้ว": "#1B7A4A" };
 function pRecs() {
-  const L = (C.recs || []), cats = [...new Set(L.map((r) => r.extra2 || "อื่น ๆ"))], sts = ["เสนอ", "กำลังดำเนินการ", "เสร็จแล้ว"];
-  const f = L.filter((r) => (!RCF.c || (r.extra2 || "อื่น ๆ") === RCF.c) && (!RCF.st || (r.status || "เสนอ") === RCF.st) && (!RCF.q || nrm(r.title + r.detail + r.extra1).includes(nrm(RCF.q))));
-  const cnt = (s) => L.filter((r) => (r.status || "เสนอ") === s).length;
-  const stc = { "เสนอ": "#E0A800", "กำลังดำเนินการ": "#1565C0", "เสร็จแล้ว": "#1B7A4A" };
-  $("#main").innerHTML = `<div class="br-hd"><div><span class="eyebrow">สำหรับเสนอคณะทำงาน / ผู้บังคับบัญชา</span><h1>${IC("bulb", 24)} ข้อเสนอแนะการดำเนินการ</h1></div>
+  const L = (C.recs || []), sts = Object.keys(RCST), cnt = (s) => L.filter((r) => (r.status || "เสนอ") === s).length, m = $("#main");
+  m.innerHTML = `<div class="br-hd"><div><span class="eyebrow">สำหรับเสนอคณะทำงาน / ผู้บังคับบัญชา</span><h1>${IC("bulb", 24)} ข้อเสนอแนะการดำเนินการ</h1></div>
     <div class="br-act">${addBtn("recs")}<button class="chip" data-act="copyrecs">${IC("copy", 14)} คัดลอกเป็นข้อความ</button><button class="chip" data-act="print">${IC("print", 14)} พิมพ์</button></div></div>
-    <div class="hero-k sm">${sts.map((s) => kpiC(cnt(s), s, "", stc[s])).join("")}${kpiC(L.length, "ทั้งหมด", "", "#00264D")}</div>
-    <div class="fcard">${fSearch("rcQ", RCF.q, "ค้นหาข้อเสนอ")}${fSel('data-rc="c"', RCF.c, "ทุกหมวด", cats.map((c) => [c, c]))}${fSel('data-rc="st"', RCF.st, "ทุกสถานะ", sts.map((s) => [s, s]))}${fClr('data-rcclr="1"', RCF.c || RCF.st || RCF.q)}</div>
-    ${cats.filter((c) => f.some((r) => (r.extra2 || "อื่น ๆ") === c)).map((c) => `<h2 class="sh">${IC("bulb", 18)} ${esc(c)} <small>${f.filter((r) => (r.extra2 || "อื่น ๆ") === c).length} ข้อ</small></h2>
-      <div class="recs">${f.filter((r) => (r.extra2 || "อื่น ๆ") === c).map((r) => `<div class="rec" style="--c:${stc[r.status || "เสนอ"] || "#999"}"><div class="rec-h"><b>${esc(r.title)}</b><span class="badge" style="background:${stc[r.status || "เสนอ"] || "#999"};color:#fff">${esc(r.status || "เสนอ")}</span></div>
-        <p>${esc(r.detail || "")}</p>${r.extra1 ? `<small class="muted">${IC("user", 13)} ${esc(r.extra1)}</small>` : ""}${acts2("recs", r.id)}</div>`).join("")}</div>`).join("") || "<p class='muted'>ไม่พบรายการ</p>"}
-    <div class="note">แก้ไข / เพิ่มข้อเสนอได้ในโหมดแก้ไข (ตั้งค่า → โหมดแก้ไขเนื้อหา) ; บันทึกในเครื่องนี้ หรือ Google Sheet ถ้าตั้งค่าไว้</div>`;
+  <div class="acards"><button class="acard tot" data-rst=""><span class="aic">${IC("bulb", 24)}</span><span class="acv">${L.length}</span><span class="acl">ข้อเสนอทั้งหมด</span><span class="acs">${[...new Set(L.map((r) => r.extra2 || "อื่น ๆ"))].length} หมวด</span>
+      <span class="abar dfbar">${sts.map((s) => `<i style="width:${L.length ? (cnt(s) / L.length * 100).toFixed(1) : 0}%;background:${RCST[s]}"></i>`).join("")}</span></button>
+    ${sts.map((s) => `<button class="acard" data-rst="${s}" style="--c:${RCST[s]}"><span class="aic">${IC({ "เสนอ": "bulb", "กำลังดำเนินการ": "clock", "เสร็จแล้ว": "check" }[s], 24)}</span><span class="acv">${cnt(s)}</span><span class="acl">${s}</span><span class="acs">${L.length ? Math.round(cnt(s) / L.length * 100) : 0}% ของข้อเสนอ</span><span class="abar"><i style="width:${L.length ? (cnt(s) / L.length * 100).toFixed(1) : 0}%"></i></span></button>`).join("")}</div>
+  <div id="rcX"></div>`;
+  const XS = xtS("recs");
+  const X = xtMount($("#rcX"), { id: "recs", title: "รายการข้อเสนอแนะ", ph: "ค้นหาข้อเสนอ / รายละเอียด / ผู้รับผิดชอบ", rows: L, xl: "ข้อเสนอแนะ (ตามตัวกรอง)",
+    search: (r) => `${r.title} ${r.detail} ${r.extra1} ${r.extra2}`,
+    cols: [["#", () => 0, "n"], ["หมวด", (r) => r.extra2 || "อื่น ๆ", "t"], ["ข้อเสนอ", (r) => `${r.title} ${r.detail || ""}`, "t", (r) => `<b>${esc(r.title)}</b>${r.detail ? `<br><small class="muted">${esc(r.detail)}</small>` : ""}`],
+      ["ผู้รับผิดชอบ / หน่วย", (r) => r.extra1 || "", "t"], ["สถานะ", (r) => r.status || "เสนอ", "t", (r) => `<span class="badge" style="background:${RCST[r.status || "เสนอ"] || "#999"};color:#fff">${esc(r.status || "เสนอ")}</span>`],
+      ["", () => "", "x", (r) => acts2("recs", r.id)]],
+    facets: [["cat", "ทุกหมวด", (r) => r.extra2 || "อื่น ๆ"], ["st", "ทุกสถานะ", (r) => r.status || "เสนอ", sts.map((s) => [s, s, RCST[s]])], ["own", "ทุกผู้รับผิดชอบ", (r) => r.extra1 || "(ไม่ระบุ)"]],
+    onUpdate: () => $$("[data-rst]", m).forEach((b) => b.classList.toggle("on", b.dataset.rst ? !!(XS.f.st && XS.f.st.has(b.dataset.rst)) : !(XS.f.st && XS.f.st.size))),
+    note: "แก้ไข / เพิ่มข้อเสนอได้ในโหมดแก้ไข (ตั้งค่า → โหมดแก้ไขเนื้อหา) ; บันทึกในเครื่องนี้ หรือ Google Sheet ถ้าตั้งค่าไว้" });
   wireGo();
-  const m = $("#main"), prev = m.onclick;
-  m.onclick = (e) => { if (e.target.closest("[data-rcclr]")) { RCF = { c: "", st: "", q: "" }; return render(); } prev(e); };
-  m.onchange = (e) => { const s = e.target.closest("[data-rc]"); if (s) { RCF[s.dataset.rc] = s.value; render(); } };
-  m.oninput = (e) => { if (e.target.id === "rcQ") { RCF.q = e.target.value; clearTimeout(pRecs.t); pRecs.t = setTimeout(() => { render(); const q = $("#rcQ"); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 300); } };
+  const prev = m.onclick;
+  m.onclick = (e) => { const s = e.target.closest("[data-rst]"); if (s) { xtSet("recs", "st", s.dataset.rst, true); return X.upd(); } if (prev) prev(e); };
 }
 function copyRecs() {
   const L = C.recs || [], cats = [...new Set(L.map((r) => r.extra2 || "อื่น ๆ"))];
@@ -474,3 +477,74 @@ const pcnt = () => { const c = $("#pcnt"); if (c) c.textContent = `${BRCH.findIn
 function presentStep(d) { const i = BRCH.findIndex((x) => x[0] === BRV), j = Math.max(0, Math.min(BRCH.length - 1, i + d)); if (j === i) return; BRV = BRCH[j][0]; render(); subPanel(); scrollTo(0, 0); pcnt(); }
 function presentOff() { document.body.classList.remove("present"); const b = $("#pbar"); if (b) b.remove(); try { document.fullscreenElement && document.exitFullscreen(); } catch (e) { } }
 document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement && document.body.classList.contains("present")) presentOff(); });
+
+/* ---------- ตารางรายการกลาง XT (ผู้ใช้สั่ง 19 พ.ย. 69 "แสดงเป็นรายการมีตัวกรองเหมือนหน้าอื่น ๆ") ----------
+   xtMount(host, cfg): ค้นหา + ปุ่มตัวกรองคลี่แผง (เลือกได้หลายค่า) + ตารางเรียงหลายชั้น (Shift) + ช่องกรองรายคอลัมน์ (cfMatch) + Excel ทุกแถวตามตัวกรอง
+   cfg = { id, title, ph, rows, cols: [[หัว, get(r) -> ข้อความ/ตัวเลข, ชนิด t|a|d|n|x, html(r, i)?]], facets: [[key, ป้ายทั้งหมด, get(r), [[ค่า, ป้าย, สี]]?]],
+           search(r) -> ข้อความ, sort0, rowAttr(r), onRow(r, e), onUpdate(rows), sum(rows), xl, note } ; สถานะอยู่ XTS[id] */
+const XTS = {};
+const xtS = (id) => (XTS[id] = XTS[id] || { q: "", f: {}, cf: {}, sort: null, lim: 300 });
+function xtSet(id, key, v, only) {
+  const S = xtS(id), F = (S.f[key] = S.f[key] || new Set());
+  if (v === "" || v == null) F.clear(); else if (only) { const was = F.size === 1 && F.has(v); F.clear(); if (!was) F.add(v); } else (F.has(v) ? F.delete(v) : F.add(v));
+}
+function xtMount(host, cfg) {
+  const S = xtS(cfg.id); if (!S.sort) S.sort = (cfg.sort0 || []).map((x) => x.slice());
+  const C_ = cfg.cols, FA = cfg.facets || [];
+  const opts = FA.map(([k, , g, o]) => o || [...new Set(cfg.rows.map(g).filter((v) => v !== "" && v != null))].sort((a, b) => String(a).localeCompare(String(b), "th")).map((v) => [v, v]));
+  const cnt = (i, v) => cfg.rows.filter((r) => FA[i][2](r) === v).length;
+  host.innerHTML = `<div class="card fcard" data-xf="1">
+    <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" data-xq="1" value="${esc(S.q)}" placeholder="${esc(cfg.ph || "ค้นหา")}"></label></div>
+    <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="pill x" data-xclr="1" hidden>✕ ล้างตัวกรอง</button><span class="muted fsum" data-xsum="1"></span></div>
+    ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip" data-xk="${k}" data-xv="${esc(v)}">${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
+  <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small></h2>
+  <div class="frow" style="margin:-4px 0 8px">${cfg.xl ? `<button class="chip" data-xx="xl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button>` : ""}<button class="chip" data-xx="sr">↺ ลำดับเดิม</button><button class="chip" data-xx="cf">✕ ล้างช่องกรองคอลัมน์</button>
+    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง (Shift = หลายชั้น) · ช่องกรอง: , = หรือ · ! = ไม่เอา${C_.some((c) => c[2] === "a") ? " · ตัวเลข: &gt;100000 / 1000-5000" : ""}</small></div>
+  <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
+    <tr class="cfr">${C_.map(([, , t], c) => (t === "x" || t === "n" ? "<th></th>" : `<th><input data-xcf="${c}" value="${esc(S.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : t === "d" ? "2569 / 2026-11" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
+  <div data-xmore="1" style="text-align:center;margin:8px 0"></div>${cfg.note ? `<p class="muted" style="font-size:.82rem">${cfg.note}</p>` : ""}`;
+  const txt = (r, c) => { const v = C_[c][1](r); return C_[c][2] === "d" && v ? `${v} ${dTh(v)} ${+String(v).slice(0, 4) + 543}` : String(v ?? ""); };
+  let R = [];
+  const upd = () => {
+    const q = S.q.trim().toLowerCase(), cf = Object.entries(S.cf).filter(([, v]) => v && v.trim());
+    R = cfg.rows.filter((r) => FA.every(([k, , g]) => !(S.f[k] && S.f[k].size) || S.f[k].has(g(r))) && (!q || String(cfg.search ? cfg.search(r) : C_.map((c) => c[1](r)).join(" ")).toLowerCase().includes(q))
+      && cf.every(([c, v]) => cfMatch(txt(r, +c), +C_[+c][1](r) || 0, v, C_[+c][2] === "a")));
+    if (S.sort.length) R = R.slice().sort((a, b) => { for (const [c, d] of S.sort) { const t = C_[c][2], x = C_[c][1](a), y = C_[c][1](b);
+      const v = t === "a" || t === "n" ? (+x || 0) - (+y || 0) : String(x ?? "").localeCompare(String(y ?? ""), "th"); if (v) return v * d; } return 0; });
+    const tb = host.querySelector("tbody");
+    tb.innerHTML = R.slice(0, S.lim).map((r, i) => `<tr ${cfg.rowAttr ? cfg.rowAttr(r) : ""}>${C_.map(([, g, t, h]) => `<td${t === "a" || t === "n" ? ' class="n"' : ""}>${h ? h(r, i) : t === "n" ? i + 1 : t === "d" ? (g(r) ? dTh(g(r)) : "") : t === "a" ? (g(r) ? fmt0(g(r)) : "–") : esc(g(r) ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${C_.length}" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
+    host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more">แสดงเพิ่มอีก ${fmt0(Math.min(500, R.length - S.lim))} แถว</button> <button class="chip" data-xx="all">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
+    const sm = cfg.sum ? cfg.sum(R) : "";
+    host.querySelector("[data-xsum]").textContent = `${fmt0(R.length)} / ${fmt0(cfg.rows.length)} รายการ${sm ? " · " + sm : ""}`;
+    host.querySelector("[data-xcnt]").textContent = `${fmt0(R.length)} รายการ${sm ? " · " + sm : ""}${R.length > S.lim ? ` · แสดง ${fmt0(S.lim)} แถวแรก` : ""}`;
+    FA.forEach(([k, all], i) => { const b = host.querySelector(`[data-xd="${k}"]`), F = S.f[k], lab = (v) => (opts[i].find((o) => String(o[0]) === String(v)) || [v, v])[1];
+      b.querySelector("span").textContent = F && F.size ? (F.size === 1 ? lab([...F][0]) : `${all.replace(/^ทุก/, "")} ${F.size} ค่า`) : all; b.classList.toggle("on", !!(F && F.size)); });
+    host.querySelectorAll("[data-xk]").forEach((b) => b.classList.toggle("on", !!(S.f[b.dataset.xk] && [...S.f[b.dataset.xk]].some((v) => String(v) === b.dataset.xv))));
+    host.querySelectorAll("[data-xs]").forEach((th) => { const i = S.sort.findIndex((x) => x[0] === +th.dataset.xs); th.querySelector(".si").textContent = i < 0 ? "" : (S.sort[i][1] > 0 ? "▲" : "▼") + (S.sort.length > 1 ? i + 1 : ""); });
+    host.querySelector("[data-xclr]").hidden = !(S.q || Object.values(S.f).some((f) => f.size) || Object.values(S.cf).some((v) => v && v.trim()));
+    if (cfg.onUpdate) cfg.onUpdate(R);
+  };
+  const reset = () => { S.lim = 300; upd(); };
+  let tm;
+  host.onclick = (e) => {
+    const th = e.target.closest("th[data-xs]");
+    if (th) { const c = +th.dataset.xs, i = S.sort.findIndex((x) => x[0] === c), d0 = C_[c][2] === "t" ? 1 : -1;
+      if (!e.shiftKey) S.sort = i < 0 ? [[c, d0]] : [[c, -S.sort[i][1]]]; else if (i < 0) S.sort.push([c, d0]); else if (S.sort[i][1] === d0) S.sort[i][1] *= -1; else S.sort.splice(i, 1); return upd(); }
+    const b = e.target.closest("button");
+    if (b && b.dataset.xd) { const p = host.querySelector(`[data-xp="${b.dataset.xd}"]`), was = p.hidden; host.querySelectorAll("[data-xp]").forEach((x) => (x.hidden = true)); host.querySelectorAll("[data-xd]").forEach((x) => x.classList.remove("open")); p.hidden = !was; b.classList.toggle("open", was); return; }
+    if (b && b.dataset.xk) { const o = opts[FA.findIndex((f) => f[0] === b.dataset.xk)].find((x) => String(x[0]) === b.dataset.xv); xtSet(cfg.id, b.dataset.xk, o ? o[0] : b.dataset.xv); return reset(); }
+    if (b && b.dataset.xclr) { S.q = ""; S.f = {}; S.cf = {}; host.querySelectorAll("[data-xq],[data-xcf]").forEach((x) => (x.value = "")); return reset(); }
+    if (b && b.dataset.xx) { const k = b.dataset.xx;
+      if (k === "sr") { S.sort = (cfg.sort0 || []).map((x) => x.slice()); return upd(); }
+      if (k === "cf") { S.cf = {}; host.querySelectorAll("[data-xcf]").forEach((x) => (x.value = "")); return reset(); }
+      if (k === "more") { S.lim += 500; return upd(); }
+      if (k === "all") { S.lim = R.length; return upd(); }
+      if (k === "xl") { const cs = C_.filter((c) => c[2] !== "x"), rows = [cs.map((c) => c[0])].concat(R.map((r, i) => cs.map((c) => (c[2] === "n" ? i + 1 : c[2] === "d" ? (c[1](r) ? dTh(c[1](r)) : "") : c[1](r) ?? ""))));
+        return download2(cfg.xl + ".xlsx", xlsxBlob("รายการ", rows, cs.map((c) => (c[2] === "t" ? 30 : 14)))); } }
+    if (!b && !e.target.closest("[data-xf]") && !e.target.closest("input")) { host.querySelectorAll("[data-xp]").forEach((x) => (x.hidden = true)); host.querySelectorAll("[data-xd]").forEach((x) => x.classList.remove("open")); }
+    const tr = e.target.closest("tbody tr"); if (tr && cfg.onRow && !b) { const i = [...tr.parentNode.children].indexOf(tr); if (R[i]) cfg.onRow(R[i], e); }
+  };
+  host.oninput = (e) => { const t = e.target; if (t.dataset.xq == null && t.dataset.xcf == null) return; clearTimeout(tm); tm = setTimeout(() => { if (t.dataset.xq != null) S.q = t.value; else S.cf[t.dataset.xcf] = t.value; reset(); }, 250); };
+  upd();
+  return { upd: reset };
+}
