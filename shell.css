@@ -527,3 +527,14 @@ details.acc>summary .ico.s,details.acc>summary .ico.s svg{color:var(--fold)}
 /* ---------- ลิงก์บัตรเครดิตในตารางบัญชี → รายการใช้จ่ายบัตร (19 พ.ย. 69) ---------- */
 button.clnk{display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:2px 9px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--acc);font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap}
 button.clnk:hover{border-color:var(--acc)}
+
+/* ---------- มือถือ: ปุ่มที่เลือกอยู่ = เหลืองเต็มปุ่ม (ผู้ใช้สั่ง 19 พ.ย. 69 "เมนูด้านล่างไฮไลต์เหลืองทั้งปุ่ม ไอคอน ตัวอักษร + หัวข้อย่อยด้านบนด้วย") ----------
+   เมนูล่าง .bnav / แถบบทสรุปทางการ .br-nav / แถบหน้าย่อย .subnav (บัญชี-บุคคล / บัตรเครดิต) ; ตัวอักษร-ไอคอนน้ำเงินเข้มตายตัว (โหมดมืดด้วย) */
+.bnav button{margin:0 2px;transition:background .15s,color .15s}
+.bnav button.on,:root[data-theme=dark] .bnav button.on{background:var(--yel);color:#00264D;box-shadow:0 2px 6px rgba(0,38,77,.18)}
+.bnav button.on .ic{background:transparent;padding:0;width:auto;margin:0}
+.bnav button.on svg{color:#00264D}
+.br-nav button.on,:root[data-theme=dark] .br-nav button.on{background:var(--yel)!important;color:#00264D!important;border-color:var(--yel)!important;font-weight:700}
+.subnav .chip.on,:root[data-theme=dark] .subnav .chip.on{background:var(--yel)!important;color:#00264D!important;border-color:var(--yel)!important;font-weight:700}
+.subnav .chip.on svg{color:#00264D}
+.sp button.on,:root[data-theme=dark] .sp button.on{background:var(--yel)!important;color:#00264D!important;border-color:var(--yel)!important;box-shadow:0 2px 6px rgba(0,38,77,.18)}

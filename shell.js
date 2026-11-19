@@ -329,6 +329,7 @@ function pBrief() {
   const head = `<div class="br-hd"><div><span class="eyebrow">สรุปพฤติการณ์และพยานหลักฐานทางการเงิน · บทที่ ${i + 1}/${BRCH.length}</span><h1>${IC(ch[2], 24)} ${ch[1]}</h1></div>
     <div class="br-act">${ibx("play", "นำเสนอ (เต็มจอ)", 'data-act="present"')}${ibx("print", "พิมพ์", 'data-act="print"')}</div></div>`;
   $("#main").innerHTML = nav + head + `<div class="br-body">${(BRF[ch[0]] || (() => ""))(N_)}</div>` + pn;
+  { const n = $(".br-nav"), o = n && n.querySelector(".on"); if (o) n.scrollLeft = o.offsetLeft - (n.clientWidth - o.offsetWidth) / 2; }   // บทที่เลือก (เหลือง) เลื่อนมาอยู่กลางแถบบนมือถือ
   (BRP[ch[0]] || (() => { }))(N_);
   wireGo();
   const m = $("#main"), prev = m.onclick;
