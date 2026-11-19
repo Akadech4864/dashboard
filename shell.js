@@ -490,6 +490,7 @@ function xtSet(id, key, v, only) {
 }
 function xtMount(host, cfg) {
   const S = xtS(cfg.id); if (!S.sort) S.sort = (cfg.sort0 || []).map((x) => x.slice());
+  if (cfg.lims) { if (S.limSel == null) S.limSel = cfg.lims[0]; S.lim = S.limSel || Infinity; }
   const C_ = cfg.cols, FA = cfg.facets || [];
   const opts = FA.map(([k, , g, o]) => o || [...new Set(cfg.rows.map(g).filter((v) => v !== "" && v != null))].sort((a, b) => String(a).localeCompare(String(b), "th")).map((v) => [v, v]));
   const cnt = (i, v) => cfg.rows.filter((r) => FA[i][2](r) === v).length;
@@ -498,7 +499,7 @@ function xtMount(host, cfg) {
     <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="pill x" data-xclr="1" hidden>✕ ล้างตัวกรอง</button><span class="muted fsum" data-xsum="1"></span></div>
     ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip" data-xk="${k}" data-xv="${esc(v)}">${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
   <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small></h2>
-  <div class="frow" style="margin:-4px 0 8px">${cfg.xl ? `<button class="chip" data-xx="xl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button>` : ""}<button class="chip" data-xx="sr">↺ ลำดับเดิม</button><button class="chip" data-xx="cf">✕ ล้างช่องกรองคอลัมน์</button>
+  <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? `<button class="chip" data-xx="xl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button>` : ""}<button class="chip" data-xx="sr">↺ ลำดับเดิม</button><button class="chip" data-xx="cf">✕ ล้างช่องกรองคอลัมน์</button>
     <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง (Shift = หลายชั้น) · ช่องกรอง: , = หรือ · ! = ไม่เอา${C_.some((c) => c[2] === "a") ? " · ตัวเลข: &gt;100000 / 1000-5000" : ""}</small></div>
   <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${C_.map(([, , t], c) => (t === "x" || t === "n" ? "<th></th>" : `<th><input data-xcf="${c}" value="${esc(S.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : t === "d" ? "2569 / 2026-11" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
@@ -513,7 +514,7 @@ function xtMount(host, cfg) {
       const v = t === "a" || t === "n" ? (+x || 0) - (+y || 0) : String(x ?? "").localeCompare(String(y ?? ""), "th"); if (v) return v * d; } return 0; });
     const tb = host.querySelector("tbody");
     tb.innerHTML = R.slice(0, S.lim).map((r, i) => `<tr ${cfg.rowAttr ? cfg.rowAttr(r) : ""}>${C_.map(([, g, t, h]) => `<td${t === "a" || t === "n" ? ' class="n"' : ""}>${h ? h(r, i) : t === "n" ? i + 1 : t === "d" ? (g(r) ? dTh(g(r)) : "") : t === "a" ? (g(r) ? fmt0(g(r)) : "–") : esc(g(r) ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${C_.length}" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
-    host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more">แสดงเพิ่มอีก ${fmt0(Math.min(500, R.length - S.lim))} แถว</button> <button class="chip" data-xx="all">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
+    host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more">แสดงเพิ่มอีก ${fmt0(Math.min(cfg.lims ? 100 : 500, R.length - S.lim))} แถว</button> <button class="chip" data-xx="all">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
     const sm = cfg.sum ? cfg.sum(R) : "";
     host.querySelector("[data-xsum]").textContent = `${fmt0(R.length)} / ${fmt0(cfg.rows.length)} รายการ${sm ? " · " + sm : ""}`;
     host.querySelector("[data-xcnt]").textContent = `${fmt0(R.length)} รายการ${sm ? " · " + sm : ""}${R.length > S.lim ? ` · แสดง ${fmt0(S.lim)} แถวแรก` : ""}`;
@@ -524,7 +525,7 @@ function xtMount(host, cfg) {
     host.querySelector("[data-xclr]").hidden = !(S.q || Object.values(S.f).some((f) => f.size) || Object.values(S.cf).some((v) => v && v.trim()));
     if (cfg.onUpdate) cfg.onUpdate(R);
   };
-  const reset = () => { S.lim = 300; upd(); };
+  const reset = () => { S.lim = cfg.lims ? S.limSel || Infinity : 300; upd(); };
   let tm;
   host.onclick = (e) => {
     const th = e.target.closest("th[data-xs]");
@@ -537,13 +538,14 @@ function xtMount(host, cfg) {
     if (b && b.dataset.xx) { const k = b.dataset.xx;
       if (k === "sr") { S.sort = (cfg.sort0 || []).map((x) => x.slice()); return upd(); }
       if (k === "cf") { S.cf = {}; host.querySelectorAll("[data-xcf]").forEach((x) => (x.value = "")); return reset(); }
-      if (k === "more") { S.lim += 500; return upd(); }
+      if (k === "more") { S.lim += cfg.lims ? 100 : 500; return upd(); }
       if (k === "all") { S.lim = R.length; return upd(); }
       if (k === "xl") { const cs = C_.filter((c) => c[2] !== "x"), rows = [cs.map((c) => c[0])].concat(R.map((r, i) => cs.map((c) => (c[2] === "n" ? i + 1 : c[2] === "d" ? (c[1](r) ? dTh(c[1](r)) : "") : c[1](r) ?? ""))));
         return download2(cfg.xl + ".xlsx", xlsxBlob("รายการ", rows, cs.map((c) => (c[2] === "t" ? 30 : 14)))); } }
     if (!b && !e.target.closest("[data-xf]") && !e.target.closest("input")) { host.querySelectorAll("[data-xp]").forEach((x) => (x.hidden = true)); host.querySelectorAll("[data-xd]").forEach((x) => x.classList.remove("open")); }
     const tr = e.target.closest("tbody tr"); if (tr && cfg.onRow && !b) { const i = [...tr.parentNode.children].indexOf(tr); if (R[i]) cfg.onRow(R[i], e); }
   };
+  host.onchange = (e) => { if (e.target.dataset.xlim) { S.limSel = +e.target.value; S.lim = S.limSel || Infinity; upd(); } };
   host.oninput = (e) => { const t = e.target; if (t.dataset.xq == null && t.dataset.xcf == null) return; clearTimeout(tm); tm = setTimeout(() => { if (t.dataset.xq != null) S.q = t.value; else S.cf[t.dataset.xcf] = t.value; reset(); }, 250); };
   upd();
   return { upd: reset };

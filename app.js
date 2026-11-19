@@ -1179,8 +1179,7 @@ function pAna() {
     <select id="flT" title="วิธีคำนวณเมื่อกดกล่อง ▶ คลี่ทอดถัดไป"><option value="1">ทอดถัดไป: ไล่ตามเวลา</option><option value="0">ทอดถัดไป: ทุกรายการในช่วง</option></select>
     <button class="chip" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด">✕ ยุบทอด</button></div>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
-  <h2>${IC("users")} คู่โอนรายใหญ่ <small>50 อันดับ — กดแถวเพื่อค้นหา · กดหัวคอลัมน์เพื่อเรียง</small></h2>
-  <div class="tblwrap tbl1" id="tCp"></div>
+  <div id="tCp"></div>
   <h2>${IC("list")} รายการ <small id="txLab"></small> <button class="chip" id="txReset" title="กลับไปเรียงตามวันที่-เวลา">↺ รีเซ็ตการเรียง</button><button class="chip" id="txXlsx">${IC("doc", 14)} ส่งออก Excel</button><button class="chip" id="fCsv">CSV</button></h2>
   <div class="tblwrap tbl1" id="tTx"></div>
   <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>
@@ -1293,11 +1292,15 @@ function pAna() {
     { const fb_ = $("#flBack"); if (fb_) { fb_.hidden = !FHIST.length; fb_.textContent = FHIST.length ? `← ย้อนกลับ (${FHIST.length})` : "← ย้อนกลับ"; } }
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     // ตาราง
-    const ck = { t: (v) => v[0] + v[1], i: (v) => v[0], o: (v) => v[1], n: (v) => v[2] }[F.cps] || ((v) => v[0] + v[1]);
-    const top = [...byC.entries()].filter((x) => ck(x[1]) > 0).sort((x, y) => ck(y[1]) - ck(x[1])).slice(0, 50);
-    $("#tCp").innerHTML = `<table><tr><th>#</th><th>คู่โอน</th><th>บัญชี</th><th>กลุ่ม</th><th class="n srt ${F.cps === "i" ? "on" : ""}" data-cs="i">เงินเข้า (บาท)</th><th class="n srt ${F.cps === "o" ? "on" : ""}" data-cs="o">เงินออก (บาท)</th><th class="n srt ${F.cps === "n" ? "on" : ""}" data-cs="n">ครั้ง</th></tr>` +
-      top.map(([ci, v], i) => { const c = DB.cps[ci]; return `<tr class="click" data-q="${esc(c[0] || c[1])}"><td>${i + 1}</td><td>${esc(c[1]) || "<span class=muted>ไม่ระบุชื่อ</span>"}</td><td>${c[2]} ${c[0]}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[c[3]][2]}"></span> ${esc(DB.groups[c[3]][1].split(" (")[0])}</td><td class="n">${v[0] ? fmt(v[0]) : ""}</td><td class="n">${v[1] ? fmt(v[1]) : ""}</td><td class="n">${fmt0(v[2])}</td></tr>`; }).join("") + "</table>";
-    $("#tCp").onclick = (e) => { const th = e.target.closest("th[data-cs]"); if (th) { F.cps = F.cps === th.dataset.cs ? "t" : th.dataset.cs; upd(true); return; } const tr = e.target.closest("tr[data-q]"); if (tr) { FHIST.push(fSnap()); F.q = tr.dataset.q; $("#fQ").value = F.q; upd(); } };
+    // คู่โอนรายใหญ่ (ผู้ใช้สั่ง 19 พ.ย. 69): ตารางรายการกลาง XT — เลือก 50 / 100 / 200 / ทุกรายการ + ค้นหาชื่อคู่โอน + ตัวกรองกลุ่ม/ธนาคาร + เรียง + กรองรายคอลัมน์ ; กดแถว = ใช้เป็นคำค้นของหน้า
+    const cpRows = [...byC.entries()].filter((x) => x[1][0] + x[1][1] > 0).map(([ci, v]) => { const c = DB.cps[ci]; return { ci, nm: c[1] || "", acc: c[0] || "", bank: c[2] || "", g: c[3], gl: DB.groups[c[3]][1].split(" (")[0], i: v[0], o: v[1], n: v[2], t: v[0] + v[1] }; });
+    xtMount($("#tCp"), { id: "anaCp", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", ph: "ค้นหาชื่อคู่โอน / เลขบัญชี / ธนาคาร", rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)",
+      search: (r) => `${r.nm} ${r.acc} ${r.bank} ${r.gl}`, sort0: [[7, -1]], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
+      cols: [["#", () => 0, "n"], ["คู่โอน", (r) => r.nm, "t", (r) => (r.nm ? `<b style="font-weight:600">${esc(r.nm)}</b>` : `<span class="muted">ไม่ระบุชื่อ</span>`)], ["บัญชี", (r) => `${r.bank} ${r.acc}`.trim(), "t"],
+        ["กลุ่ม", (r) => r.gl, "t", (r) => `<span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[r.g][2]}"></span> ${esc(r.gl)}`],
+        ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? fmt(r.i) : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? fmt(r.o) : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
+      facets: [["g", "ทุกกลุ่มคู่โอน", (r) => r.gl, [...new Map(cpRows.map((r) => [r.gl, DB.groups[r.g][2]])).entries()].map(([l, c]) => [l, l, c])], ["bank", "ทุกธนาคาร", (r) => r.bank || "(ไม่ระบุ)"]],
+      rowAttr: () => 'class="click" title="กดเพื่อใช้คู่โอนนี้เป็นคำค้นของหน้า"', onRow: (r) => { FHIST.push(fSnap()); F.q = r.acc || r.nm; $("#fQ").value = F.q; upd(); } });
     SORTED = txSort(IDX);
     const big = SORTED.slice(0, SHOWN);
     $("#txLab").textContent = `เรียงตาม ${TXS.map(([k, d], n) => `${n + 1}.${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")} — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว · กดหัวคอลัมน์เพื่อเรียงเพิ่ม (กดซ้ำสลับ ↑↓ / ครั้งที่ 3 เอาออก)`;
