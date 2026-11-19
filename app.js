@@ -1653,6 +1653,7 @@ const tlTo = (p) => (p.i < 0 ? "(คงอยู่ในบัญชี)" : p.t
 function tlRender() {
   const box = $("#tlBox"); if (!box) return;
   box.onclick = (e) => { if (e.target.closest("#tlX")) return; const v = e.target.closest("[data-tlv]"); if (v) { TLS.v = v.dataset.tlv; TLS.keep = true; return tlRender(); }
+    if (e.target.closest(".tlh") && !e.target.closest("button")) { TLS.open = false; TLS.keep = true; return tlRender(); }
     const b = e.target.closest("[data-tl]"); if (!b) return; if (b.dataset.tl === "open" || b.dataset.tl === "close") { TLS.open = b.dataset.tl === "open"; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "back") { TLS.seed = TLS.hist.pop() || null; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "rep") tlReport(); };
   box.onchange = (e) => { if (e.target.id === "tlFrom" || e.target.id === "tlTo") { TLS[e.target.id === "tlFrom" ? "from" : "to"] = e.target.value; TLS.keep = true; tlRender(); } };
   const ck = JSON.stringify(F.chain) + trMode(); if (TLC.ck !== null && TLC.ck !== ck && TLS.seed && !TLS.keep) { TLS.seed = null; TLS.hist = []; } TLC.ck = ck; TLS.keep = false;

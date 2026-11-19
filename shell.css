@@ -484,3 +484,31 @@ h2 .ibx.sm{margin-left:2px}
 .fback span{font-weight:700;font-size:.85rem}
 @media (min-width:1100px){.fback{left:266px}}
 @media (max-width:1099px){.fback{bottom:84px}}
+
+/* ---------- กล่องยุบ-ขยาย = สีเหลืองธีม (ผู้ใช้สั่ง 19 พ.ย. 69 "แยกออกว่าเป็นกล่องที่หุบขยายได้ ทำกับทุกกล่องที่ยุบขยาย") ----------
+   หุบ = ทั้งกล่องเหลือง / ขยาย = แถบหัวเหลือง + ขอบเหลือง ; ตัวอักษรน้ำเงินเข้มเสมอ (โหมดมืด --navy เป็นฟ้าอ่อน จึงกำหนดสีตายตัว) */
+:root{--fold:#FFD403;--fold2:#FFE04D;--fold-ink:#00264D}
+.tlbar0{background:var(--fold)!important;border:0;color:var(--fold-ink);font-weight:600;box-shadow:0 1px 3px rgba(0,38,77,.18)}
+.tlbar0:hover{background:var(--fold2)!important}
+.tlbar0 b,.tlbar0 svg,.tlbar0 .tlgo{color:var(--fold-ink)}
+.card.tlc{border:2px solid var(--fold)!important;padding-top:0;overflow:visible}
+.card.tlc>.tlh{margin:0 -14px 12px;padding:8px 10px 8px 14px;background:var(--fold);border-radius:10px 10px 0 0;cursor:pointer}
+.card.tlc>.tlh:hover{background:var(--fold2)}
+.card.tlc>.tlh h2,.card.tlc>.tlh h2 svg{color:var(--fold-ink)}
+.card.tlc>.tlh .ibx{background:transparent;border-color:rgba(0,38,77,.3);color:var(--fold-ink)}
+.card.tlc>.tlh .ibx:hover{background:rgba(255,255,255,.45);border-color:var(--fold-ink)}
+.card.tlc>.tlh .ibx.sm{border-color:transparent}
+details.acc{border:1.5px solid var(--fold)!important}
+details.acc>summary{background:var(--fold);color:var(--fold-ink)}
+details.acc>summary:hover{background:var(--fold2)}
+details.acc>summary .t,details.acc>summary .a,details.acc>summary::after,details.acc>summary svg{color:var(--fold-ink)}
+details.acc>summary::after{opacity:.75}
+details.acc>.body{border-top:0;padding-top:8px}
+.ai-share{border-top:0}
+.ai-share>summary{background:var(--fold);color:var(--fold-ink)!important;padding:8px 10px;border-radius:10px}
+.ai-share>summary:hover{background:var(--fold2)}
+.ai-share[open]>summary{border-radius:10px 10px 0 0}
+:root[data-theme=dark] details.acc.acc.acc{border-color:var(--fold)!important}
+:root[data-theme=dark] .card.tlc.tlc.tlc{border-color:var(--fold)!important}
+.card.tlc>.tlh h2{flex:1;min-width:0}
+details.acc>summary .ico.s,details.acc>summary .ico.s svg{color:var(--fold)}
