@@ -775,6 +775,7 @@ let CCV = "tx";
 const CCV_T = [["tx", "รายการใช้จ่าย", "list"], ["pay", "การชำระค่าบัตร", "bank"], ["sum", "สรุปภาพรวม", "chart"]];   // สรุปภาพรวมตัดส่วนที่ซ้ำกับหน้ารายการใช้จ่ายออก (ผู้ใช้สั่ง 19 พ.ย. 69)
 const CCF0 = () => ({ q: "", cards: new Set(), types: new Set(), nats: new Set(["per", "chr"]), ctry: new Set(), from: "", to: "", min: "", cf: {}, sort: [[0, -1]], lim: 300 });
 let CCF = CCF0();
+function ccOpen(l4) { CCF = CCF0(); if (l4) CCF.cards.add(String(l4)); CCV = "tx"; go("cc"); window.scrollTo(0, 0); }   // จุดเชื่อมจากหน้าบัญชี/บุคคล (ผู้ใช้สั่ง 19 พ.ย. 69)
 const NATL = { per: "ใช้ส่วนตัว", chr: "บริจาค / ทำบุญ", fin: "ชำระค่าบัตร / คืนเงิน" };
 const CARDC = { "4615": "#1565C0", "4260": "#6A1B9A", "6834": "#00897B", "7787": "#F9A825" };
 const CCOLS = [["วันที่", 0, "d"], ["บัตร", 1, "t"], ["ร้านค้า / รายการ", 2, "t"], ["เมือง / รายละเอียด", 3, "t"], ["ประเภท", 4, "t"], ["ลักษณะ", 5, "t"], ["ประเทศ", 6, "t"], ["ยอด (บาท)", 7, "a"]];
@@ -2066,13 +2067,13 @@ function pAccTable() {                                                 // ตา
   const card = (g) => { const rs = rows.filter((r) => r.g === g && pass(r, "g")), u = gsum(rs), isT1 = gcode(g) === "t1";
     return !rs.length ? "" : `<button class="gcard ${AXF.g === String(g) ? "on" : ""}" data-axk="g" data-axv="${g}" style="--c:${gcol(g)}">${coverH(g, rs, 64)}
       <span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · มี STM ${u.stm}</small><small>${isT1 ? `เงินเข้า ${M(u.inn)} · ออก ${M(u.out)}` : `รับจากบัญชีมูลนิธิ ${M(u.t1)}`}</small>${u.fzn ? `<small class="fz">${IC("lock", 11)} อายัด ${u.fzn} บัญชี ${M(u.fz)}</small>` : ""}</span></button>`; };
-  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}${r.card ? `<br><small class="muted">บัตรเครดิต ${esc(r.card)}</small>` : ""}</td><td>${esc(r.name)}</td>
+  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}${r.card ? `<br>${r.cc ? `<button class="clnk" data-axc="${r.k.slice(-4)}" title="รายการใช้จ่ายบัตรนี้">${IC("card", 12)} บัตรเครดิต ${esc(r.card)} ${IC("next", 12)}</button>` : `<small class="muted">บัตรเครดิต ${esc(r.card)}</small>`}` : ""}</td><td>${esc(r.name)}</td>
       <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : r.cc && r.cc.bal < -0.005 ? `<span class="badge y" title="ยอดชำระเกินค้างในบัตร ณ รอบบิล ${dTh(r.cc.bal_date)} — ยังไม่อายัด">เสนออายัด ${fmt(-r.cc.bal)}</span>` : ""}</td>
       <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
-      <td>${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
+      <td>${r.cc ? `<button class="chip" data-axc="${r.k.slice(-4)}">${IC("card", 13)} รายการใช้จ่าย</button> ` : ""}${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
   const sect = (g) => { const rs = rows.filter((r) => r.g === g && pass(r)).sort(ord); if (!rs.length) return ""; const u = gsum(rs), ais = rs.filter((r) => r.ai >= 0).map((r) => r.ai);
     return `<div class="gsec" style="--c:${gcol(g)}"><div class="ghd">${coverH(g, rs, 46)}<span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · เข้า ${M(u.inn)} · ออก ${M(u.out)}${gcode(g) === "t1" ? "" : ` · รับจากบัญชีมูลนิธิ ${M(u.t1)}`}${u.fzn ? ` · อายัด ${u.fzn} บัญชี ${M(u.fz)}` : ""}</small></span>
-        <span class="ga">${AXF.g === String(g) ? `<button class="chip" data-axk="g" data-axv="">← ทุกกลุ่ม</button>` : `<button class="chip" data-axk="g" data-axv="${g}">ดูเฉพาะกลุ่มนี้</button>`}${ais.length ? `<button class="chip" data-axg="${ais.join(",")}">${IC("flow", 13)} วิเคราะห์ทั้งกลุ่ม</button>` : ""}</span></div>
+        <span class="ga">${AXF.g === String(g) ? ibx("back", "ทุกกลุ่ม", 'data-axk="g" data-axv=""') : `<button class="chip" data-axk="g" data-axv="${g}">ดูเฉพาะกลุ่มนี้</button>`}${ais.length ? `<button class="chip" data-axg="${ais.join(",")}">${IC("flow", 13)} วิเคราะห์ทั้งกลุ่ม</button>` : ""}</span></div>
       <div class="tblwrap"><table><tr><th>บัญชี</th><th>ชื่อบัญชี</th><th>STM</th><th>อายัด (บาท)</th><th class="n">เงินเข้า</th><th class="n">เงินออก</th><th class="n">คงเหลือล่าสุด</th><th class="n">รับจากบัญชีมูลนิธิ</th><th class="n">รับจากบัญชีที่มี STM</th><th></th></tr>${rs.map(rowH).join("")}</table></div></div>`; };
   const shown = rows.filter((r) => pass(r)).length;
   const m = $("#main");
@@ -2088,11 +2089,11 @@ function pAccTable() {                                                 // ตา
     ${fSel('data-axs="g"', AXF.g, "ทุกกลุ่มบัญชี", gs.map((g) => [g, DB.groups[g] ? DB.groups[g][1].split(" (")[0] : "กลุ่ม " + g]))}
     ${fSel('data-axs="st"', AXF.st, "ทุกสถานะ STM", STS.map((x) => [x, `${x} · ${rows.filter((r) => r.st === x).length}`]))}
     ${fClr('data-axk="clear"', AXF.g !== "" || AXF.st || AXF.fz || AXF.q)}</div></div>
-  <h2>${IC("list")} รายบัญชี <small>${shown} / ${rows.length} บัญชี</small></h2>
-  ${gs.map(sect).join("") || '<p class="muted">ไม่มีบัญชีตามตัวกรอง</p>'}
-  <p class="muted" style="font-size:.82rem">รวมจาก: บัญชีที่มี statement ในระบบ + แท็บคุมบัญชี (สถานะขอ STM) + แท็บข้อมูลอายัด ของชีตชุดทำคดี · "รับจากบัญชีมูลนิธิ / บัญชีที่มี STM" ดูจาก statement ฝั่งผู้โอน (เห็นแม้บัญชีนี้ยังไม่มี statement) · คงเหลือล่าสุด = ยอดคงเหลือรายการสุดท้ายใน statement · รูปหน้าปก = ภาพบุคคลจากชีตชุดทำคดี (ถ้ามี)</p>`;
+  <h2>${IC("list")} รายบัญชี <small>${shown} / ${rows.length} บัญชี</small> ${infoI('รวมจาก: บัญชีที่มี statement ในระบบ + แท็บคุมบัญชี (สถานะขอ STM) + แท็บข้อมูลอายัด ของชีตชุดทำคดี · "รับจากบัญชีมูลนิธิ / บัญชีที่มี STM" ดูจาก statement ฝั่งผู้โอน (เห็นแม้บัญชีนี้ยังไม่มี statement) · คงเหลือล่าสุด = ยอดคงเหลือรายการสุดท้ายใน statement · รูปหน้าปก = ภาพบุคคลจากชีตชุดทำคดี (ถ้ามี)')}</h2>
+  ${gs.map(sect).join("") || '<p class="muted">ไม่มีบัญชีตามตัวกรอง</p>'}`;
   m.onclick = (e) => { const b = e.target.closest("button");
     if (b && tsClick(b)) return;
+    if (b && b.dataset.axc != null) return ccOpen(b.dataset.axc);
     if (b && b.dataset.axa != null) { resetF(); F.accs.add(+b.dataset.axa); F.flm = "d"; return go("ana"); }
     if (b && b.dataset.axg != null) { resetF(); b.dataset.axg.split(",").forEach((i) => F.accs.add(+i)); F.flm = "d"; return go("ana"); }
     if (b && b.dataset.axq != null) { resetF(); F.q = b.dataset.axq; F.flm = "d"; return go("ana"); }
@@ -2116,7 +2117,7 @@ function accDetail(k) {
     ${by.length ? `<div class="lab">เงินที่บัญชีที่มี statement โอนเข้าบัญชีนี้</div><div class="tblwrap"><table><tr><th>บัญชีผู้โอน</th><th class="n">ยอด (บาท)</th></tr>${by.map(([ai, v]) => { const a = DB.accounts[ai]; return `<tr><td>${T1.has(+ai) ? "<b>" : ""}${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small>${T1.has(+ai) ? "</b> <span class='badge r'>บัญชีมูลนิธิ</span>" : ""}</td><td class="n">${fmt(v)}</td></tr>`; }).join("")}</table></div>` : ""}
     ${r.ai >= 0 ? `<div class="lab">เงินเข้าจาก 10 อันดับ</div><div class="tblwrap"><table><tr><th>คู่โอน</th><th>กลุ่ม</th><th class="n">ยอด</th><th class="n">ครั้ง</th></tr>${top("in").map(cpRow).join("")}</table></div>
       <div class="lab">เงินออกไป 10 อันดับ</div><div class="tblwrap"><table><tr><th>คู่โอน</th><th>กลุ่ม</th><th class="n">ยอด</th><th class="n">ครั้ง</th></tr>${top("out").map(cpRow).join("")}</table></div>` : ""}
-    <p style="margin-top:12px">${r.ai >= 0 ? `<button class="btn" onclick="closeModal();resetF();F.accs.add(${r.ai});F.flm='d';go('ana')">${IC("flow", 15)} เปิดในหน้าวิเคราะห์</button>` : ""}
+    <p style="margin-top:12px">${r.cc ? `<button class="btn" onclick="closeModal();ccOpen('${r.k.slice(-4)}')">${IC("card", 15)} รายการใช้จ่ายบัตรนี้</button> ` : ""}${r.ai >= 0 ? `<button class="btn" onclick="closeModal();resetF();F.accs.add(${r.ai});F.flm='d';go('ana')">${IC("flow", 15)} เปิดในหน้าวิเคราะห์</button>` : ""}
       ${r.x.all ? `<button class="btn o" onclick="closeModal();resetF();F.q='${esc(r.acc)}';F.flm='d';go('ana')">${IC("search", 15)} ดูรายการที่โอนเข้าบัญชีนี้</button>` : ""} <button class="btn o" onclick="closeModal()">ปิด</button></p>`);
   enhance($("#modalBox"));
 }

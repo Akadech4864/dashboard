@@ -523,3 +523,7 @@ details.acc>summary .ico.s,details.acc>summary .ico.s svg{color:var(--fold)}
 #thf[hidden]{display:none}
 #thf table{table-layout:fixed;margin:0;will-change:transform}
 #thf th{position:static}
+
+/* ---------- ลิงก์บัตรเครดิตในตารางบัญชี → รายการใช้จ่ายบัตร (19 พ.ย. 69) ---------- */
+button.clnk{display:inline-flex;align-items:center;gap:4px;margin-top:3px;padding:2px 9px;border:1px solid var(--line);border-radius:999px;background:var(--soft);color:var(--acc);font:inherit;font-size:.78rem;font-weight:600;cursor:pointer;white-space:nowrap}
+button.clnk:hover{border-color:var(--acc)}
