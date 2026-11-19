@@ -18,6 +18,15 @@ Object.assign(ICP, {
   db: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
   copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
   hash: '<path d="M4 9h16M4 15h16M10 3L8 21M16 3l-2 18"/>',
+  reset: '<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
+  fx: '<path d="M3 4h18l-7 9v6l-4 2v-8z"/><path d="M16 16l5 5M21 16l-5 5"/>',
+  xls: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>',
+  csv: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M9.5 13.5l4 4M13.5 13.5l-4 4"/>',
+  shrink: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
+  more: '<path d="M6 9l6 6 6-6"/>',
+  less: '<path d="M6 15l6-6 6 6"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  swap: '<path d="M7 7h13l-3-3M17 17H4l3 3"/>',
 });
 
 /* ---------- ตั้งค่าการแสดงผล ---------- */
@@ -259,7 +268,7 @@ function pHome() {
   ${secH("book", "เกิดอะไรขึ้น", `${C.story.length} ตอน`, addBtn("story"))}
   <div class="story">${C.story.map((s, i) => `<article class="st"><span class="st-n">${i + 1}</span><div><b>${esc(s.title)}</b><p>${esc(s.detail)}</p>${acts2("story", s.id)}</div></article>`).join("")}</div>
 
-  ${secH("scale", "ใครถูกดำเนินคดี", `${susKeys().length} ราย · กดเพื่อดูพฤติการณ์`)}
+  ${secH("scale", "ใครถูกดำเนินคดี", `${susKeys().length} ราย`)}
   <div class="people">${susKeys().map((k) => { const s = S[k], c = chgOf(s.name) || {};
     return `<button class="pc" data-sus="${k}" style="--c:${SCOL[k] || "var(--navy)"}">${ph(s.name)}<span class="pc-no">${s.no}</span>
       <b>${esc(shortName(s.name))}</b><small>${esc(s.role.split(" ; ")[0])}</small><span class="chips">${chChips(s.charges)}</span>
@@ -318,7 +327,7 @@ function pBrief() {
   const nav = `<div class="br-nav only-m">${BRCH.map(([k, l]) => `<button data-ch="${k}" class="${k === BRV ? "on" : ""}">${l}</button>`).join("")}</div>`;
   const pn = `<div class="br-pn">${i > 0 ? `<button class="btn o" data-ch="${BRCH[i - 1][0]}">${IC("back", 16)} ${BRCH[i - 1][1]}</button>` : "<span></span>"}${i < BRCH.length - 1 ? `<button class="btn" data-ch="${BRCH[i + 1][0]}">${BRCH[i + 1][1]} ${IC("next", 16)}</button>` : ""}</div>`;
   const head = `<div class="br-hd"><div><span class="eyebrow">สรุปพฤติการณ์และพยานหลักฐานทางการเงิน · บทที่ ${i + 1}/${BRCH.length}</span><h1>${IC(ch[2], 24)} ${ch[1]}</h1></div>
-    <div class="br-act"><button class="chip" data-act="present">${IC("play", 14)} นำเสนอ</button><button class="chip" data-act="print">${IC("print", 14)} พิมพ์</button></div></div>`;
+    <div class="br-act">${ibx("play", "นำเสนอ (เต็มจอ)", 'data-act="present"')}${ibx("print", "พิมพ์", 'data-act="print"')}</div></div>`;
   $("#main").innerHTML = nav + head + `<div class="br-body">${(BRF[ch[0]] || (() => ""))(N_)}</div>` + pn;
   (BRP[ch[0]] || (() => { }))(N_);
   wireGo();
@@ -438,7 +447,7 @@ const RCST = { "เสนอ": "#E0A800", "กำลังดำเนินก�
 function pRecs() {
   const L = (C.recs || []), sts = Object.keys(RCST), cnt = (s) => L.filter((r) => (r.status || "เสนอ") === s).length, m = $("#main");
   m.innerHTML = `<div class="br-hd"><div><span class="eyebrow">สำหรับเสนอคณะทำงาน / ผู้บังคับบัญชา</span><h1>${IC("bulb", 24)} ข้อเสนอแนะการดำเนินการ</h1></div>
-    <div class="br-act">${addBtn("recs")}<button class="chip" data-act="copyrecs">${IC("copy", 14)} คัดลอกเป็นข้อความ</button><button class="chip" data-act="print">${IC("print", 14)} พิมพ์</button></div></div>
+    <div class="br-act">${addBtn("recs")}${ibx("copy", "คัดลอกเป็นข้อความ", 'data-act="copyrecs"')}${ibx("print", "พิมพ์", 'data-act="print"')}</div></div>
   <div class="acards"><button class="acard tot" data-rst=""><span class="aic">${IC("bulb", 24)}</span><span class="acv">${L.length}</span><span class="acl">ข้อเสนอทั้งหมด</span><span class="acs">${[...new Set(L.map((r) => r.extra2 || "อื่น ๆ"))].length} หมวด</span>
       <span class="abar dfbar">${sts.map((s) => `<i style="width:${L.length ? (cnt(s) / L.length * 100).toFixed(1) : 0}%;background:${RCST[s]}"></i>`).join("")}</span></button>
     ${sts.map((s) => `<button class="acard" data-rst="${s}" style="--c:${RCST[s]}"><span class="aic">${IC({ "เสนอ": "bulb", "กำลังดำเนินการ": "clock", "เสร็จแล้ว": "check" }[s], 24)}</span><span class="acv">${cnt(s)}</span><span class="acl">${s}</span><span class="acs">${L.length ? Math.round(cnt(s) / L.length * 100) : 0}% ของข้อเสนอ</span><span class="abar"><i style="width:${L.length ? (cnt(s) / L.length * 100).toFixed(1) : 0}%"></i></span></button>`).join("")}</div>
@@ -496,14 +505,13 @@ function xtMount(host, cfg) {
   const cnt = (i, v) => cfg.rows.filter((r) => FA[i][2](r) === v).length;
   host.innerHTML = `<div class="card fcard" data-xf="1">
     <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" data-xq="1" value="${esc(S.q)}" placeholder="${esc(cfg.ph || "ค้นหา")}"></label></div>
-    <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="pill x" data-xclr="1" hidden>✕ ล้างตัวกรอง</button><span class="muted fsum" data-xsum="1"></span></div>
+    <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="ibx" data-xclr="1" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button><span class="muted fsum" data-xsum="1"></span></div>
     ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip" data-xk="${k}" data-xv="${esc(v)}">${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
-  <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small></h2>
-  <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? `<button class="chip" data-xx="xl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button>` : ""}<button class="chip" data-xx="sr">↺ ลำดับเดิม</button><button class="chip" data-xx="cf">✕ ล้างช่องกรองคอลัมน์</button>
-    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง · ไอคอน ${CF_IC} เพื่อกรอง</small></div>
+  <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small> ${infoI(cfg.note)}</h2>
+  <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? ibx("xls", "ส่งออก Excel (ทุกแถวตามตัวกรอง)", 'data-xx="xl"') : ""}${ibx("reset", "กลับลำดับเดิม", 'data-xx="sr"')}${ibx("fx", "ล้างช่องกรองคอลัมน์", 'data-xx="cf"')}</div>
   <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${C_.map(([, , t], c) => (t === "x" || t === "n" ? "<th></th>" : `<th><input data-xcf="${c}" value="${esc(S.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : t === "d" ? "2569 / 2026-11" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
-  <div data-xmore="1" style="text-align:center;margin:8px 0"></div>${cfg.note ? `<p class="muted" style="font-size:.82rem">${cfg.note}</p>` : ""}`;
+  <div data-xmore="1" style="text-align:center;margin:8px 0"></div>`;
   cfrEnhance(host);
   const txt = (r, c) => { const v = C_[c][1](r); return C_[c][2] === "d" && v ? `${v} ${dTh(v)} ${+String(v).slice(0, 4) + 543}` : String(v ?? ""); };
   let R = [];
@@ -518,7 +526,7 @@ function xtMount(host, cfg) {
     tb.innerHTML = R.slice(0, S.lim).map((r, i) => { const op = cfg.detail && S.open.has(cfg.key ? cfg.key(r) : i);
       return `<tr data-xi="${i}" ${cfg.rowAttr ? cfg.rowAttr(r) : ""}${op ? ' data-op="1"' : ""}>${C_.map(([, g, t, h], c) => `<td${t === "a" || t === "n" ? ' class="n"' : ""}>${c === 0 && cfg.detail ? `<span class="xcar">${op ? "▾" : "▸"}</span> ` : ""}${h ? h(r, i) : t === "n" ? i + 1 : t === "d" ? (g(r) ? dTh(g(r)) : "") : t === "a" ? (g(r) ? fmt0(g(r)) : "–") : esc(g(r) ?? "")}</td>`).join("")}</tr>`
         + (op ? `<tr class="xdet"><td colspan="${C_.length}">${cfg.detail(r)}</td></tr>` : ""); }).join("") || `<tr><td colspan="${C_.length}" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
-    host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more">แสดงเพิ่มอีก ${fmt0(Math.min(cfg.lims ? 100 : 500, R.length - S.lim))} แถว</button> <button class="chip" data-xx="all">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
+    host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more" title="แสดงเพิ่ม">${IC("more", 14)} ${fmt0(Math.min(cfg.lims ? 100 : 500, R.length - S.lim))}</button> <button class="chip" data-xx="all" title="แสดงทั้งหมด">ทั้งหมด ${fmt0(R.length)}</button>` : "";
     const sm = cfg.sum ? cfg.sum(R) : "";
     host.querySelector("[data-xsum]").textContent = `${fmt0(R.length)} / ${fmt0(cfg.rows.length)} รายการ${sm ? " · " + sm : ""}`;
     host.querySelector("[data-xcnt]").textContent = `${fmt0(R.length)} รายการ${sm ? " · " + sm : ""}${R.length > S.lim ? ` · แสดง ${fmt0(S.lim)} แถวแรก` : ""}`;
@@ -570,8 +578,8 @@ function cfrEnhance(root) {
       th.classList.add("hasf");
       const b = document.createElement("button"); b.className = "cfb"; b.type = "button"; b.title = "กรองคอลัมน์นี้"; b.innerHTML = CF_IC;
       const pop = document.createElement("div"); pop.className = "cfp"; pop.appendChild(inp);
-      const hint = document.createElement("small"); hint.textContent = inp.placeholder && /≥|ช่วง/.test(inp.placeholder) ? ">100000 · 1000-5000 · , = หรือ · ! = ไม่เอา" : ", = หรือ · ! = ไม่เอา"; pop.appendChild(hint);
-      inp.placeholder = "พิมพ์เพื่อกรอง…";
+      const hint = document.createElement("small"); hint.textContent = inp.placeholder && /≥|ช่วง/.test(inp.placeholder) ? ">100000 · 1000-5000" : ", หรือ · ! ไม่เอา"; pop.appendChild(hint);
+      inp.placeholder = "กรอง…";
       th.appendChild(b); th.appendChild(pop);
       b.addEventListener("click", (e) => { e.stopPropagation(); const op = !th.classList.contains("cfo"); document.querySelectorAll("th.cfo").forEach((x) => x.classList.remove("cfo")); th.classList.toggle("cfo", op); if (op) setTimeout(() => inp.focus(), 0); });
       pop.addEventListener("click", (e) => e.stopPropagation());
@@ -584,3 +592,17 @@ function cfrEnhance(root) {
 }
 function cfrSync() { document.querySelectorAll("th.hasf").forEach((th) => { const i = th.querySelector(".cfp input"); if (i) th.classList.toggle("fon", !!i.value.trim()); }); }
 document.addEventListener("click", (e) => { if (!e.target.closest("th.cfo")) document.querySelectorAll("th.cfo").forEach((x) => x.classList.remove("cfo")); setTimeout(cfrSync, 0); });
+
+/* ---------- ปุ่มไอคอนล้วน + ⓘ คำอธิบาย (ผู้ใช้สั่ง 19 พ.ย. 69 "คลีน ตัวอักษรน้อยที่สุดทุกหน้า แต่ฟังก์ชันครบ") ----------
+   ibx(icon, title, attrs) = ปุ่มไอคอน มีคำอธิบายเมื่อชี้ (title) ; infoI(text) = ปุ่ม ⓘ กดแล้วแสดงคำอธิบาย/หมายเหตุ (แทนย่อหน้าคำอธิบายในหน้า) */
+const ibx = (ic, t, attrs) => `<button class="ibx" type="button" title="${esc(t)}" aria-label="${esc(t)}" ${attrs || ""}>${IC(ic, 16)}</button>`;
+const infoI = (t) => (t ? `<button class="ibx sm info" type="button" data-info="${esc(t)}" title="คำอธิบาย" aria-label="คำอธิบาย">${IC("info", 15)}</button>` : "");
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-info]"), p = document.getElementById("ipop");
+  if (!b) { if (p && !e.target.closest("#ipop")) p.remove(); return; }
+  e.stopPropagation(); e.preventDefault();
+  if (p) { const same = p._b === b; p.remove(); if (same) return; }
+  const d = document.createElement("div"); d.id = "ipop"; d._b = b; d.textContent = b.dataset.info; document.body.appendChild(d);
+  const r = b.getBoundingClientRect(), w = Math.min(360, innerWidth - 24); d.style.width = w + "px";
+  d.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left + r.width / 2 - w / 2)) + "px"; d.style.top = (r.bottom + 8 + scrollY) + "px";
+}, true);

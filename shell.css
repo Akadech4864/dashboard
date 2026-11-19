@@ -469,3 +469,18 @@ th .cfp input{width:100%;box-sizing:border-box;border:1px solid var(--line);bord
 th .cfp input:focus{outline:2px solid #FFD403;border-color:transparent}
 th .cfp small{font-size:.72rem;color:var(--mut);white-space:nowrap}
 th.n .cfp,th:last-child .cfp{left:auto;right:0}
+
+/* ---------- ปุ่มไอคอนล้วน + ⓘ + ปุ่มย้อนกลับลอย (19 พ.ย. 69) ---------- */
+.ibx{display:inline-grid;place-items:center;width:32px;height:32px;padding:0;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);cursor:pointer;flex:none;vertical-align:middle;transition:background .15s,border-color .15s}
+.ibx:hover{border-color:var(--acc);color:var(--acc)}
+.ibx[hidden]{display:none}
+.ibx.sm{width:24px;height:24px;border-radius:999px;border-color:transparent;background:transparent;color:var(--mut)}
+.ibx.sm:hover{background:var(--soft);color:var(--acc)}
+h2 .ibx.sm{margin-left:2px}
+.ibxs{display:inline-flex;gap:6px;margin-left:6px;vertical-align:middle}
+#ipop{position:absolute;z-index:120;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,38,77,.25);padding:10px 12px;font-size:.84rem;line-height:1.55;white-space:pre-line}
+.fback{position:fixed;left:calc(var(--sidew,0px) + 18px);bottom:22px;z-index:60;display:inline-flex;align-items:center;gap:4px;height:44px;min-width:44px;padding:0 12px;border:0;border-radius:999px;background:#00264D;color:#FFD403;box-shadow:0 6px 18px rgba(0,38,77,.35);cursor:pointer}
+.fback[hidden]{display:none}
+.fback span{font-weight:700;font-size:.85rem}
+@media (min-width:1100px){.fback{left:266px}}
+@media (max-width:1099px){.fback{bottom:84px}}

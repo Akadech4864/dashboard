@@ -203,14 +203,14 @@ function enhance(root) {
   for (const tbl of root.querySelectorAll("table")) {
     if (tbl.dataset.enh) continue; tbl.dataset.enh = "1";
     const hr = [...tbl.rows].find((tr) => tr.querySelector("th"));
-    const custom = hr && hr.querySelector("[data-ts],[data-cs]");
-    if (hr && !custom) [...hr.cells].forEach((th, c) => { th.classList.add("srt"); th.title = "กดเพื่อเรียง (กดซ้ำสลับ ▲▼ / ครั้งที่ 3 เอาออก ; กดหลายคอลัมน์ = เรียงหลายชั้น)";
+    const custom = hr && hr.querySelector("[data-ts],[data-cs],[data-xs]");
+    if (hr && !custom) [...hr.cells].forEach((th, c) => { th.classList.add("srt"); th.title = "เรียง";
       th.addEventListener("click", (e) => { e.stopPropagation(); const k = tbl._sort = tbl._sort || [], n = k.findIndex((x) => x[0] === c);
         if (n < 0) k.push([c, 1]); else if (k[n][1] === 1) k[n][1] = -1; else k.splice(n, 1); sortTable(tbl); }); });
     if (tbl.closest("#tTx,[data-noxbar]")) continue;                                 // ตารางรายการมีปุ่มส่งออกทุกแถวของตัวเอง
     const host = tbl.closest(".tblwrap") || tbl;
     const bar = document.createElement("div"); bar.className = "xbar";
-    bar.innerHTML = `${hr && !custom ? '<button class="chip" data-xr="1" title="กลับลำดับเดิม">↺ ลำดับเดิม</button>' : ""}<button class="chip" data-xl="1">${IC("doc", 13)} Excel</button>`;
+    bar.innerHTML = `${hr && !custom ? `<button class="ibx" data-xr="1" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 15)}</button>` : ""}<button class="ibx" data-xl="1" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 15)}</button>`;
     bar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; e.stopPropagation();
       if (b.dataset.xl) exportTable(tbl, titleNear(host)); else { tbl._sort = []; sortTable(tbl); } };
     while (host.previousElementSibling && host.previousElementSibling.classList.contains("xbar")) host.previousElementSibling.remove();   // ตารางที่ถูกวาดใหม่ในกล่องเดิม: เอาแถบปุ่มเก่าออก (กันปุ่ม Excel ซ้อนเป็นแถวยาว ; ผู้ใช้แจ้ง 19 พ.ย. 69)
@@ -322,7 +322,7 @@ function pCase() {
 }
 const fSel = (attr, cur, allLab, opts) => `<select class="pill fsel ${cur !== "" && cur != null ? "on" : ""}" ${attr}><option value="">${esc(allLab)}</option>${opts.map(([v, l]) => `<option value="${esc(v)}"${String(cur) === String(v) ? " selected" : ""}>${esc(l)}</option>`).join("")}</select>`;
 const fSearch = (id, val, ph) => `<label class="sbox">${IC("search", 16)}<input type="search" id="${id}" value="${esc(val)}" placeholder="${ph}"></label>`;
-const fClr = (attr, on) => (on ? `<button class="pill x" ${attr}>✕ ล้างตัวกรอง</button>` : "");
+const fClr = (attr, on) => (on ? `<button class="ibx" title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง" ${attr}>${IC("fx", 16)}</button>` : "");
 function pCharges(el) {
   // ผู้ต้องหาและข้อหา: หมวดข้อหา (กดกรอง) + ตารางใครถูกแจ้งข้อหาใด + การ์ดรายบุคคล (ผู้สั่งงาน 17 พ.ย. 69)
   const CATS = [["fraud", "ฉ้อโกงประชาชน", /ฉ้อโกง/, "scale", "#B3261E"], ["com", "พ.ร.บ.คอมพิวเตอร์", /คอมพิวเตอร์|ข้อมูล(อัน)?เป็นเท็จ/, "doc", "#1565C0"], ["aml", "ฟอกเงิน", /ฟอกเงิน/, "coin", "#6A1B9A"]];
@@ -349,13 +349,13 @@ function pCharges(el) {
   const tick = (on, col) => (on ? `<span class="ck" style="background:${col}">${IC("check", 15)}</span>` : `<span class="ck no">–</span>`);
   const stat = (p) => { const st = p.s.status || ""; const sh = p.sh; return `${st ? badge(st) : ""}${sh ? ` <span class="badge y">${IC("cal", 12)} ${esc(sh.issue.replace(/\s+/g, " ").replace(/^แจ้งข้อกล่าวหา\s*/, "นัดแจ้งข้อกล่าวหา "))} ${esc(sh.date)}${sh.time ? " " + esc(sh.time) : ""}${sh.st ? " · " + esc(sh.st) : ""}</span>` : ""}`; };
   const m = el || $("#main");
-  m.innerHTML = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย · กดการ์ดเพื่อกรองตาราง</small> ${addBtn("charges")}</h2>
+  m.innerHTML = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย</small> ${addBtn("charges")}</h2>
   <div class="tiles"><button class="tile ${!sel ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ผู้ต้องหาทั้งหมด</span></button>${COMBO.map(tile).join("")}</div>
   <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย${sel ? " · " + esc(cLab(sel)) : ""}</small></h2>
   <div class="tblwrap"><table class="cmx"><tr><th class="pt">รูป</th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
     ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="pt">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
   </table></div>
-  <p class="muted" style="font-size:.82rem">ข้อหาตามเนื้อหาที่บันทึกในเว็บ (ตามข่าว / มติ) ; วันนัดแจ้งข้อกล่าวหาจากแท็บ "คุมหมายเรียกผู้ต้องหา" ของชีตชุดทำคดี — กดแถวเพื่อดูข้อหารายข้อ</p>`;
+`;
   m.onclick = (e) => {
     const b = e.target.closest("[data-cf],[data-c],.back"); if (!b) return;
     if (b.dataset.cf != null) { CHF = b.dataset.cf === sel ? "" : b.dataset.cf; render(); return; }
@@ -611,17 +611,15 @@ function pAsset() {
    <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" id="asQ" value="${esc(ASF.q)}" placeholder="ค้นหาทรัพย์สิน / ที่ตั้ง / ยี่ห้อ / หมายเหตุ"></label></div>
    <div class="fline">${["cat", "st", "own"].map((k) => `<button class="pill" data-asd="${k}"><span></span></button>`).join("")}
     <input type="number" id="asMin" class="pin" min="0" step="10000" value="${esc(ASF.min)}" placeholder="มูลค่าขั้นต่ำ (บาท)">
-    <button class="pill x" id="asClr" hidden>✕ ล้างตัวกรอง</button><span id="asSum" class="muted fsum"></span></div>
+    <button class="ibx" id="asClr" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button><span id="asSum" class="muted fsum"></span></div>
    <div class="ddp" data-asp="cat" hidden><div class="frow">${ACAT.filter((c) => AR.some((r) => r.cat === c[0])).map(([k, l, ic, col]) => `<button class="chip" data-asc="${k}"><span class="dot" style="background:${col}"></span>${IC(ic, 14)} ${l} <small class="muted">${cnt((r) => r.cat === k)}</small></button>`).join("")}</div></div>
    <div class="ddp" data-asp="st" hidden><div class="frow">${Object.entries(AST).filter(([k]) => AR.some((r) => r.st === k)).map(([k, v]) => `<button class="chip" data-ass="${k}"><span class="dot" style="background:${v[2]}"></span>${v[0]} <small class="muted">${cnt((r) => r.st === k)}</small></button>`).join("")}</div></div>
    <div class="ddp" data-asp="own" hidden><div class="frow">${owners.map((o) => `<button class="chip" data-aso="${esc(o)}">${esc(o)} <small class="muted">${cnt((r) => r.own === o)}</small></button>`).join("")}</div></div>
   </div>
-  <h2>${IC("list")} รายการทรัพย์สิน <small id="asCnt"></small></h2>
-  <div class="frow" style="margin:-4px 0 8px"><button class="chip" id="asXl">${IC("doc", 13)} Excel (ตามตัวกรอง)</button><button class="chip" id="asSr">↺ ลำดับเดิม</button><button class="chip" id="asCfx">✕ ล้างช่องกรองคอลัมน์</button>
-    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง · ไอคอน ${CF_IC} เพื่อกรอง</small></div>
+  <h2>${IC("list")} รายการทรัพย์สิน <small id="asCnt"></small> ${infoI('สถานะ: "ยึดแล้ว" = ของกลางจากการตรวจค้น 11 พ.ย. 69 (มูลค่า = ค่ากลางราคาประเมินมือสอง) · "อายัดแล้ว" = เงินในบัญชีตามแท็บข้อมูลอายัด · "อยู่ระหว่างดำเนินการ" = คอลัมน์การดำเนินการของแท็บทรัพย์สินที่ดิน · ที่เหลือชีตยังไม่ระบุการยึด/อายัด ; เงินในบัญชีมูลนิธิแสดงในรายการแต่ไม่นับเป็นทรัพย์สินส่วนตัว ; ข้อมูลจากชีตชุดทำคดี (อ่านอย่างเดียว)')}</h2>
+  <div class="frow" style="margin:-4px 0 8px"><button class="ibx" id="asXl" title="ส่งออก Excel (ตามตัวกรอง)" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="asSr" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="asCfx" title="ล้างช่องกรองคอลัมน์" aria-label="ล้างช่องกรองคอลัมน์">${IC("fx", 16)}</button></div>
   <div class="tblwrap tall" data-noxbar="1"><table id="asT" class="xt"><thead><tr>${ACOLS.map(([l, , t], c) => `<th data-cs="${c}" class="srt${t !== "t" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${ACOLS.map(([, , t], c) => (c === 0 ? "<th></th>" : `<th><input data-acf="${c}" value="${esc(ASF.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
-  <p class="muted" style="font-size:.82rem">สถานะ: "ยึดแล้ว" = ของกลางจากการตรวจค้น 11 พ.ย. 69 (มูลค่า = ค่ากลางราคาประเมินมือสอง) · "อายัดแล้ว" = เงินในบัญชีตามแท็บข้อมูลอายัด · "อยู่ระหว่างดำเนินการ" = คอลัมน์การดำเนินการของแท็บทรัพย์สินที่ดิน · ที่เหลือชีตยังไม่ระบุการยึด/อายัด ; เงินในบัญชีมูลนิธิแสดงในรายการแต่ไม่นับเป็นทรัพย์สินส่วนตัว ; ข้อมูลจากชีตชุดทำคดี (อ่านอย่างเดียว)</p>
   ${DB.cc ? `<p style="margin-top:10px"><button class="chip" data-gocc="1">${IC("card", 14)} ดูการใช้บัตรเครดิต (เมนูบัตรเครดิต) ${M(DB.cc.total)}</button></p>` : ""}`;
   if (view === "3d") a3dBuild();
   cfrEnhance(m); asSync(); asUpd();
@@ -712,7 +710,7 @@ function a3dBuild() {
   });
   $("#asTop").innerHTML = `<div class="a3d" id="a3d"><div class="a3d-tools"><button class="ib" data-a3="l" title="หมุนซ้าย">⟲</button><button class="ib" data-a3="r" title="หมุนขวา">⟳</button><button class="ib" data-a3="u" title="มุมสูงขึ้น">▲</button><button class="ib" data-a3="d" title="มุมต่ำลง">▼</button><button class="ib" data-a3="0" title="มุมเริ่มต้น">⌂</button></div>
     <div class="a3d-stage"><div class="a3d-world" id="a3w" style="width:${W}px;height:${H}px;margin-left:${-W / 2}px;margin-top:${-H / 2}px"><div class="g3" style="width:${W}px;height:${H}px"></div>${html}${labels}</div></div>
-    <div class="a3d-leg">${Object.entries(AST).filter(([s]) => s !== "none" && AR.some((r) => r.st === s)).map(([s, d]) => `<span><i style="background:${d[2]}"></i>${d[0]}</span>`).join("")}<span><i style="background:#9FB3C8"></i>บัญชีมูลนิธิ (ไม่นับเป็นทรัพย์ส่วนตัว)</span><span class="muted">ความสูงแท่ง = มูลค่า (สเกล log) · ลาก/ปัดเพื่อหมุน · กดโซนหรือแท่งเพื่อกรอง</span></div>
+    <div class="a3d-leg">${Object.entries(AST).filter(([s]) => s !== "none" && AR.some((r) => r.st === s)).map(([s, d]) => `<span><i style="background:${d[2]}"></i>${d[0]}</span>`).join("")}<span><i style="background:#9FB3C8"></i>บัญชีมูลนิธิ (ไม่นับเป็นทรัพย์ส่วนตัว)</span>${infoI("ขนาดรูป = มูลค่า (สเกล log) · ลาก/ปัดเพื่อหมุน · กดโซนเพื่อกรอง · กดรูปเพื่อดูรายละเอียด")}</div>
     <div class="a3d-pop" id="a3p" hidden></div></div>`;
   const box = $("#a3d"), stage = box.querySelector(".a3d-stage"), world = $("#a3w");
   world._wh = [W, H];
@@ -840,7 +838,7 @@ function ccTxShell() {
    <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" id="ccQ" value="${esc(CCF.q)}" placeholder="ค้นหาร้านค้า / สินค้า / เมือง / ประเภท"></label></div>
    <div class="fline">${["card", "type", "nat", "per", "ctry"].map((k) => `<button class="pill" data-ccd="${k}"><span></span></button>`).join("")}
     <input type="number" id="ccMin" class="pin" min="0" step="1000" value="${esc(CCF.min)}" placeholder="ยอดขั้นต่ำ (บาท)">
-    <button class="pill x" id="ccClr" hidden>✕ ล้างตัวกรอง</button><span id="ccSum" class="muted fsum"></span></div>
+    <button class="ibx" id="ccClr" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button><span id="ccSum" class="muted fsum"></span></div>
    <div class="ddp" data-ccp="card" hidden><div class="frow">${C.cards.map((c) => `<button class="chip" data-ccc="${c.card}"><span class="dot" style="background:${CARDC[c.card] || "#5B6B7F"}"></span>${esc(cinfo[c.card] ? cinfo[c.card].full : "x" + c.card)} <small class="muted">${esc(cinfo[c.card] ? cinfo[c.card].ctype || "" : "")} · ${cnt((r) => r[1] === c.card)}</small></button>`).join("")}</div></div>
    <div class="ddp" data-ccp="type" hidden><div class="frow"><button class="chip" data-cct="*">เลือกทั้งหมด / ล้าง</button>${types.map(([t, n]) => `<button class="chip" data-cct="${esc(t)}"><span class="dot" style="background:${NATC[n] || "#9E9E9E"}"></span>${esc(t)} <small class="muted">${cnt((r) => r[4] === t)}</small></button>`).join("")}</div></div>
    <div class="ddp" data-ccp="nat" hidden><div class="frow">${Object.entries(NATL).map(([k, l]) => `<button class="chip" data-ccn="${k}"><span class="dot" style="background:${NATC[k]}"></span>${l} <small class="muted">${cnt((r) => r[5] === k)}</small></button>`).join("")}</div>
@@ -851,16 +849,14 @@ function ccTxShell() {
    <div class="ddp" data-ccp="ctry" hidden><div class="frow">${ctry.map((c) => `<button class="chip" data-ccy="${esc(c)}">${esc(c)} <small class="muted">${cnt((r) => r[6] === c)}</small></button>`).join("")}</div></div>
   </div>
   <div class="grid g4 kp8" id="ccKpi" style="margin-top:12px"></div>
-  <div class="grid g2" style="margin-top:12px"><div class="card"><div class="lab" style="margin-top:0">ตามประเภท — กดแท่งเพื่อกรอง</div><div class="chartbox tall"><canvas id="cCcT2"></canvas></div></div>
-    <div class="card"><div class="lab" style="margin-top:0">รายเดือน แยกตามบัตร (ล้านบาท) — กดแท่งเพื่อดูเดือนนั้น</div><div class="chartbox tall"><canvas id="cCcM"></canvas></div></div></div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><div class="lab" style="margin-top:0">ตามประเภท</div><div class="chartbox tall"><canvas id="cCcT2"></canvas></div></div>
+    <div class="card"><div class="lab" style="margin-top:0">รายเดือน แยกตามบัตร (ล้านบาท)</div><div class="chartbox tall"><canvas id="cCcM"></canvas></div></div></div>
   <div id="ccMer"></div>
   <h2>${IC("list")} รายการ <small id="ccCnt"></small></h2>
-  <div class="frow" style="margin:-4px 0 8px"><button class="chip" id="ccXl">${IC("doc", 13)} Excel (ทุกแถวตามตัวกรอง)</button><button class="chip" id="ccSr" title="กลับไปเรียงตามวันที่ล่าสุด">↺ ลำดับเดิม</button><button class="chip" id="ccCfx">✕ ล้างช่องกรองคอลัมน์</button>
-    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง · ไอคอน ${CF_IC} เพื่อกรอง</small></div>
+  <div class="frow" style="margin:-4px 0 8px"><button class="ibx" id="ccXl" title="ส่งออก Excel (ทุกแถวตามตัวกรอง)" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="ccSr" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="ccCfx" title="ล้างช่องกรองคอลัมน์" aria-label="ล้างช่องกรองคอลัมน์">${IC("fx", 16)}</button></div>
   <div class="tblwrap tall" data-noxbar="1"><table id="ccT"><thead><tr>${CCOLS.map(([l, , k], c) => `<th data-cs="${c}" class="srt${k === "a" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${CCOLS.map(([, , k], c) => `<th><input data-cf="${c}" value="${esc(CCF.cf[c] || "")}" placeholder="${k === "a" ? "≥ / ช่วง" : k === "d" ? "2567 / 2024-05" : "กรอง…"}"></th>`).join("")}</tr></thead><tbody></tbody></table></div>
-  <div id="ccMore" style="text-align:center;margin:8px 0"></div>
-  <p class="muted" style="font-size:.82rem">${CCNOTE}</p>`;
+  <div id="ccMore" style="text-align:center;margin:8px 0"></div>`;
 }
 function ccSync() {                                                     // ป้ายบนปุ่มตัวกรอง + สถานะชิป
   const m = $("#main"), F = CCF, setP = (k, txt, on) => { const b = $(`[data-ccd="${k}"]`, m); if (!b) return; b.querySelector("span").textContent = txt; b.classList.toggle("on", on); };
@@ -904,12 +900,12 @@ function ccUpd() {
       plugins: { legend: { labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } }, scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true } } } });
   // ร้านค้ารายใหญ่ตามตัวกรอง
   const MR = [...mer.entries()].sort((a, b) => b[1][0] - a[1][0]);
-  $("#ccMer").innerHTML = accd(`${IC("users", 16)} ร้านค้า / รายการ รวมตามชื่อ (ตามตัวกรอง) — กดแถวเพื่อค้นหาร้านนั้น`, `${fmt0(MR.length)} ราย`,
+  $("#ccMer").innerHTML = accd(`${IC("users", 16)} ร้านค้า / รายการ รวมตามชื่อ`, `${fmt0(MR.length)} ราย`,
     `<div class="tblwrap" data-noxbar="1"><table><tr><th>#</th><th>ร้านค้า / รายการ</th><th>ประเภท</th><th class="n">ครั้ง</th><th class="n">ยอด (บาท)</th></tr>${MR.slice(0, 50).map(([k, v], i) => `<tr class="click" data-ccq="${esc(k)}"><td>${i + 1}</td><td>${esc(k)}</td><td>${esc(v[2])}</td><td class="n">${fmt0(v[1])}</td><td class="n">${fmt(v[0])}</td></tr>`).join("")}</table></div>${MR.length > 50 ? `<p class="muted" style="font-size:.8rem">แสดง 50 อันดับแรก</p>` : ""}`);
   // ตาราง
   $("#ccCnt").textContent = `${fmt0(R.length)} รายการ · ${fmt(tot)} บาท${R.length > CCF.lim ? ` · แสดง ${fmt0(CCF.lim)} แถวแรก` : ""}`;
   $("#ccT tbody").innerHTML = R.slice(0, CCF.lim).map((r) => `<tr><td>${dTh(r[0])}</td><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${CARDC[r[1]] || "#5B6B7F"}"></span> x${esc(r[1])}</td><td>${esc(r[2])}</td><td><small>${esc(r[3])}</small></td><td>${esc(r[4])}</td><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${NATC[r[5]] || "#999"}"></span> ${esc(NATL[r[5]] || r[5])}</td><td>${esc(r[6])}</td><td class="n${r[7] < 0 ? " neg" : ""}">${fmt(r[7])}</td></tr>`).join("") || `<tr><td colspan="8" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
-  $("#ccMore").innerHTML = R.length > CCF.lim ? `<button class="chip" id="ccMoreB">แสดงเพิ่มอีก ${fmt0(Math.min(500, R.length - CCF.lim))} แถว</button> <button class="chip" id="ccAllB">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
+  $("#ccMore").innerHTML = R.length > CCF.lim ? `<button class="chip" id="ccMoreB" title="แสดงเพิ่ม">${IC("more", 14)} ${fmt0(Math.min(500, R.length - CCF.lim))}</button> <button class="chip" id="ccAllB" title="แสดงทั้งหมด">ทั้งหมด ${fmt0(R.length)}</button>` : "";
   CCR = R;
 }
 let CCR = [];
@@ -962,7 +958,7 @@ function ccPayView(C) {
   const CARDC = { "4615": "#1565C0", "4260": "#6A1B9A", "6834": "#00897B", "7787": "#F9A825" }, cinfo = Object.fromEntries((C.card_info || []).map((c) => [c.card, c]));
   const HOWL = ["", "เลขบัญชีบัตร", "ยอด + วันที่", "ถอนเงินสด → เคาน์เตอร์", "ไม่พบ"];
   const isAcc = sel && sel !== NONE && DB.accounts.some((a) => dg(a.acc) === dg(sel));
-  box.innerHTML = `<h2>${IC("flow")} ค่าบัตรจ่ายโดยบัญชีใด <small>${sel ? esc(lab(sel)) : "ทุกบัญชี"} · ${fmt0(rows.length)} ครั้ง · ${fmt(tot)} บาท — กดแถวบัญชีต้นทางในตารางด้านบนเพื่อดูเฉพาะบัญชี</small></h2>
+  box.innerHTML = `<h2>${IC("flow")} ค่าบัตรจ่ายโดยบัญชีใด <small>${sel ? esc(lab(sel)) : "ทุกบัญชี"} · ${fmt0(rows.length)} ครั้ง · ${fmt(tot)} บาท</small></h2>
   <div class="fline" style="margin-bottom:8px">${fSel('id="ccSrc"', sel, `ทุกบัญชีต้นทาง · ${fmt0(P.length)} ครั้ง`, srcs.map((k) => [k, `${lab(k)} · ${fmt0(P.filter((r) => key(r) === k).length)} ครั้ง`]))}
     ${isAcc ? `<button class="chip" data-ccg="${esc(sel)}">${IC("flow", 13)} ดูในหน้าวิเคราะห์</button>` : ""}</div>
   <div class="card flowcard"><div id="ccFl" class="flow"></div></div>
@@ -1019,8 +1015,8 @@ function ccBlock(C) {
   ${accd(`${IC("route", 16)} เดินทางต่างประเทศ`, `${C.trips.length} ทริป · ${M(trips)}`, `<div class="tblwrap"><table><tr><th>#</th><th>วันแรก</th><th>วันสุดท้าย</th><th>ประเทศ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th>รายการใหญ่สุด</th></tr>${C.trips.map((t) => `<tr><td>${t.no}</td><td>${dTh(t.start)}</td><td>${dTh(t.end)}</td><td>${esc(t.countries)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td><small>${t.top.slice(0, 2).map(([v, d]) => `${esc(d)} ${fmt0(v)}`).join("<br>")}</small></td></tr>`).join("")}</table></div>`)}
 
 
-  <p class="muted" style="font-size:.82rem">${CCNOTE}</p>`;
-  return { HEAD, SUM: SUM1 + SUM2, PAY };
+  `;
+  return { HEAD: HEAD.replace("</h2>", ` ${infoI(CCNOTE)}</h2>`), SUM: SUM1 + SUM2, PAY };
 }
 const CCNOTE = "จัดประเภทจากชื่อร้านค้าตาม statement บัตร (ไม่ใช่รายการสินค้าจริง) ต้องยืนยันด้วยใบเสร็จ ; รายงานฉบับเต็ม + Excel Pivot อยู่ในโฟลเดอร์ 4_รายงานนำเสนอ/8_บัตรเครดิต";
 function ccCharts(C) {
@@ -1066,7 +1062,7 @@ function pWork() {
   <div class="acards"><button class="acard tot" data-wst=""><span class="aic">${IC("check", 24)}</span><span class="acv">${pct}%</span><span class="acl">ความคืบหน้ารวมทุกงาน</span><span class="acs">เสร็จ ${fmt0(done)} / ${fmt0(R.length)} งาน</span>
       <span class="abar dfbar">${Object.entries(WST).map(([k, v]) => `<i style="width:${R.length ? (n(k) / R.length * 100).toFixed(1) : 0}%;background:${v[2]}"></i>`).join("")}</span></button>
     ${Object.entries(WST).filter(([k]) => n(k)).map(([k, v]) => `<button class="acard" data-wst="${k}" style="--c:${v[2]}"><span class="aic">${IC({ done: "check", doing: "clock", wait: "cal", todo: "warn", none: "list" }[k], 24)}</span><span class="acv">${fmt0(n(k))}</span><span class="acl">${v[0]}</span><span class="acs">${R.length ? Math.round(n(k) / R.length * 100) : 0}% ของงานทั้งหมด</span><span class="abar"><i style="width:${R.length ? (n(k) / R.length * 100).toFixed(1) : 0}%"></i></span></button>`).join("")}</div>
-  <div class="card wprog"><div class="lab" style="margin-top:0">ความคืบหน้ารายหมวดงาน — กดเพื่อกรอง</div>${types.map((t) => { const v = R.filter((r) => r.type === t), d = v.filter((r) => r.st === "done").length;
+  <div class="card wprog"><div class="lab" style="margin-top:0">ความคืบหน้ารายหมวดงาน</div>${types.map((t) => { const v = R.filter((r) => r.type === t), d = v.filter((r) => r.st === "done").length;
     return `<button class="wpr" data-wty="${esc(t)}"><span class="wpi">${IC(v[0].ic, 16)}</span><span class="wpt">${esc(t)}</span><span class="wpb"><i style="width:${v.length ? d / v.length * 100 : 0}%"></i></span><span class="wpn">${d}/${v.length}</span></button>`; }).join("")}</div>
   <div id="wkX"></div>`;
   const S = xtS("work");
@@ -1155,7 +1151,7 @@ function pAna() {
    <div class="fline">
     ${["per", "acc", "kind", "cpg", "cash"].map((k) => `<button class="pill" data-dd="${k}"><span></span></button>`).join("")}
     <input type="number" id="fMin" class="pin" min="0" step="1000" value="${F.min || ""}" placeholder="ยอดขั้นต่ำ (บาท)">
-    <button class="pill x" id="fClear" hidden>✕ ล้างตัวกรอง</button>
+    <button class="ibx" id="fClear" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button>
     <span id="fSum" class="muted fsum"></span>
    </div>
    <div class="ddp" data-ddp="per" hidden><div class="frow"><input type="date" id="fFrom" value="${F.from}"> – <input type="date" id="fTo" value="${F.to}">
@@ -1167,29 +1163,28 @@ function pAna() {
    <div class="ddp" data-ddp="cpg" hidden><div class="frow">${usedCpg.map((g) => `<button class="chip" data-c="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div></div>
    <div class="ddp" data-ddp="cash" hidden><div class="frow">${CPM_BTNS}</div>
      <div class="frow" id="pqRow" hidden><label>ประเภทคู่</label>${PQ_BTNS}</div>
-     <p class="muted" style="font-size:.8rem;margin:0">ยอดโอนตรง = ตาม statement (ถอนเงินสดยังเป็นถอนเงินสด) ; รวมคู่ถอน-ฝาก = รายการถอนเงินสดที่จับคู่กับการฝากได้ แสดงเป็นเงินเข้าบัญชีผู้ฝาก</p></div>
+     ${infoI("ยอดโอนตรง = ตาม statement (ถอนเงินสดยังเป็นถอนเงินสด) ; รวมคู่ถอน-ฝาก = รายการถอนเงินสดที่จับคู่กับการฝากได้ แสดงเป็นเงินเข้าบัญชีผู้ฝาก")}</div>
   </div>
   <div id="dnRes" class="dnres"></div>
-  <details class="fnote"><summary>วิธีอ่านยอด / วิธีใช้ชาร์ต</summary><p>ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิแสดงเป็นยอดรวมรายเดือน</p>
-   <p>ชาร์ตเส้นเงิน: กล่องที่มี ▶ (คอลัมน์เงินออก/ทอดถัดไป) = บัญชีที่มี statement — กดเพื่อคลี่ว่าเงินโอนต่อไปที่ใด กดต่อไปได้เรื่อยๆ ; กล่องอื่นกดเพื่อกรอง ; "ทอดถัดไป: ไล่ตามเวลา" = เงินที่เข้ากล่องที่กด ณ วัน-เวลาใด จะจับกับรายการเงินออกของบัญชีนั้นที่เกิดตั้งแต่เวลานั้นเป็นต้นไป เรียงตามเวลาจนครบยอดที่รับ (ส่วนที่ไม่พบรายการออกแสดงเป็นกล่อง "ยังไม่พบรายการโอนออกต่อ") เป็นการไล่ตามลำดับเวลา ไม่ใช่การระบุตัวเงิน ; "ทุกรายการในช่วง" = รวมเงินออกทั้งหมดของบัญชีนั้นในช่วงเวลาที่กรอง ; ค้นหาผู้บริจาคแล้วชาร์ตจะไล่เงินของผู้บริจาครายนั้นตามเวลา</p></details>
-  <h2>${IC("flow")} เส้นเงินตามตัวกรอง <small>เงินเข้า → บัญชี → เงินออก · กดกล่องเพื่อกรอง · กล่อง ▶ กดเพื่อคลี่ทอดถัดไป</small></h2>
-  <div class="fltools"><button class="chip" id="flBack" hidden title="กลับไปตัวกรองก่อนกดชาร์ต">← ย้อนกลับ</button>
+  <h2>${IC("flow")} เส้นเงินตามตัวกรอง ${infoI("ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิเป็นยอดรวมรายเดือน · กดกล่องเพื่อกรอง · กล่องที่มี ▶ = บัญชีที่มี statement กดเพื่อคลี่ทอดถัดไป (กดได้หลายกล่อง กดซ้ำเพื่อเอาออก) · ไล่แบบเข้าก่อนออกก่อน = เงินที่เข้า ณ เวลาใด จับกับรายการเงินออกถัดไปตามเวลาจนครบยอด · ตามสัดส่วน = โอนออกตามสัดส่วนยอดที่ไล่มาต่อยอดคงเหลือ (ตรงกับรายงาน) · เป็นการไล่ตามลำดับเวลา (ข้อสันนิษฐาน) ไม่ใช่การระบุตัวเงิน")}</h2>
+  <button class="fback" id="flBack" hidden title="ย้อนกลับ" aria-label="ย้อนกลับ">${IC("back", 20)}<span></span></button>
+  <div class="fltools">
     <select id="flM" title="มุมมอง"><option value="g">แสดงเป็นกลุ่ม</option><option value="d">แสดงรายบัญชี</option></select>
     <select id="flN" title="จำนวนกล่องต่อคอลัมน์">${[8, 14, 24, 32].map((n) => `<option value="${n}">${n} กล่อง</option>`).join("")}</select>
     <select id="flC" title="จำนวนคอลัมน์ที่แสดงพร้อมกัน">${[3, 4, 5, 6, 8].map((n) => `<option value="${n}">${n} คอลัมน์</option>`).join("")}</select>
     <select id="flT" title="วิธีไล่เงินเมื่อกดกล่อง ▶ คลี่ทอดถัดไป (กดได้หลายกล่อง)"><option value="fifo">ไล่แบบ เข้าก่อนออกก่อน</option><option value="pro">ไล่แบบ ตามสัดส่วน (ตรงกับรายงาน)</option><option value="all">ทุกรายการในช่วง (ไม่ไล่)</option></select>
-    <button class="chip" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด">✕ ยุบทอด</button></div>
+    <button class="ibx" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด" aria-label="ยุบทอด">${IC("shrink", 16)}</button></div>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <div id="tlBox"></div>
   <div id="tCp"></div>
-  <h2>${IC("list")} รายการ <small id="txLab"></small> <button class="chip" id="txReset" title="กลับไปเรียงตามวันที่-เวลา">↺ รีเซ็ตการเรียง</button><button class="chip" id="txXlsx">${IC("doc", 14)} ส่งออก Excel</button><button class="chip" id="fCsv">CSV</button></h2>
+  <h2 id="txH">${IC("list")} รายการ <small id="txLab"></small> <span class="ibxs"><button class="ibx" id="txReset" title="กลับลำดับเดิม (วันที่-เวลา)" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="txXlsx" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="fCsv" title="ส่งออก CSV" aria-label="ส่งออก CSV">${IC("csv", 16)}</button></span></h2>
   <div class="tblwrap tbl1" id="tTx"></div>
-  <p style="text-align:center"><button class="btn o" id="more">แสดงเพิ่ม</button></p>
-  <h2>ตามเวลา <small id="granLab"></small> <button class="chip" id="gBtn">สลับ รายเดือน / รายปี</button></h2>
+  <p style="text-align:center"><button class="chip" id="more" title="แสดงเพิ่ม" aria-label="แสดงเพิ่ม">${IC("more", 16)}</button></p>
+  <h2>ตามเวลา <small id="granLab"></small> <button class="ibx" id="gBtn" title="สลับ รายเดือน / รายปี" aria-label="สลับ รายเดือน / รายปี">${IC("swap", 16)}</button></h2>
   <div class="card"><div class="chartbox"><canvas id="cTime"></canvas></div></div>
   <div class="grid g2" style="margin-top:12px">
-    <div><h2>ตามกลุ่มคู่โอน <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cCpg"></canvas></div></div></div>
-    <div><h2>ตามบัญชี <small>กดแท่งเพื่อกรอง</small></h2><div class="card"><div class="chartbox tall"><canvas id="cAcc"></canvas></div></div></div>
+    <div><h2>ตามกลุ่มคู่โอน</h2><div class="card"><div class="chartbox tall"><canvas id="cCpg"></canvas></div></div></div>
+    <div><h2>ตามบัญชี</h2><div class="card"><div class="chartbox tall"><canvas id="cAcc"></canvas></div></div></div>
   </div>
   `;
   const m = $("#main");
@@ -1215,7 +1210,7 @@ function pAna() {
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
     else if (b.dataset.fc) F.flc = +b.dataset.fc;
     else if (b.id === "flClr") { FHIST.push(fSnap()); F.chain = []; }
-    else if (b.id === "flBack") { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; }
+    else if (b.id === "flBack" || b.closest("#flBack")) { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; const y = F._y; delete F._y; if (y != null) { upd(); setTimeout(() => scrollTo({ top: y }), 30); return; } }
     else if (b.id === "dnGo") return donorSearch($("#dnQ").value);
     else if (b.dataset.dn != null) return donorDetail(+b.dataset.dn);
     else if (b.dataset.dnb != null) return donorSearch($("#dnQ").value);
@@ -1291,7 +1286,7 @@ function pAna() {
     $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
     $$("[data-fc]", m).forEach((b) => b.classList.toggle("on", F.flc === +b.dataset.fc));
     { const c_ = $("#flClr"); if (c_) c_.hidden = !F.chain.length; }
-    { const fb_ = $("#flBack"); if (fb_) { fb_.hidden = !FHIST.length; fb_.textContent = FHIST.length ? `← ย้อนกลับ (${FHIST.length})` : "← ย้อนกลับ"; } }
+    { const fb_ = $("#flBack"); if (fb_) { fb_.hidden = !FHIST.length; fb_.querySelector("span").textContent = FHIST.length > 1 ? FHIST.length : ""; } }
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     tlRender();
     // ตาราง
@@ -1303,14 +1298,10 @@ function pAna() {
         ["กลุ่ม", (r) => r.gl, "t", (r) => `<span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[r.g][2]}"></span> ${esc(r.gl)}`],
         ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? fmt(r.i) : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? fmt(r.o) : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
       facets: [["g", "ทุกกลุ่มคู่โอน", (r) => r.gl, [...new Map(cpRows.map((r) => [r.gl, DB.groups[r.g][2]])).entries()].map(([l, c]) => [l, l, c])], ["bank", "ทุกธนาคาร", (r) => r.bank || "(ไม่ระบุ)"]],
-      key: (r) => r.ci, rowAttr: () => 'class="click" title="กดเพื่อดูรายการของคู่โอนนี้"',
-      detail: (r) => { const L = IDX.filter((i) => cpOf(i) === r.ci).sort((a, b) => DB.tx[a][1] - DB.tx[b][1]), sh = L.slice(0, 300);
-        return `<div class="xdetb"><div class="frow" style="margin:0 0 6px"><b>${fmt0(L.length)} รายการ</b><span class="muted">เรียงตามเวลา${L.length > 300 ? " · แสดง 300 รายการแรก" : ""}</span>
-          <button class="chip" onclick="FHIST.push(fSnap());F.q='${esc(r.acc || r.nm).replace(/'/g, "")}';$('#fQ').value=F.q;ANA_UPD()">${IC("search", 13)} กรองทั้งหน้าด้วยคู่โอนนี้</button></div>
-          <table class="xmini"><tr><th>วันเวลา</th><th>บัญชี</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${sh.map((i) => { const x = DB.tx[i], a = DB.accounts[x[0]]; return `<tr><td>${dTh(min2iso(x[1]))} ${txT(i)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${KCOL[x[2]]}"></span> ${DB.kinds[x[2]].split(" (")[0]}</td><td class="n">${fmt(x[3])}</td></tr>`; }).join("")}</table></div>`; } });
+      rowAttr: () => 'class="click" title="ดูรายการของคู่โอนนี้"', onRow: (r) => { const s = fSnap(); s._y = scrollY; FHIST.push(s); F.q = r.acc || r.nm; $("#fQ").value = F.q; upd(); setTimeout(() => { const t = $("#txH"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); } });
     SORTED = txSort(IDX);
     const big = SORTED.slice(0, SHOWN);
-    $("#txLab").textContent = `เรียงตาม ${TXS.map(([k, d], n) => `${n + 1}.${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")} — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว · กดหัวคอลัมน์เพื่อเรียงเพิ่ม (กดซ้ำสลับ ↑↓ / ครั้งที่ 3 เอาออก)`;
+    $("#txLab").textContent = `${fmt0(big.length)} / ${fmt0(IDX.length)} แถว · ${TXS.map(([k, d]) => `${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")}`;
     $("#more").hidden = big.length >= IDX.length;
     const th = (k, l, cls) => { const n = TXS.findIndex((x) => x[0] === k); return `<th class="srt ${cls || ""} ${n >= 0 ? "on" : ""}" data-ts="${k}">${l}${n >= 0 ? ` <small>${TXS[n][1] > 0 ? "▲" : "▼"}${TXS.length > 1 ? n + 1 : ""}</small>` : ""}</th>`; };
     $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("a", "บัญชี")}${th("k", "ประเภท")}${th("v", "ยอด (บาท)", "n")}${th("c", "คู่โอน")}${th("g", "กลุ่มคู่โอน")}</tr>` +
@@ -1379,7 +1370,7 @@ async function donorSearch(q) {
   DNH = [...agg.entries()].sort((a, b) => b[1].t - a[1].t);
   const tot = DNH.reduce((s, [, a]) => s + a.t, 0);
   box.innerHTML = !DNH.length ? `<p class="muted">ไม่พบ "${esc(q)}" ในผู้บริจาค ${fmt0(D.d.length)} บัญชี</p>` :
-    `<p class="muted" style="font-size:.84rem">พบ ${fmt0(DNH.length)} บัญชี รวม ${fmt(tot)} บาท${DNH.length > 100 ? " (แสดง 100 อันดับแรก)" : ""} — กดแถวเพื่อดูรายการรายครั้ง</p>
+    `<p class="muted" style="font-size:.84rem">พบ ${fmt0(DNH.length)} บัญชี รวม ${fmt(tot)} บาท${DNH.length > 100 ? " (แสดง 100 อันดับแรก)" : ""}</p>
     <div class="tblwrap tbl1"><table><tr><th>#</th><th>ผู้บริจาค</th><th>บัญชี</th><th>ประเภท</th>${D.t1s.map((t) => `<th class="n">เข้า ${t}</th>`).join("")}<th class="n">รวม (บาท)</th><th class="n">ครั้ง</th><th>ช่วงเวลา</th></tr>
     ${DNH.slice(0, 100).map(([i, a], k) => { const d = D.d[i]; return `<tr class="click" data-dnr="${i}"><td>${k + 1}</td><td>${esc(d[2]) || '<span class="muted">ไม่ระบุชื่อ</span>'}</td><td>${esc(d[1])} ${esc(d[0])}</td><td>${esc(d[3])}</td>${a.by.map((v) => `<td class="n">${v ? fmt(v) : ""}</td>`).join("")}<td class="n"><b>${fmt(a.t)}</b></td><td class="n">${fmt0(a.n)}</td><td>${dnDay(a.f)} – ${dnDay(a.l)}</td></tr>`; }).join("")}</table></div>`;
   if (DNH.length) { box.insertAdjacentHTML("afterbegin", `<p style="margin:6px 0"><button class="btn" id="dnAll">${IC("flow", 15)} แสดงเส้นเงินของผลค้นหานี้ (${fmt0(Math.min(DNH.length, 300))} บัญชี) ในชาร์ตเส้นเงิน</button></p>`);
@@ -1665,10 +1656,10 @@ function tlRender() {
     const b = e.target.closest("[data-tl]"); if (!b) return; if (b.dataset.tl === "open" || b.dataset.tl === "close") { TLS.open = b.dataset.tl === "open"; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "back") { TLS.seed = TLS.hist.pop() || null; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "rep") tlReport(); };
   box.onchange = (e) => { if (e.target.id === "tlFrom" || e.target.id === "tlTo") { TLS[e.target.id === "tlFrom" ? "from" : "to"] = e.target.value; TLS.keep = true; tlRender(); } };
   const ck = JSON.stringify(F.chain) + trMode(); if (TLC.ck !== null && TLC.ck !== ck && TLS.seed && !TLS.keep) { TLS.seed = null; TLS.hist = []; } TLC.ck = ck; TLS.keep = false;
-  if (!TLS.open) { box.innerHTML = `<button class="tlbar0" data-tl="open">${IC("route", 16)} <b>Timeline เส้นเงินเป็นทอด</b><span class="muted">${F.chain.length || TLS.seed ? "พร้อมวิเคราะห์ — " : ""}กดเพื่อวิเคราะห์เชิงลึก</span><span class="tlgo">▸</span></button>`; return; }
+  if (!TLS.open) { box.innerHTML = `<button class="tlbar0" data-tl="open" title="เปิดวิเคราะห์">${IC("route", 16)} <b>Timeline เส้นเงินเป็นทอด</b><span class="tlgo">${IC("more", 16)}</span></button>`; return; }
   const sd = tlSeeds();
-  const hd = `<div class="tlh"><h2>${IC("route")} Timeline เส้นเงินเป็นทอด</h2><button class="chip" data-tl="close">▾ ซ่อน</button>${TLS.seed ? `<button class="chip" data-tl="back">← ${TLS.hist.length ? "ย้อนกลับ" : "กลับไปตามชาร์ต"}</button>` : ""}</div>`;
-  if (!sd || !sd.items.length) { box.innerHTML = `<div class="card tlc">${hd}<p class="muted" style="margin:4px 0 0">กดกล่อง ▶ ในชาร์ตเพื่อเลือกต้นสาย หรือกดแถวในตารางรายการด้านล่าง</p></div>`; return; }
+  const hd = `<div class="tlh"><h2>${IC("route")} Timeline เส้นเงินเป็นทอด ${infoI("ต้นสาย = รายการทอด 1 ของกล่องที่คลี่ในชาร์ต หรือแถวที่กด (ตารางรายการ / ตารางนี้) · ไล่ตามวิธีที่เลือกในชาร์ต ไม่เกิน " + TL_MAX + " ทอด · ตามทอด = สรุปรายทอดว่าเงินแยกไปทางใด · ปลายสาย = เงินไปจบที่ใด รวมเท่ายอดต้นสาย · เป็นการไล่ตามลำดับเวลา (ข้อสันนิษฐาน) ไม่ใช่การระบุตัวเงิน")}</h2>${TLS.seed ? ibx("back", TLS.hist.length ? "ย้อนกลับ" : "กลับไปตามชาร์ต", 'data-tl="back"') : ""}${ibx("less", "ซ่อน", 'data-tl="close"')}</div>`;
+  if (!sd || !sd.items.length) { box.innerHTML = `<div class="card tlc">${hd}<p class="muted" style="margin:4px 0 0">เลือกกล่อง ▶ ในชาร์ต หรือแถวในตารางรายการ</p></div>`; return; }
   const key = [sd.label, sd.items.length, sd.items.reduce((t, x) => t + x.amt, 0).toFixed(2), TLS.from, TLS.to, trMode()].join("|");
   if (TLC.key !== key) { TLC.res = tlTrace(sd); TLC.key = key; }
   const T = TLC.res, P = T.P, L = P.filter((p) => p.end), sumE = (rx) => L.filter((p) => rx.test(p.end)).reduce((t, p) => t + p.amt, 0);
@@ -1679,7 +1670,7 @@ function tlRender() {
     <div class="tlsrc">${IC("flow", 15)} <b>ต้นสาย:</b> ${esc(T.label)} · <b>วิธีไล่:</b> ${trName(T.mode)}${T.cut ? ` <span class="badge r">ตัดที่ ${fmt0(TL_CAP)} รายการ — ใช้ช่วงเวลาให้แคบลง</span>` : ""}</div>
     <div class="tlbar"><div class="seg">${TLV.map(([k, l]) => `<button data-tlv="${k}" class="${TLS.v === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <label class="tlt">เริ่ม <input type="datetime-local" id="tlFrom" value="${TLS.from}"></label><label class="tlt">ถึง <input type="datetime-local" id="tlTo" value="${TLS.to}"></label>
-      <button class="chip" data-tl="rep">${IC("doc", 14)} รายงาน</button></div>
+      ${ibx("doc", "รายงานสรุปเส้นเงิน (Word)", 'data-tl="rep"')}</div>
     <div class="tlk">${kp.map(([l, v, s]) => `<div><small>${l}</small><b>${v}</b>${s ? `<span>${s}</span>` : ""}</div>`).join("")}</div>
     <div id="tlX"></div></div>`;
   tlView(T);
@@ -1709,11 +1700,11 @@ function tlView(T) {
   if (TLS.v === "end") return xtMount(host, { id: "tlE", title: "ปลายสาย — เงินไปจบที่ใด", ph: "ค้นหาปลายทาง", rows: A.E, xl: "Timeline เส้นเงิน - ปลายสาย", sort0: [[2, -1]], sum: (R) => `${M(R.reduce((t, r) => t + r.amt, 0))} จากต้นสาย ${M(T.total)}`,
     cols: [["ประเภทปลายสาย", (r) => r.end, "t"], ["ปลายทาง", (r) => r.to, "t"], ["ยอด (บาท)", (r) => r.amt, "a", money("amt")], ["ครั้ง", (r) => r.n, "a"], ["ทอด", (r) => r.h1, "a", (r) => (r.h1 === r.h2 ? r.h1 : `${r.h1}–${r.h2}`)], ["ครั้งแรก", (r) => tlIso(r.t1), "t", tt("t1")], ["ครั้งสุดท้าย", (r) => tlIso(r.t2), "t", tt("t2")]],
     facets: [["end", "ทุกประเภทปลายสาย", (r) => r.end]] });
-  return xtMount(host, { id: "tlL", title: "รายการเรียงตามเวลา — กดแถวเพื่อเริ่มไล่จากแถวนั้น", ph: "ค้นหาชื่อ / เลขบัญชี", rows: T.P, xl: "Timeline เส้นเงิน - รายการ", sort0: [[1, 1]], sum: sumA,
+  return xtMount(host, { id: "tlL", title: "รายการเรียงตามเวลา", ph: "ค้นหาชื่อ / เลขบัญชี", rows: T.P, xl: "Timeline เส้นเงิน - รายการ", sort0: [[1, 1]], sum: sumA,
     cols: [["ทอด", (r) => r.hop, "a"], ["วันเวลา", (r) => tlIso(r.t, r.i), "t", (r) => tlTh(tlIso(r.t, r.i))], ["จาก", (r) => tlAcc(r.from), "t"], ["ไปยัง", tlTo, "t"], ["ยอดที่ไล่มา (บาท)", (r) => r.amt, "a", money("amt")],
       ["ยอดรายการเต็ม", (r) => r.full, "a", (r) => (r.i < 0 ? "" : fmt(r.full))], ["ห่างจากเงินเข้า", (r) => (r.hop > 1 || r.par >= 0 ? r.t - r.t0 : -1), "a", (r) => (r.par >= 0 ? tlGap(r.t - r.t0) : "")], ["ปลายทาง", (r) => r.end || "ไล่ต่อ", "t"]],
     facets: [["hop", "ทุกทอด", (r) => "ทอด " + r.hop, [...new Set(T.P.map((r) => r.hop))].sort((a, b) => a - b).map((h) => ["ทอด " + h, "ทอด " + h])], ["end", "ทุกปลายทาง", (r) => r.end || "ไล่ต่อ"]],
-    rowAttr: () => 'class="click" title="กดเพื่อเริ่มไล่เงินจากแถวนี้"', onRow: reseed });
+    rowAttr: () => 'class="click" title="เริ่มไล่จากแถวนี้"', onRow: reseed });
 }
 function tlReport() {
   const T = TLC.res; if (!T) return;
@@ -1930,7 +1921,7 @@ function drawFlow(box, pair) {
   const ban = dn ? `<div class="dnban" style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:8px 10px;margin:0 0 6px;font-size:.86rem"><b>ไล่เงินผู้บริจาค:</b> ${esc(dn.name)} — บริจาครวม ${fmt(dn.total)} บาท (${fmt0(dn.n)} ครั้งที่มีวันเวลา) · ไล่ตามรายการโอนออกถัดไปตามเวลาจนครบยอด${dn.rem > 0.5 ? ` · ยังไม่พบรายการโอนออกต่อ ${fmt(dn.rem)} บาท` : ""}${dn.undated > 0.5 ? ` · ยอดรวมรายย่อยไม่มีวันที่ ${fmt(dn.undated)} บาท` : ""}
       <button class="chip" data-dnoff="1" style="margin-left:6px">✕ กลับชาร์ตตามตัวกรอง</button><br><span class="muted">เป็นการไล่ตามลำดับเวลา (สันนิษฐาน) ไม่ใช่การระบุตัวเงิน · ไม่ใช้ตัวกรองช่วงเวลา/บัญชี · เปลี่ยน กลุ่ม/รายบัญชี และจำนวนกล่องได้</span></div>` : "";
   const sk0 = C0[0] && C0[0].size ? 0 : 1;
-  box.innerHTML = ban + (sk0 ? `<div class="muted" style="font-size:.8rem;padding:4px 8px">แสดงเฉพาะเส้นที่ไล่ (${trName(trMode())}) — กดกล่องเพิ่มได้หลายกล่องต่อคอลัมน์ · กดซ้ำเพื่อเอาออก</div>` : "") + (first > sk0 ? `<div class="muted" style="font-size:.8rem;padding:4px 8px">◀ ซ่อน ${first - sk0} คอลัมน์แรก (เพิ่มจำนวนคอลัมน์ที่แสดงได้ที่ปุ่ม "แสดง … คอลัมน์")</div>` : "") +
+  box.innerHTML = ban + (first > sk0 ? `<div class="muted" style="font-size:.78rem;padding:2px 8px">◀ ${first - sk0}</div>` : "") +
     `<svg width="${W}" height="${Math.ceil(H + 8)}" viewBox="0 0 ${W} ${Math.ceil(H + 8)}">${hd}${svg}</svg>`;
 }
 
@@ -2096,7 +2087,7 @@ function pAccTable() {                                                 // ตา
     ${fSel('data-axs="g"', AXF.g, "ทุกกลุ่มบัญชี", gs.map((g) => [g, DB.groups[g] ? DB.groups[g][1].split(" (")[0] : "กลุ่ม " + g]))}
     ${fSel('data-axs="st"', AXF.st, "ทุกสถานะ STM", STS.map((x) => [x, `${x} · ${rows.filter((r) => r.st === x).length}`]))}
     ${fClr('data-axk="clear"', AXF.g !== "" || AXF.st || AXF.fz || AXF.q)}</div></div>
-  <h2>${IC("list")} รายบัญชี <small>${shown} / ${rows.length} บัญชี · เรียงเป็นกลุ่ม · กดแถวเพื่อดูรายละเอียด</small></h2>
+  <h2>${IC("list")} รายบัญชี <small>${shown} / ${rows.length} บัญชี</small></h2>
   ${gs.map(sect).join("") || '<p class="muted">ไม่มีบัญชีตามตัวกรอง</p>'}
   <p class="muted" style="font-size:.82rem">รวมจาก: บัญชีที่มี statement ในระบบ + แท็บคุมบัญชี (สถานะขอ STM) + แท็บข้อมูลอายัด ของชีตชุดทำคดี · "รับจากบัญชีมูลนิธิ / บัญชีที่มี STM" ดูจาก statement ฝั่งผู้โอน (เห็นแม้บัญชีนี้ยังไม่มี statement) · คงเหลือล่าสุด = ยอดคงเหลือรายการสุดท้ายใน statement · รูปหน้าปก = ภาพบุคคลจากชีตชุดทำคดี (ถ้ามี)</p>`;
   m.onclick = (e) => { const b = e.target.closest("button");
@@ -2174,6 +2165,6 @@ function overExtra(o, ntx) {
     ${k("srch", "bag", SR.rows.reduce((t, r) => t + (r.n || 0), 0), "ของกลางที่ตรวจยึด", "รายการ")}
     ${k("ppl", "user", people().length, "บุคคลที่เกี่ยวข้อง", "")}
     ${k("trace", "flow", DB.sets.length, "ชุดไล่เส้นเงิน", "")}</div>
-  ${big ? `<button class="banner" data-img="${big.id}">${thumbEl(big)}<span><b>${IC("zoom", 18)} ${esc(big.title)}</b><small>กดเพื่อเปิดภาพเต็ม — เลื่อนและซูมได้</small></span></button>` : ""}`;
+  ${big ? `<button class="banner" data-img="${big.id}">${thumbEl(big)}<span><b>${IC("zoom", 18)} ${esc(big.title)}</b></span></button>` : ""}`;
 }
 const newsBlock = () => { const v = imgBy((i) => i.cat === "ภาพข่าว"); return v.length ? `<h2>${IC("img")} ภาพข่าว / ภาพประกอบ <small>${v.length} ภาพ</small></h2><div class="shots big">${v.map((i) => shot(i)).join("")}</div>` : ""; };
