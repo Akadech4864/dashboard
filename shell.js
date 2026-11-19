@@ -101,10 +101,7 @@ function subPanel() {
   const X = DB.formal;
   if (TAB === "brief" && X) h = `<div class="sub-hd">บทสรุปทางการ</div>` + BRCH.map(([k, l, ic]) => `<button data-sgo="brief|${k}" class="${BRV === k ? "on" : ""}">${IC(ic, 17)}<span>${l}</span></button>`).join("") +
     (BRV === "sus" ? `<div class="sub-hd">ผู้ต้องหา</div>` + susKeys().map((k) => `<button data-sgo="brief|sus|${k}" class="s2 ${BRS === k ? "on" : ""}"><span class="no">${X.suspects[k].no}</span><span>${esc(shortName(X.suspects[k].name))}</span></button>`).join("") : "");
-  else {
-    const g = GROUPS.find(([, ks]) => ks.includes(TAB));
-    if (g && g[1].length > 1) h = `<div class="sub-hd">${g[0] || "ภาพรวม"}</div>` + g[1].map((k) => `<button data-sgo="${k}" class="${k === TAB ? "on" : ""}">${IC(tabOf(k)[2], 17)}<span>${tabOf(k)[1]}</span></button>`).join("");
-  }
+  /* หน้าอื่นไม่แสดงแถบย่อย — รายการซ้ำกับเมนูข้าง (ผู้ใช้สั่งเอาออก 19 พ.ย. 69) */
   el.innerHTML = h; el.hidden = !h;
   document.body.classList.toggle("has-sub", !!h);
 }
