@@ -256,7 +256,7 @@ function go(t, noHist) {                                                // noHis
   render(); shellSync(); window.scrollTo(0, 0);
 }
 function killCharts() { Object.values(CH).forEach((c) => c.destroy()); CH = {}; }
-function render() { killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ home: pHome, brief: pBrief, recs: pRecs, over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, cc: pCc, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
+function render() { if (window.colSync) colSync(); killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ home: pHome, brief: pBrief, recs: pRecs, over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, cc: pCc, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
 const acts = (sec, id) => `<span class="acts"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></span>`;
 const addBtn = (sec) => `<button class="add" onclick="editItem('${sec}')">+ เพิ่ม</button>`;
 const badge = (s) => { if (!s) return ""; const c = /ค้าง|ต้อง|รอ/.test(s) ? "r" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s) ? "g" : /พัก|มติ/.test(s) ? "y" : ""; return `<span class="badge ${c}">${esc(s)}</span>`; };
@@ -1158,10 +1158,10 @@ function pAna() {
    <div class="ddp" data-ddp="per" hidden><div class="frow"><input type="date" id="fFrom" value="${F.from}"> – <input type="date" id="fTo" value="${F.to}">
       <button class="chip" data-p="all">ทั้งหมด</button><button class="chip" data-p="before">ก่อนตั้งมูลนิธิ</button><button class="chip" data-p="after">หลังตั้งมูลนิธิ</button>
       <select id="fYr"><option value="">รายปี…</option>${yrs.slice().reverse().map((y) => `<option value="${y}">ปี ${y + 543}</option>`).join("")}</select></div></div>
-   <div class="ddp" data-ddp="acc" hidden><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
+   <div class="ddp" data-ddp="acc" hidden><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]};--ci:${inkOn(DB.groups[g][2])}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
         ${gAcc[g].map((i) => { const a = DB.accounts[i]; return `<label title="${a.bank} ${a.acc}"><input type="checkbox" data-a="${i}"><span>${esc(a.name)}</span><small>${a.bank} ${a.acc}</small></label>`; }).join("")}</div>`).join("")}</div></div>
    <div class="ddp" data-ddp="kind" hidden><div class="frow">${DB.kinds.map((k, i) => `<button class="chip" data-k="${i}"><span class="dot" style="background:${KCOL[i]}"></span>${k}</button>`).join("")}</div></div>
-   <div class="ddp" data-ddp="cpg" hidden><div class="frow">${usedCpg.map((g) => `<button class="chip" data-c="${g}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div></div>
+   <div class="ddp" data-ddp="cpg" hidden><div class="frow">${usedCpg.map((g) => `<button class="chip gchip" data-c="${g}" style="--c:${DB.groups[g][2]}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div></div>
    <div class="ddp" data-ddp="cash" hidden><div class="frow">${CPM_BTNS}</div>
      <div class="frow" id="pqRow" hidden><label>ประเภทคู่</label>${PQ_BTNS}</div>
      ${infoI("ยอดโอนตรง = ตาม statement (ถอนเงินสดยังเป็นถอนเงินสด) ; รวมคู่ถอน-ฝาก = รายการถอนเงินสดที่จับคู่กับการฝากได้ แสดงเป็นเงินเข้าบัญชีผู้ฝาก")}</div>
@@ -1296,7 +1296,7 @@ function pAna() {
     xtMount($("#tCp"), { id: "anaCp", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", ph: "ค้นหาชื่อคู่โอน / เลขบัญชี / ธนาคาร", rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)",
       search: (r) => `${r.nm} ${r.acc} ${r.bank} ${r.gl}`, sort0: [[7, -1]], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
       cols: [["#", () => 0, "n"], ["คู่โอน", (r) => r.nm, "t", (r) => (r.nm ? `<b style="font-weight:600">${esc(r.nm)}</b>` : `<span class="muted">ไม่ระบุชื่อ</span>`)], ["บัญชี", (r) => `${r.bank} ${r.acc}`.trim(), "t"],
-        ["กลุ่ม", (r) => r.gl, "t", (r) => `<span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[r.g][2]}"></span> ${esc(r.gl)}`],
+        ["กลุ่ม", (r) => r.gl, "t", (r) => gTag(DB.groups[r.g][2], r.gl)],
         ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? fmt(r.i) : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? fmt(r.o) : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
       facets: [["g", "ทุกกลุ่มคู่โอน", (r) => r.gl, [...new Map(cpRows.map((r) => [r.gl, DB.groups[r.g][2]])).entries()].map(([l, c]) => [l, l, c])], ["bank", "ทุกธนาคาร", (r) => r.bank || "(ไม่ระบุ)"]],
       rowAttr: () => 'class="click" title="ดูรายการของคู่โอนนี้"', onRow: (r) => { const s = fSnap(); s._y = scrollY; FHIST.push(s); F.q = r.acc || r.nm; $("#fQ").value = F.q; upd(); setTimeout(() => { const t = $("#txH"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); } });
@@ -1306,7 +1306,7 @@ function pAna() {
     $("#more").hidden = big.length >= IDX.length;
     const th = (k, l, cls) => { const n = TXS.findIndex((x) => x[0] === k); return `<th class="srt ${cls || ""} ${n >= 0 ? "on" : ""}" data-ts="${k}">${l}${n >= 0 ? ` <small>${TXS[n][1] > 0 ? "▲" : "▼"}${TXS.length > 1 ? n + 1 : ""}</small>` : ""}</th>`; };
     $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("a", "บัญชี")}${th("k", "ประเภท")}${th("v", "ยอด (บาท)", "n")}${th("c", "คู่โอน")}${th("g", "กลุ่มคู่โอน")}</tr>` +
-      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i); return `<tr class="click" data-ti="${i}" title="กดเพื่อไล่เงินเป็นทอดจากรายการนี้ (Timeline ด้านบน)"><td>${dTh(iso)} ${txT(i)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}</td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i); return `<tr class="click" data-ti="${i}" title="กดเพื่อไล่เงินเป็นทอดจากรายการนี้ (Timeline ด้านบน)"><td>${dTh(iso)} ${txT(i)}</td><td>${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}</td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
     $("#tTx").onclick = (e) => { const h = e.target.closest("th[data-ts]");
       if (!h) { const tr = e.target.closest("tr[data-ti]"); if (tr) { TLS.hist.push(TLS.seed); TLS.keep = true; TLS.seed = tlSeedTx(+tr.dataset.ti); TLS.v = "lst"; TLS.open = true; tlRender(); $("#tlBox").scrollIntoView({ behavior: "smooth", block: "start" }); } return; } const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
       if (n < 0) TXS.push([k, k === "v" ? -1 : 1]); else if (TXS[n][1] === (k === "v" ? -1 : 1)) TXS[n][1] *= -1; else TXS.splice(n, 1);
@@ -1423,7 +1423,7 @@ function pAcc() {
   const by = {}; DB.accounts.forEach((a, i) => (by[a.g] = by[a.g] || []).push(i));
   const gs = Object.keys(by), sum = (g, k) => by[g].reduce((t, i) => t + S[i][k], 0), nm = (g) => DB.groups[g][1].split(" (")[0];
   const mainH = () => `<h2>${IC("bank")} บัญชีที่มี statement <small>${DB.accounts.length} บัญชี · ${gs.length} กลุ่ม</small></h2>
-    <div class="tiles">${gs.map((g) => `<button class="tile" data-v="${g}"><span class="ico" style="background:${DB.groups[g][2]};color:#fff">${IC("bank")}</span><span class="v">${by[g].length}<small> บัญชี</small></span><span class="l">${esc(nm(g))}</span><span class="s">เข้า ${M(sum(g, 0))} · ออก ${M(sum(g, 1))}</span><span class="go">${IC("next", 16)}</span></button>`).join("")}</div>`;
+    <div class="tiles">${gs.map((g) => `<button class="tile" data-v="${g}" style="--c:${DB.groups[g][2]}"><span class="ico" style="background:${DB.groups[g][2]};color:#fff">${IC("bank")}</span><span class="v">${by[g].length}<small> บัญชี</small></span><span class="l">${esc(nm(g))}</span><span class="s">เข้า ${M(sum(g, 0))} · ออก ${M(sum(g, 1))}</span><span class="go">${IC("next", 16)}</span></button>`).join("")}</div>`;
   const det = (g) => (!by[g] ? "" : `${backBtn()}<h2><span class="dot" style="width:14px;height:14px;border-radius:4px;background:${DB.groups[g][2]}"></span> ${esc(DB.groups[g][1])} <small>${by[g].length} บัญชี</small></h2>
     <div class="grid g4" style="margin-bottom:10px">${[["เงินเข้า", 0, ""], ["เงินออก", 1, "r"], ["ถอนเงินสด", 2, "x"]].map(([l, k, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(sum(g, k))}</div><div class="s">${fmt(sum(g, k))} บาท</div></div>`).join("")}</div>
     <div class="grid g3">${by[g].map((i) => { const a = DB.accounts[i], s = S[i]; return `<button class="thumb" data-i="${i}"><b>${a.bank} ${a.acc}</b>${esc(a.name)}
@@ -1642,7 +1642,7 @@ function tlSeeds() {
   const C0 = ((F.chain || [])[0] || []).filter((id) => /^[cg]\d/.test(id)); if (!C0.length || F.dn) return null;
   const set = new Set(C0), det = F.flm === "d", items = [];
   for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i); if (set.has(det ? "c" + ci : "g" + DB.cps[ci][3])) items.push({ i, amt: r[3] }); }
-  return { label: `${C0.map((id) => flowInfo0(id).lab).join(" + ")} — รายการทอด 1 ตามชาร์ต`, items, chart: true };
+  return { label: `${C0.map((id) => flowInfo0(id).lab).join(" + ")} — รายการทอด 1 ตามชาร์ต`, items, chart: true, col: flowInfo0(C0[0]).col };
 }
 function tlTrace(sd) {
   const a = tlMin(TLS.from), b = tlMin(TLS.to), tOf = (x) => (x.i != null ? DB.tx[x.i][1] : x.t);
@@ -1651,6 +1651,11 @@ function tlTrace(sd) {
   return { P, cut, n: items.length, total: items.reduce((t, x) => t + x.amt, 0), label: sd.label, mode: trMode(), t1: items.length ? tOf(items[0]) : null, t2: items.length ? tOf(items[items.length - 1]) : null };
 }
 const tlTo = (p) => (p.i < 0 ? "(คงอยู่ในบัญชี)" : p.to >= 0 ? tlAcc(p.to) : tlCp(p.ci));
+// สีกลุ่มชุดเดียวกับชาร์ต (DB.groups) ใช้ทุกตาราง/ป้าย (ผู้ใช้สั่ง 20 พ.ย. 69 "กวาดตาได้จากสีที่ปรากฏในชาร์ต")
+const accCol = (ai) => DB.groups[DB.accounts[ai].g][2], cpCol = (ci) => DB.groups[DB.cps[ci][3]][2];
+const gTag = (c, t) => `<span class="gtag" style="--c:${c}"><i></i>${esc(t)}</span>`;
+const tlToC = (p) => (p.i < 0 ? flowInfo0("rem").col : p.to >= 0 ? accCol(p.to) : cpCol(p.ci));
+const endCol = (e, c) => (/ถอนเงินสด/.test(e || "") ? (DB.groups.find((g) => g[0] === "cash") || [0, 0, "#9E9E9E"])[2] : /ไม่มี statement/.test(e || "") ? flowInfo0("nst").col : /คงอยู่|หยุดไล่|บัญชีเดียวกัน/.test(e || "") ? flowInfo0("rem").col : c);
 function tlRender() {
   const box = $("#tlBox"); if (!box) return;
   box.onclick = (e) => { if (e.target.closest("#tlX")) return; const v = e.target.closest("[data-tlv]"); if (v) { TLS.v = v.dataset.tlv; TLS.keep = true; return tlRender(); }
@@ -1666,14 +1671,15 @@ function tlRender() {
   if (TLC.key !== key) { TLC.res = tlTrace(sd); TLC.key = key; }
   const T = TLC.res, P = T.P, L = P.filter((p) => p.end), sumE = (rx) => L.filter((p) => rx.test(p.end)).reduce((t, p) => t + p.amt, 0);
   const last = P.reduce((m, p) => Math.max(m, p.t), T.t1 || 0), hopMax = P.reduce((m, p) => Math.max(m, p.hop), 0);
-  const kp = [["ยอดต้นสาย", M(T.total), `${fmt0(T.n)} รายการ`], ["ไล่ได้ลึกสุด", `${hopMax} ทอด`, `${fmt0(P.length)} รายการย่อย`], ["ระยะเวลาต้นสาย → สุดสาย", tlGap(last - (T.t1 || last)), T.t1 != null ? `${tlTh(tlIso(T.t1))} – ${tlTh(tlIso(last))}` : ""],
-    ["ถอนเป็นเงินสด", M(sumE(/ถอนเงินสด/)), ""], ["ไปบัญชีที่ไม่มี statement", M(sumE(/ไม่มี statement/)), ""], ["คงอยู่ในบัญชี / หยุดไล่", M(sumE(/คงอยู่|หยุดไล่|บัญชีเดียวกัน/)), ""]];
+  const s0 = sd.items[0], sc = sd.col || (s0.i != null ? accCol(DB.tx[s0.i][0]) : s0.ai != null ? accCol(s0.ai) : "#FFD403");   // สีต้นสาย = สีกลุ่มของกล่อง/บัญชีต้นสาย
+  const kp = [["ยอดต้นสาย", M(T.total), `${fmt0(T.n)} รายการ`, sc], ["ไล่ได้ลึกสุด", `${hopMax} ทอด`, `${fmt0(P.length)} รายการย่อย`], ["ระยะเวลาต้นสาย → สุดสาย", tlGap(last - (T.t1 || last)), T.t1 != null ? `${tlTh(tlIso(T.t1))} – ${tlTh(tlIso(last))}` : ""],
+    ["ถอนเป็นเงินสด", M(sumE(/ถอนเงินสด/)), "", endCol("ถอนเงินสด")], ["ไปบัญชีที่ไม่มี statement", M(sumE(/ไม่มี statement/)), "", endCol("ไม่มี statement")], ["คงอยู่ในบัญชี / หยุดไล่", M(sumE(/คงอยู่|หยุดไล่|บัญชีเดียวกัน/)), "", endCol("คงอยู่")]];
   box.innerHTML = `<div class="card tlc">${hd}
-    <div class="tlsrc">${IC("flow", 15)} <b>ต้นสาย:</b> ${esc(T.label)} · <b>วิธีไล่:</b> ${trName(T.mode)}${T.cut ? ` <span class="badge r">ตัดที่ ${fmt0(TL_CAP)} รายการ — ใช้ช่วงเวลาให้แคบลง</span>` : ""}</div>
+    <div class="tlsrc" style="--c:${sc}">${IC("flow", 15)} <b>ต้นสาย:</b> ${esc(T.label)} · <b>วิธีไล่:</b> ${trName(T.mode)}${T.cut ? ` <span class="badge r">ตัดที่ ${fmt0(TL_CAP)} รายการ — ใช้ช่วงเวลาให้แคบลง</span>` : ""}</div>
     <div class="tlbar"><div class="seg">${TLV.map(([k, l]) => `<button data-tlv="${k}" class="${TLS.v === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <label class="tlt">เริ่ม <input type="datetime-local" id="tlFrom" value="${TLS.from}"></label><label class="tlt">ถึง <input type="datetime-local" id="tlTo" value="${TLS.to}"></label>
       ${ibx("doc", "รายงานสรุปเส้นเงิน (Word)", 'data-tl="rep"')}</div>
-    <div class="tlk">${kp.map(([l, v, s]) => `<div><small>${l}</small><b>${v}</b>${s ? `<span>${s}</span>` : ""}</div>`).join("")}</div>
+    <div class="tlk">${kp.map(([l, v, s, c]) => `<div style="--c:${c || "var(--navy)"}"><small>${l}</small><b>${v}</b>${s ? `<span>${s}</span>` : ""}</div>`).join("")}</div>
     <div id="tlX"></div></div>`;
   tlView(T);
 }
@@ -1681,10 +1687,10 @@ function tlAgg(T) {
   const G = new Map(), H = new Map(), E = new Map();
   for (const p of T.P) {
     const gk = `${p.hop}|${p.from}|${p.i < 0 ? "rem" : p.to >= 0 ? "a" + p.to : "c" + p.ci}`;
-    let g = G.get(gk); if (!g) G.set(gk, (g = { hop: p.hop, from: tlAcc(p.from), to: tlTo(p), n: 0, amt: 0, t1: p.t, t2: p.t, end: p.end || "ไล่ต่อ" })); g.n++; g.amt += p.amt; g.t1 = Math.min(g.t1, p.t); g.t2 = Math.max(g.t2, p.t);
+    let g = G.get(gk); if (!g) G.set(gk, (g = { hop: p.hop, from: tlAcc(p.from), to: tlTo(p), fc: accCol(p.from), tc: tlToC(p), n: 0, amt: 0, t1: p.t, t2: p.t, end: p.end || "ไล่ต่อ" })); g.n++; g.amt += p.amt; g.t1 = Math.min(g.t1, p.t); g.t2 = Math.max(g.t2, p.t);
     let h = H.get(p.hop); if (!h) H.set(p.hop, (h = { hop: p.hop, n: 0, amt: 0, fwd: 0, cash: 0, nst: 0, rem: 0, oth: 0, t1: p.t, t2: p.t, acc: new Set() })); h.n++; h.amt += p.amt; h.acc.add(p.from); h.t1 = Math.min(h.t1, p.t); h.t2 = Math.max(h.t2, p.t);
     if (!p.end) h.fwd += p.amt; else if (/ถอนเงินสด/.test(p.end)) h.cash += p.amt; else if (/ไม่มี statement/.test(p.end)) h.nst += p.amt; else if (/คงอยู่/.test(p.end)) h.rem += p.amt; else h.oth += p.amt;
-    if (p.end) { const ek = `${p.end}|${p.i < 0 ? "a" + p.from : "c" + p.ci}`; let e = E.get(ek); if (!e) E.set(ek, (e = { end: p.end, to: p.i < 0 ? tlAcc(p.from) : tlCp(p.ci), n: 0, amt: 0, h1: p.hop, h2: p.hop, t1: p.t, t2: p.t })); e.n++; e.amt += p.amt; e.h1 = Math.min(e.h1, p.hop); e.h2 = Math.max(e.h2, p.hop); e.t1 = Math.min(e.t1, p.t); e.t2 = Math.max(e.t2, p.t); }
+    if (p.end) { const ek = `${p.end}|${p.i < 0 ? "a" + p.from : "c" + p.ci}`; let e = E.get(ek); if (!e) E.set(ek, (e = { end: p.end, to: p.i < 0 ? tlAcc(p.from) : tlCp(p.ci), tc: p.i < 0 ? accCol(p.from) : cpCol(p.ci), n: 0, amt: 0, h1: p.hop, h2: p.hop, t1: p.t, t2: p.t })); e.n++; e.amt += p.amt; e.h1 = Math.min(e.h1, p.hop); e.h2 = Math.max(e.h2, p.hop); e.t1 = Math.min(e.t1, p.t); e.t2 = Math.max(e.t2, p.t); }
   }
   return { G: [...G.values()], H: [...H.values()].sort((a, b) => a.hop - b.hop), E: [...E.values()] };
 }
@@ -1694,17 +1700,17 @@ function tlView(T) {
     TLS.seed = { label: `แถว ทอด ${p.hop} · ${tlTh(tlIso(p.t, p.i))} · ${tlAcc(p.from)} → ${tlTo(p)} · ${fmt(p.amt)} บาท`, items: p.i >= 0 ? [{ i: p.i, amt: p.amt }] : [{ ai: p.from, t: p.t0, amt: p.amt }] }; tlRender(); };
   const sumA = (R) => `รวมทุกทอด ${M(R.reduce((t, r) => t + r.amt, 0))}`;
   if (TLS.v === "grp") return xtMount(host, { id: "tlG", title: "รวมก้อนตามทอด / ผู้โอน / ผู้รับ", ph: "ค้นหาชื่อ / เลขบัญชี", rows: A.G, xl: "Timeline เส้นเงิน - รวมก้อน", sort0: [[0, 1], [5, 1]], sum: sumA,
-    cols: [["ทอด", (r) => r.hop, "a"], ["จาก", (r) => r.from, "t"], ["ไปยัง", (r) => r.to, "t"], ["ครั้ง", (r) => r.n, "a"], ["ยอดรวม (บาท)", (r) => r.amt, "a", money("amt")], ["ครั้งแรก", (r) => tlIso(r.t1), "t", tt("t1")], ["ครั้งสุดท้าย", (r) => tlIso(r.t2), "t", tt("t2")], ["ปลายทาง", (r) => r.end, "t"]],
+    cols: [["ทอด", (r) => r.hop, "a"], ["จาก", (r) => r.from, "t", (r) => gTag(r.fc, r.from)], ["ไปยัง", (r) => r.to, "t", (r) => gTag(r.tc, r.to)], ["ครั้ง", (r) => r.n, "a"], ["ยอดรวม (บาท)", (r) => r.amt, "a", money("amt")], ["ครั้งแรก", (r) => tlIso(r.t1), "t", tt("t1")], ["ครั้งสุดท้าย", (r) => tlIso(r.t2), "t", tt("t2")], ["ปลายทาง", (r) => r.end, "t", (r) => gTag(endCol(r.end, r.tc), r.end)]],
     facets: [["hop", "ทุกทอด", (r) => "ทอด " + r.hop, [...new Set(A.G.map((r) => r.hop))].sort((a, b) => a - b).map((h) => ["ทอด " + h, "ทอด " + h])], ["end", "ทุกปลายทาง", (r) => r.end]] });
   if (TLS.v === "hop") return xtMount(host, { id: "tlH", title: "สรุปตามทอด", ph: "ค้นหา", rows: A.H, xl: "Timeline เส้นเงิน - ตามทอด", sort0: [[0, 1]], sum: sumA,
     cols: [["ทอด", (r) => r.hop, "a"], ["บัญชีผู้โอน", (r) => r.acc.size, "a"], ["รายการ", (r) => r.n, "a"], ["ยอดในทอดนี้ (บาท)", (r) => r.amt, "a", money("amt")], ["ไล่ต่อทอดถัดไป", (r) => r.fwd, "a", money("fwd")],
       ["ถอนเงินสด", (r) => r.cash, "a", money("cash")], ["ไปบัญชีไม่มี statement", (r) => r.nst, "a", money("nst")], ["คงอยู่ในบัญชี", (r) => r.rem, "a", money("rem")], ["อื่น ๆ", (r) => r.oth, "a", money("oth")], ["ช่วงเวลา", (r) => tlIso(r.t1), "t", (r) => `${tlTh(tlIso(r.t1))} – ${tlTh(tlIso(r.t2))}`]] });
   if (TLS.v === "end") return xtMount(host, { id: "tlE", title: "ปลายสาย — เงินไปจบที่ใด", ph: "ค้นหาปลายทาง", rows: A.E, xl: "Timeline เส้นเงิน - ปลายสาย", sort0: [[2, -1]], sum: (R) => `${M(R.reduce((t, r) => t + r.amt, 0))} จากต้นสาย ${M(T.total)}`,
-    cols: [["ประเภทปลายสาย", (r) => r.end, "t"], ["ปลายทาง", (r) => r.to, "t"], ["ยอด (บาท)", (r) => r.amt, "a", money("amt")], ["ครั้ง", (r) => r.n, "a"], ["ทอด", (r) => r.h1, "a", (r) => (r.h1 === r.h2 ? r.h1 : `${r.h1}–${r.h2}`)], ["ครั้งแรก", (r) => tlIso(r.t1), "t", tt("t1")], ["ครั้งสุดท้าย", (r) => tlIso(r.t2), "t", tt("t2")]],
+    cols: [["ประเภทปลายสาย", (r) => r.end, "t", (r) => gTag(endCol(r.end, r.tc), r.end)], ["ปลายทาง", (r) => r.to, "t", (r) => gTag(r.tc, r.to)], ["ยอด (บาท)", (r) => r.amt, "a", money("amt")], ["ครั้ง", (r) => r.n, "a"], ["ทอด", (r) => r.h1, "a", (r) => (r.h1 === r.h2 ? r.h1 : `${r.h1}–${r.h2}`)], ["ครั้งแรก", (r) => tlIso(r.t1), "t", tt("t1")], ["ครั้งสุดท้าย", (r) => tlIso(r.t2), "t", tt("t2")]],
     facets: [["end", "ทุกประเภทปลายสาย", (r) => r.end]] });
   return xtMount(host, { id: "tlL", title: "รายการเรียงตามเวลา", ph: "ค้นหาชื่อ / เลขบัญชี", rows: T.P, xl: "Timeline เส้นเงิน - รายการ", sort0: [[1, 1]], sum: sumA,
-    cols: [["ทอด", (r) => r.hop, "a"], ["วันเวลา", (r) => tlIso(r.t, r.i), "t", (r) => tlTh(tlIso(r.t, r.i))], ["จาก", (r) => tlAcc(r.from), "t"], ["ไปยัง", tlTo, "t"], ["ยอดที่ไล่มา (บาท)", (r) => r.amt, "a", money("amt")],
-      ["ยอดรายการเต็ม", (r) => r.full, "a", (r) => (r.i < 0 ? "" : fmt(r.full))], ["ห่างจากเงินเข้า", (r) => (r.hop > 1 || r.par >= 0 ? r.t - r.t0 : -1), "a", (r) => (r.par >= 0 ? tlGap(r.t - r.t0) : "")], ["ปลายทาง", (r) => r.end || "ไล่ต่อ", "t"]],
+    cols: [["ทอด", (r) => r.hop, "a"], ["วันเวลา", (r) => tlIso(r.t, r.i), "t", (r) => tlTh(tlIso(r.t, r.i))], ["จาก", (r) => tlAcc(r.from), "t", (r) => gTag(accCol(r.from), tlAcc(r.from))], ["ไปยัง", tlTo, "t", (r) => gTag(tlToC(r), tlTo(r))], ["ยอดที่ไล่มา (บาท)", (r) => r.amt, "a", money("amt")],
+      ["ยอดรายการเต็ม", (r) => r.full, "a", (r) => (r.i < 0 ? "" : fmt(r.full))], ["ห่างจากเงินเข้า", (r) => (r.hop > 1 || r.par >= 0 ? r.t - r.t0 : -1), "a", (r) => (r.par >= 0 ? tlGap(r.t - r.t0) : "")], ["ปลายทาง", (r) => r.end || "ไล่ต่อ", "t", (r) => gTag(endCol(r.end, tlToC(r)), r.end || "ไล่ต่อ")]],
     facets: [["hop", "ทุกทอด", (r) => "ทอด " + r.hop, [...new Set(T.P.map((r) => r.hop))].sort((a, b) => a - b).map((h) => ["ทอด " + h, "ทอด " + h])], ["end", "ทุกปลายทาง", (r) => r.end || "ไล่ต่อ"]],
     rowAttr: () => 'class="click" title="เริ่มไล่จากแถวนี้"', onRow: reseed });
 }
@@ -2072,7 +2078,7 @@ function pAccTable() {                                                 // ตา
       <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
       <td>${r.cc ? `<button class="chip" data-axc="${r.k.slice(-4)}">${IC("card", 13)} รายการใช้จ่าย</button> ` : ""}${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
   const sect = (g) => { const rs = rows.filter((r) => r.g === g && pass(r)).sort(ord); if (!rs.length) return ""; const u = gsum(rs), ais = rs.filter((r) => r.ai >= 0).map((r) => r.ai);
-    return `<div class="gsec" style="--c:${gcol(g)}"><div class="ghd">${coverH(g, rs, 46)}<span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · เข้า ${M(u.inn)} · ออก ${M(u.out)}${gcode(g) === "t1" ? "" : ` · รับจากบัญชีมูลนิธิ ${M(u.t1)}`}${u.fzn ? ` · อายัด ${u.fzn} บัญชี ${M(u.fz)}` : ""}</small></span>
+    return `<div class="gsec${AXF.g === String(g) ? " on" : ""}" style="--c:${gcol(g)}"><div class="ghd">${coverH(g, rs, 46)}<span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · เข้า ${M(u.inn)} · ออก ${M(u.out)}${gcode(g) === "t1" ? "" : ` · รับจากบัญชีมูลนิธิ ${M(u.t1)}`}${u.fzn ? ` · อายัด ${u.fzn} บัญชี ${M(u.fz)}` : ""}</small></span>
         <span class="ga">${AXF.g === String(g) ? ibx("back", "ทุกกลุ่ม", 'data-axk="g" data-axv=""') : `<button class="chip" data-axk="g" data-axv="${g}">ดูเฉพาะกลุ่มนี้</button>`}${ais.length ? `<button class="chip" data-axg="${ais.join(",")}">${IC("flow", 13)} วิเคราะห์ทั้งกลุ่ม</button>` : ""}</span></div>
       <div class="tblwrap"><table><tr><th>บัญชี</th><th>ชื่อบัญชี</th><th>STM</th><th>อายัด (บาท)</th><th class="n">เงินเข้า</th><th class="n">เงินออก</th><th class="n">คงเหลือล่าสุด</th><th class="n">รับจากบัญชีมูลนิธิ</th><th class="n">รับจากบัญชีที่มี STM</th><th></th></tr>${rs.map(rowH).join("")}</table></div></div>`; };
   const shown = rows.filter((r) => pass(r)).length;
@@ -2107,10 +2113,11 @@ function accDetail(k) {
   const top = (side) => { if (r.ai < 0) return []; const mm = new Map();
     DB.tx.forEach((t, i) => { if (t[0] !== r.ai || IN_K.includes(t[2]) !== (side === "in")) return; const ci = cpOf(i); const o = mm.get(ci) || [0, 0]; o[0] += t[3]; o[1] += t[5] || 1; mm.set(ci, o); });
     return [...mm.entries()].sort((a, b) => b[1][0] - a[1][0]).slice(0, 10); };
-  const cpRow = ([ci, v]) => { const c = DB.cps[ci]; return `<tr><td>${esc(c[1] || c[0])} <small class="muted">${esc(c[2])} ${esc(c[0])}</small></td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td><td class="n">${fmt(v[0])}</td><td class="n">${fmt0(v[1])}</td></tr>`; };
+  const cpRow = ([ci, v]) => { const c = DB.cps[ci]; return `<tr><td>${esc(c[1] || c[0])} <small class="muted">${esc(c[2])} ${esc(c[0])}</small></td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td><td class="n">${fmt(v[0])}</td><td class="n">${fmt0(v[1])}</td></tr>`; };
   const s = r.s, by = Object.entries(r.x.by).sort((a, b) => b[1] - a[1]);
   const kp = (l, v, c) => `<div class="card kpi ${c || ""}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div></div>`;
-  openModal(`<h3>${esc(r.bank)} ${esc(r.acc)}<br><small>${esc(r.name)}</small></h3>
+  const gc = DB.groups[r.g] ? DB.groups[r.g][2] : "#999";
+  openModal(`<div class="gx mhd" style="--c:${gc}"><h3>${esc(r.bank)} ${esc(r.acc)}<br><small>${esc(r.name)}</small></h3>${DB.groups[r.g] ? gTag(gc, DB.groups[r.g][1].split(" (")[0]) : ""}</div>
     <p><span class="badge ${r.ai >= 0 ? "g" : ""}">${esc(r.st)}</span>${r.stx && r.stx !== r.st ? ` <small class="muted">(${esc(r.stx)})</small>` : ""}${r.fz ? ` <span class="badge r">${IC("lock", 11)} อายัด ${fmt(r.fz.amt)} บาท · ${esc(r.fz.date)} · หนังสือ ${esc(r.fz.ref)}</span>` : ""}${r.first ? ` <small class="muted">statement ${dTh(r.first)} – ${dTh(r.last)}</small>` : ""}</p>
     ${r.sheet ? `<p class="muted" style="font-size:.84rem">เลขที่หนังสือ ${esc(r.sheet.ref || "-")} · รายการถอนเงิน ${esc(r.sheet.wd || "-")}${r.sheet.note ? " · " + esc(r.sheet.note) : ""}</p>` : ""}
     <div class="grid g4">${s ? kp("เงินเข้า", s.inn) + kp("เงินออก", s.out, "r") + kp("ฝากเงินสด", s.dep, "g") + kp("ถอนเงินสด", s.wd, "x") : ""}${r.bal != null ? kp("คงเหลือล่าสุด", r.bal, "y") : ""}${kp("รับจากบัญชีมูลนิธิ", r.x.t1, "r")}${kp("รับจากบัญชีที่มี STM", r.x.all)}</div>

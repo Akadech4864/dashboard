@@ -541,10 +541,10 @@ button.clnk:hover{border-color:var(--acc)}
 /* ---------- สรุปทางการ › พฤติการณ์รายผู้ต้องหา (ผู้ใช้สั่ง 20 พ.ย. 69): คนที่เลือก = สีประจำคน ; การ์ดรูป = สีประจำคนไล่เฉดแบบ liquid glass ----------
    สีประจำคนมาจาก SCOL (shell.js) ผ่านตัวแปร --c ; สีอ่อน (เช่น เขียวอ่อน) หรี่ลงให้ตัวอักษรขาวอ่านได้ */
 .sp button.on,:root[data-theme=dark] .sp button.on{
-  background:linear-gradient(180deg,rgba(255,255,255,.30) 0%,rgba(255,255,255,0) 55%),linear-gradient(140deg,color-mix(in srgb,var(--c) 84%,#000) 0%,color-mix(in srgb,var(--c) 62%,#000) 100%)!important;
-  color:#fff!important;border-color:color-mix(in srgb,var(--c) 55%,#fff)!important;font-weight:700;text-shadow:0 1px 1px rgba(0,0,0,.28);
-  box-shadow:0 4px 12px -2px color-mix(in srgb,var(--c) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 4px rgba(0,0,0,.14)}
-.sp button.on span{background:rgba(255,255,255,.94);color:color-mix(in srgb,var(--c) 78%,#000);text-shadow:none}
+  background:linear-gradient(180deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 55%),linear-gradient(140deg,var(--c) 0%,color-mix(in srgb,var(--c) 76%,#000) 100%)!important;
+  color:var(--ci,#fff)!important;border-color:color-mix(in srgb,var(--c) 55%,#fff)!important;font-weight:700;
+  box-shadow:0 4px 12px -2px color-mix(in srgb,var(--c) 55%,transparent),inset 0 1px 0 rgba(255,255,255,.5),inset 0 -2px 4px rgba(0,0,0,.12)}
+.sp button.on span{background:rgba(255,255,255,.94);color:color-mix(in srgb,var(--c) 78%,#000)}
 .prof.glass{position:relative;isolation:isolate;overflow:hidden;border-radius:22px;
   background:linear-gradient(135deg,color-mix(in srgb,var(--c) 50%,var(--card)) 0%,color-mix(in srgb,var(--c) 24%,var(--card)) 46%,color-mix(in srgb,var(--c) 9%,var(--card)) 100%);
   border:1px solid color-mix(in srgb,var(--c) 32%,#fff);
@@ -565,3 +565,45 @@ button.clnk:hover{border-color:var(--acc)}
 :root[data-theme=dark] .prof.glass .av{border-color:rgba(255,255,255,.25)}
 :root[data-theme=dark] .prof.glass .eyebrow{color:color-mix(in srgb,var(--c) 45%,#fff)}
 :root[data-theme=dark] .prof.glass h2{color:#fff}
+
+/* ---------- ธีมกล่องกลุ่ม / ประเภท ทั้งแอพ (ผู้ใช้สั่ง 20 พ.ย. 69 "ปรับธีมแบบนี้กับทุกกล่อง … กวาดตาได้จากสีที่ปรากฏในชาร์ต") ----------
+   สีกล่อง = --c (สีประจำกลุ่มชุดเดียวกับชาร์ต DB.groups / สีประจำประเภท) ไล่เฉดแบบกระจก ; เลือก/โฟกัส (.on) = ขอบสีกลุ่มรอบกล่อง + เงาเรือง
+   กล่องใหม่ที่เป็นกลุ่ม/ประเภท: ใส่คลาส gx + style="--c:สี" ไม่ต้องเขียน CSS เพิ่ม ; ป้ายชื่อในตาราง = gTag() ; ชิปตัวกรองที่มีสี = คลาส gchip */
+.gx,.tlk>div{--c:var(--navy)}
+.tlsrc{--c:#FFD403}
+.tile{--c:var(--navy);--gxa:8%}
+.tile:has(>.ico.g){--c:var(--green);--gxa:15%}.tile:has(>.ico.y){--c:#E0A800;--gxa:15%}.tile:has(>.ico.r){--c:var(--red);--gxa:15%}.tile[style*="--c"]{--gxa:15%}
+:is(.gx,.gcard,.pcard,.acard:not(.tot),.kc:not(.hero .kc),.pc,.tl4c:not(.fin),.dfc,.accg,.tile,.fact,.why .w,.tlk>div,.tlsrc,.tlp>header){
+  background:linear-gradient(180deg,rgba(255,255,255,.5) 0%,rgba(255,255,255,0) 46%),linear-gradient(135deg,color-mix(in srgb,var(--c) var(--gxa,15%),var(--card)) 0%,color-mix(in srgb,var(--c) var(--gxb,3%),var(--card)) 100%)!important;
+  border:1px solid color-mix(in srgb,var(--c) 30%,var(--line))!important;
+  box-shadow:0 8px 20px -14px color-mix(in srgb,var(--c) 75%,transparent),inset 0 1px 0 rgba(255,255,255,.75)}
+:is(.gx,.gcard,.pcard,.acard:not(.tot),.kc:not(.hero .kc),.pc,.tl4c:not(.fin),.dfc,.accg,.tile,.fact,.why .w,.tlk>div,.tlsrc,.tlp>header):is(button,a):hover{border-color:color-mix(in srgb,var(--c) 60%,var(--line))!important}
+:is(.gx,.gcard,.pcard,.acard:not(.tot),.kc:not(.hero .kc),.pc,.tl4c:not(.fin),.dfc,.accg,.tile,.fact,.why .w,.tlk>div,.tlsrc,.tlp>header).on{--gxa:30%!important;--gxb:8%!important;--gxd:42%!important;outline:none!important;border-color:var(--c)!important;
+  box-shadow:inset 0 0 0 1px var(--c),0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent),0 12px 26px -12px color-mix(in srgb,var(--c) 75%,transparent)!important}
+:root:root[data-theme=dark] :is(.gx,.gcard,.pcard,.acard:not(.tot),.kc:not(.hero .kc),.pc,.tl4c:not(.fin),.dfc,.accg,.tile,.fact,.why .w,.tlk>div,.tlsrc,.tlp>header){
+  background:linear-gradient(180deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,0) 46%),linear-gradient(135deg,color-mix(in srgb,var(--c) var(--gxd,26%),var(--card)) 0%,color-mix(in srgb,var(--c) var(--gxb,5%),var(--card)) 100%)!important;
+  border-color:color-mix(in srgb,var(--c) 42%,var(--line))!important;box-shadow:0 8px 20px -14px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.08)}
+:root:root[data-theme=dark] :is(.gx,.gcard,.pcard,.acard:not(.tot),.kc:not(.hero .kc),.pc,.tl4c:not(.fin),.dfc,.accg,.tile,.fact,.why .w,.tlk>div,.tlsrc,.tlp>header).on{border-color:var(--c)!important}
+.tile[style*="--c"] .v{color:color-mix(in srgb,var(--c) 70%,var(--ink))}
+/* กลุ่มบัญชี (หน้าบัญชี) : หัวกลุ่มไล่เฉดสีกลุ่ม ; กลุ่มที่โฟกัส = ขอบสีกลุ่มรอบกล่อง */
+.gsec.gsec{border:1px solid color-mix(in srgb,var(--c) 32%,var(--line))!important;box-shadow:0 10px 24px -16px color-mix(in srgb,var(--c) 70%,transparent)}
+.gsec>.ghd{background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,255,255,0) 60%),linear-gradient(135deg,color-mix(in srgb,var(--c) 24%,var(--card)),color-mix(in srgb,var(--c) 4%,var(--card)))}
+.gsec>.ghd .gt b{color:color-mix(in srgb,var(--c) 55%,var(--ink))}
+.gsec.gsec.on{border:2px solid var(--c)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 20%,transparent),0 14px 30px -14px color-mix(in srgb,var(--c) 75%,transparent)}
+:root:root[data-theme=dark] .gsec.gsec{background:var(--card)!important;border-color:color-mix(in srgb,var(--c) 45%,var(--line))!important}
+:root:root[data-theme=dark] .gsec.gsec.on{border-color:var(--c)!important}
+:root[data-theme=dark] .gsec>.ghd{background:linear-gradient(135deg,color-mix(in srgb,var(--c) 36%,var(--card)),color-mix(in srgb,var(--c) 6%,var(--card)))}
+:root[data-theme=dark] .gsec>.ghd .gt b{color:color-mix(in srgb,var(--c) 40%,#fff)}
+.gcard{gap:12px}
+/* ตัวกรองบัญชีรายกลุ่ม (หน้าวิเคราะห์): หัวกลุ่มที่เลือก = สีกลุ่ม */
+.ghead.on,:root[data-theme=dark] .ghead.on{background:var(--c)!important;color:var(--ci,#fff)!important}
+.ghead.on .n{color:inherit;opacity:.85}.ghead.on .dot{box-shadow:0 0 0 2px rgba(255,255,255,.85)}
+/* ชิปตัวกรองที่มีสีกลุ่ม: เลือกแล้ว = พื้นสีกลุ่มจาง + ขอบสีกลุ่ม */
+.chip.gchip.on,:root[data-theme=dark] .chip.gchip.on{background:color-mix(in srgb,var(--c) 20%,var(--card))!important;color:var(--ink)!important;border-color:var(--c)!important;box-shadow:inset 0 0 0 1px var(--c);font-weight:700}
+/* ป้ายชื่อ + สีกลุ่มในตาราง (Timeline เส้นเงินเป็นทอด / คู่โอน / รายการใหญ่ / รายละเอียดบัญชี) */
+.gtag{--c:#999;display:inline;padding:1px 7px 1px 5px;border-radius:7px;background:color-mix(in srgb,var(--c) 13%,transparent);border:1px solid color-mix(in srgb,var(--c) 38%,transparent);box-decoration-break:clone;-webkit-box-decoration-break:clone;line-height:1.75}
+.gtag i{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:1px}
+:root[data-theme=dark] .gtag{background:color-mix(in srgb,var(--c) 24%,transparent);border-color:color-mix(in srgb,var(--c) 55%,transparent)}
+/* หน้าต่างรายละเอียดบัญชี: หัวไล่เฉดสีกลุ่ม */
+.mhd{border-radius:14px;padding:10px 12px;margin:0 0 10px}
+.mhd h3{margin:0 0 4px}

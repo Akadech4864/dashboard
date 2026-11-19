@@ -205,6 +205,11 @@ const CHC = { F: ["ฉ้อโกงประชาชน", "#B3261E"], C: ["�
 const chChips = (ch) => ["F", "C", "M"].filter((k) => ch.includes(k)).map((k) => `<span class="cc" style="--c:${CHC[k][1]}">${CHC[k][0]}</span>`).join("");
 const SCOL = { pan: "#1B5E20", ath: "#7CB342", tre: "#6A1B9A", prp: "#5D4037", srk: "#795548", prc: "#8D6E63", con: "#8E1B1B", bld: "#D84315" };
 const ENTC = { t1: "#1565C0", pco: "#2E7D32", lnd: "#00897B", ctr: "#AD1457", nom: "#00796B", kpk: "#01579B", sst: "#795548", rel_pan: "#558B2F", rel_ath: "#9CCC65", rel: "#827717", cash: "#616161", per: "#263238", inv: "#37474F", pub: "#F9A825", oth: "#90A4AE", noacc: "#B0BEC5", cashdep: "#9E9E9E", ...SCOL };
+// สีประจำกลุ่ม/ผู้ต้องหาให้ตรงกับชาร์ต (DB.groups) ทุกหน้า (ผู้ใช้สั่ง 20 พ.ย. 69) ; inkOn = สีตัวอักษรที่อ่านได้บนพื้นสีนั้น (ขาว / น้ำเงินเข้ม)
+function colSync() { if (colSync.d || !DB || !DB.groups) return; colSync.d = 1; DB.groups.forEach(([k, , c]) => { if (k in SCOL) SCOL[k] = c; if (k in ENTC) ENTC[k] = c; }); }
+function inkOn(hex) { const h = String(hex || "").replace("#", ""); if (!/^[0-9a-f]{6}$/i.test(h)) return "#fff";
+  const L = [0, 2, 4].map((i) => { const v = parseInt(h.slice(i, i + 2), 16) / 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }), l = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2];
+  return 1.05 / (l + 0.05) >= (l + 0.05) / 0.063 ? "#fff" : "#0B1F33"; }
 const entLab = (e) => { const X = DB.formal; return X.suspects[e] ? `ผู้ต้องหาที่ ${X.suspects[e].no} ${shortName(X.suspects[e].name)}` : (X.ent[e] || e); };
 function photoOf(name) {
   const ph = {}; imgBy((i) => i.cat === "บุคคล").forEach((i) => (ph[nk(i.key)] = i));
@@ -374,7 +379,7 @@ const BRF = {
   },
   sus: (N_) => {
     const { X, S, cashOf, perOf, pt } = N_, k = S[BRS] ? BRS : "pan", s = S[k], q = pt(k);
-    const picks = `<div class="sp">${susKeys().map((x) => `<button data-sp="${x}" class="${x === k ? "on" : ""}" style="--c:${SCOL[x]}"><span>${S[x].no}</span>${esc(shortName(S[x].name).split(" ")[0])}</button>`).join("")}</div>`;
+    const picks = `<div class="sp">${susKeys().map((x) => `<button data-sp="${x}" class="${x === k ? "on" : ""}" style="--c:${SCOL[x]};--ci:${inkOn(SCOL[x])}"><span>${S[x].no}</span>${esc(shortName(S[x].name).split(" ")[0])}</button>`).join("")}</div>`;
     const ph = photoOf(s.name), com = ["prp", "srk", "prc"].includes(k), why = WHY[com ? "com" : k] || {};
     const fromSus = Object.values(s.from_sus || {}).reduce((a, v) => a + v, 0), toSus = Object.values(s.to_sus || {}).reduce((a, v) => a + v, 0);
     const yrs = Object.keys(s.yr || {}).filter((y) => Object.values(s.yr[y]).some((v) => v >= 1000));
@@ -507,7 +512,7 @@ function xtMount(host, cfg) {
   host.innerHTML = `<div class="card fcard" data-xf="1">
     <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" data-xq="1" value="${esc(S.q)}" placeholder="${esc(cfg.ph || "ค้นหา")}"></label></div>
     <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="ibx" data-xclr="1" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button><span class="muted fsum" data-xsum="1"></span></div>
-    ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip" data-xk="${k}" data-xv="${esc(v)}">${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
+    ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip${c ? " gchip" : ""}" data-xk="${k}" data-xv="${esc(v)}"${c ? ` style="--c:${c}"` : ""}>${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
   <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small> ${infoI(cfg.note)}</h2>
   <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? ibx("xls", "ส่งออก Excel (ทุกแถวตามตัวกรอง)", 'data-xx="xl"') : ""}${ibx("reset", "กลับลำดับเดิม", 'data-xx="sr"')}${ibx("fx", "ล้างช่องกรองคอลัมน์", 'data-xx="cf"')}</div>
   <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
