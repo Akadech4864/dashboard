@@ -33,6 +33,27 @@ body.drawer .side{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.3)}
 .side button:hover{background:rgba(255,255,255,.07)}
 .side button.on{background:var(--yel);color:#00264D}
 .side button.on small{color:#5A4E00}
+/* ตารางรายการบัตรเครดิต: เรียง + ช่องกรองรายคอลัมน์ */
+#ccT th.srt{cursor:pointer;white-space:nowrap;user-select:none}
+#ccT th .si{font-size:.72rem;color:#FFD403;margin-left:2px}
+#ccT .cfr th{top:var(--h1,37px);padding:4px;background:#0B3A66}
+#ccT .cfr input{width:100%;min-width:64px;box-sizing:border-box;border:0;border-radius:6px;padding:5px 7px;font:inherit;font-size:.8rem;font-weight:400;background:#fff;color:#1A2433}
+#ccT .cfr input:not(:placeholder-shown){box-shadow:0 0 0 2px #FFD403}
+#ccT td.neg{color:var(--mut)}
+/* หน้าย่อยคลี่จากเมนูซ้าย */
+.side .car{margin-left:auto;flex:none;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;opacity:.75}
+.side .car:before{content:"";border-left:6px solid currentColor;border-top:4.5px solid transparent;border-bottom:4.5px solid transparent;transition:transform .15s}
+.side button.exp .car:before{transform:rotate(90deg)}
+.side .car:hover{background:rgba(255,255,255,.14);opacity:1}
+.side button.on .car:hover{background:rgba(0,38,77,.12)}
+.side-sub{display:none;flex-direction:column;gap:1px;margin:2px 0 6px 21px;padding-left:8px;border-left:1px solid rgba(255,255,255,.16)}
+.side-sub.open{display:flex}
+.side-sub button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;color:#C3D1E2;text-align:left;padding:7px 10px;border-radius:8px;font:inherit;font-size:.87rem;cursor:pointer}
+.side-sub button:hover{background:rgba(255,255,255,.07)}
+.side-sub button.on{background:rgba(255,212,3,.16);color:#FFD403;font-weight:700;box-shadow:inset 3px 0 0 #FFD403}
+.side-sub3{display:flex;flex-direction:column;gap:1px;margin:1px 0 4px 16px;padding-left:6px;border-left:1px dashed rgba(255,255,255,.16)}
+.side-sub3 button{padding:5px 8px;font-size:.83rem}
+.side-sub3 .no{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex:none}
 @media (min-width:1100px){
   #app{display:grid;grid-template-columns:248px minmax(0,1fr);grid-template-rows:auto 1fr auto;min-height:100vh}
   body.has-sub #app{grid-template-columns:248px 220px minmax(0,1fr)}

@@ -206,7 +206,7 @@ function enhance(root) {
     if (hr && !custom) [...hr.cells].forEach((th, c) => { th.classList.add("srt"); th.title = "กดเพื่อเรียง (กดซ้ำสลับ ▲▼ / ครั้งที่ 3 เอาออก ; กดหลายคอลัมน์ = เรียงหลายชั้น)";
       th.addEventListener("click", (e) => { e.stopPropagation(); const k = tbl._sort = tbl._sort || [], n = k.findIndex((x) => x[0] === c);
         if (n < 0) k.push([c, 1]); else if (k[n][1] === 1) k[n][1] = -1; else k.splice(n, 1); sortTable(tbl); }); });
-    if (tbl.closest("#tTx")) continue;                                  // ตารางรายการมีปุ่มส่งออกทุกแถวของตัวเอง
+    if (tbl.closest("#tTx,[data-noxbar]")) continue;                                 // ตารางรายการมีปุ่มส่งออกทุกแถวของตัวเอง
     const host = tbl.closest(".tblwrap") || tbl;
     const bar = document.createElement("div"); bar.className = "xbar";
     bar.innerHTML = `${hr && !custom ? '<button class="chip" data-xr="1" title="กลับลำดับเดิม">↺ ลำดับเดิม</button>' : ""}<button class="chip" data-xl="1">${IC("doc", 13)} Excel</button>`;
@@ -554,17 +554,171 @@ function pAsset() { // ทรัพย์สินส่วนตัว: ตา�
 }
 let ASF = { st: "", type: "", own: "", q: "" };
 let CCS = "";                                                           // บัญชีต้นทางที่เลือกดูชาร์ตการชำระค่าบัตร ("" = ทุกบัญชี)
-function pCc() {                                                        // เมนูบัตรเครดิต (แยกจากหน้าทรัพย์สิน ; ผู้สั่งงาน 18 พ.ย. 69)
+/* เมนูบัตรเครดิต (แยกจากหน้าทรัพย์สิน ; ผู้สั่งงาน 18 พ.ย. 69)
+   รุ่น 19 พ.ย. 69 (ผู้ใช้สั่ง "ออกแบบให้คล้ายวิเคราะห์เส้นเงิน"): 3 หน้าย่อย — รายการใช้จ่าย (ตัวกรอง บัตร/ประเภท/ลักษณะ/ช่วงเวลา/ประเทศ + ค้นหาร้านค้า
+   + ชาร์ตตามตัวกรอง กดแท่งเพื่อกรอง + ตารางเรียงหลายคอลัมน์ + ช่องกรองรายคอลัมน์อิสระ) / การชำระค่าบัตร / สรุปภาพรวม */
+let CCV = "tx";
+const CCV_T = [["tx", "รายการใช้จ่าย", "list"], ["pay", "การชำระค่าบัตร", "bank"], ["sum", "สรุปภาพรวม", "chart"]];
+const CCF0 = () => ({ q: "", cards: new Set(), types: new Set(), nats: new Set(["per", "chr"]), ctry: new Set(), from: "", to: "", min: "", cf: {}, sort: [[0, -1]], lim: 300 });
+let CCF = CCF0();
+const NATL = { per: "ใช้ส่วนตัว", chr: "บริจาค / ทำบุญ", fin: "ชำระค่าบัตร / คืนเงิน" };
+const CARDC = { "4615": "#1565C0", "4260": "#6A1B9A", "6834": "#00897B", "7787": "#F9A825" };
+const CCOLS = [["วันที่", 0, "d"], ["บัตร", 1, "t"], ["ร้านค้า / รายการ", 2, "t"], ["เมือง / รายละเอียด", 3, "t"], ["ประเภท", 4, "t"], ["ลักษณะ", 5, "t"], ["ประเทศ", 6, "t"], ["ยอด (บาท)", 7, "a"]];
+const ccCell = (r, c) => (c === 0 ? `${r[0]} ${dTh(r[0])} ${+r[0].slice(0, 4) + 543}` : c === 1 ? "x" + r[1] : c === 5 ? NATL[r[5]] || r[5] : String(r[c] ?? ""));
+function ccColOk(r, c, v) {                                             // ช่องกรองรายคอลัมน์: คั่นด้วย , = หรือ ; ขึ้นต้น ! = ไม่เอา ; คอลัมน์ยอด: >1000 / <500 / 1000-5000 / ตัวเลขเดียว = ตั้งแต่
+  const terms = v.split(",").map((s) => s.trim()).filter(Boolean); if (!terms.length) return true;
+  const neg = terms.filter((t) => t[0] === "!").map((t) => t.slice(1).toLowerCase()).filter(Boolean), pos = terms.filter((t) => t[0] !== "!");
+  if (CCOLS[c][2] === "a") {
+    const a = Math.abs(r[7]), ok = (t) => { const s = t.replace(/[, ]/g, ""); let m;
+      if ((m = s.match(/^(\d+(?:\.\d+)?)-(\d+(?:\.\d+)?)$/))) return a >= +m[1] && a <= +m[2];
+      if ((m = s.match(/^(>=|<=|>|<|=)(\d+(?:\.\d+)?)$/))) return { ">=": a >= +m[2], "<=": a <= +m[2], ">": a > +m[2], "<": a < +m[2], "=": Math.abs(a - +m[2]) < 0.005 }[m[1]];
+      return /^\d+(\.\d+)?$/.test(s) ? a >= +s : true; };
+    return (!pos.length || pos.some(ok)) && !neg.some((t) => ok(t));
+  }
+  const x = ccCell(r, c).toLowerCase();
+  return (!pos.length || pos.some((t) => x.includes(t.toLowerCase()))) && !neg.some((t) => x.includes(t));
+}
+function ccRows() {
+  const F = CCF, q = F.q.trim().toLowerCase(), cf = Object.entries(F.cf).filter(([, v]) => v && v.trim());
+  const R = DB.cc.tx.filter((r) => (!F.cards.size || F.cards.has(r[1])) && (!F.types.size || F.types.has(r[4])) && (!F.nats.size || F.nats.has(r[5])) && (!F.ctry.size || F.ctry.has(r[6]))
+    && (!F.from || r[0] >= F.from) && (!F.to || r[0] <= F.to) && (!F.min || Math.abs(r[7]) >= +F.min)
+    && (!q || `${r[2]} ${r[3]} ${r[4]} ${r[6]}`.toLowerCase().includes(q)) && cf.every(([c, v]) => ccColOk(r, +c, v)));
+  if (F.sort.length) R.sort((a, b) => { for (const [c, d] of F.sort) { const k = CCOLS[c][2], x = a[c], y = b[c];
+    const v = k === "a" ? x - y : String(x).localeCompare(String(y), "th"); if (v) return v * d; } return 0; });
+  return R;
+}
+function pCc() {
   const m = $("#main");
   if (!DB.cc) { m.innerHTML = '<p class="muted">ยังไม่มีข้อมูลบัตรเครดิต</p>'; return; }
-  m.innerHTML = ccBlock(DB.cc);
-  ccCharts(DB.cc);
-  ccPayView(DB.cc);
-  m.onclick = (e) => { const tr = e.target.closest("tr[data-ccs]"), b = e.target.closest("[data-ccg]");
+  const B = ccBlock(DB.cc);
+  const nav = `<div class="frow subnav only-m" style="margin-bottom:10px">${CCV_T.map(([k, l, ic]) => `<button class="chip ${CCV === k ? "on" : ""}" data-ccv="${k}">${IC(ic, 15)} ${l}</button>`).join("")}</div>`;
+  if (CCV === "sum") { m.innerHTML = nav + B.HEAD + B.SUM; ccCharts(DB.cc); }
+  else if (CCV === "pay") { m.innerHTML = nav + B.HEAD + B.PAY; ccPayView(DB.cc); }
+  else { m.innerHTML = nav + B.HEAD + ccTxShell(); ccSync(); ccUpd(); }
+  let tm;
+  m.onclick = (e) => {
+    const v = e.target.closest("[data-ccv]"); if (v) { CCV = v.dataset.ccv; render(); shellSync(); return window.scrollTo(0, 0); }
+    if (CCV === "tx") return ccTxClick(e);
+    const tr = e.target.closest("tr[data-ccs]"), b = e.target.closest("[data-ccg]");
     if (b) { const ai = DB.accounts.findIndex((a) => dg(a.acc) === dg(b.dataset.ccg)); if (ai < 0) return; resetF(); F.accs.add(ai); F.q = "441770"; F.flm = "d"; return go("ana"); }
     if (!tr || e.target.closest("button")) return;
     CCS = CCS === tr.dataset.ccs ? "" : tr.dataset.ccs; ccPayView(DB.cc); $("#ccPay").scrollIntoView({ behavior: "smooth", block: "start" }); };
-  m.onchange = (e) => { if (e.target.id === "ccSrc") { CCS = e.target.value; ccPayView(DB.cc); } };
+  m.onchange = (e) => {
+    if (e.target.id === "ccSrc") { CCS = e.target.value; ccPayView(DB.cc); return; }
+    if (e.target.id === "ccYr") { const y = e.target.value; CCF.from = y ? y + "-01-01" : ""; CCF.to = y ? y + "-12-31" : ""; CCF.lim = 300; ccSync(); ccUpd(); }
+    if (e.target.id === "ccFrom" || e.target.id === "ccTo") { CCF[e.target.id === "ccFrom" ? "from" : "to"] = e.target.value; CCF.lim = 300; ccSync(); ccUpd(); }
+  };
+  m.oninput = (e) => {
+    const t = e.target; if (CCV !== "tx") return;
+    if (t.id === "ccQ" || t.id === "ccMin" || t.dataset.cf != null) { clearTimeout(tm); tm = setTimeout(() => {
+      if (t.id === "ccQ") CCF.q = t.value; else if (t.id === "ccMin") CCF.min = t.value; else CCF.cf[t.dataset.cf] = t.value;
+      CCF.lim = 300; ccSync(); ccUpd(); }, 250); }
+  };
+}
+function ccTxShell() {
+  const C = DB.cc, cnt = (f) => fmt0(C.tx.filter(f).length), yrs = [...new Set(C.tx.map((r) => r[0].slice(0, 4)))].sort().reverse();
+  const types = [...new Map(C.tx.map((r) => [r[4], r[5]])).entries()].sort((a, b) => a[0].localeCompare(b[0], "th")), ctry = [...new Set(C.tx.map((r) => r[6]))].sort((a, b) => (a === "ไทย" ? -1 : b === "ไทย" ? 1 : a.localeCompare(b, "th")));
+  const cinfo = Object.fromEntries((C.card_info || []).map((c) => [c.card, c]));
+  return `<div class="card fcard" id="ccF">
+   <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" id="ccQ" value="${esc(CCF.q)}" placeholder="ค้นหาร้านค้า / สินค้า / เมือง / ประเภท"></label></div>
+   <div class="fline">${["card", "type", "nat", "per", "ctry"].map((k) => `<button class="pill" data-ccd="${k}"><span></span></button>`).join("")}
+    <input type="number" id="ccMin" class="pin" min="0" step="1000" value="${esc(CCF.min)}" placeholder="ยอดขั้นต่ำ (บาท)">
+    <button class="pill x" id="ccClr" hidden>✕ ล้างตัวกรอง</button><span id="ccSum" class="muted fsum"></span></div>
+   <div class="ddp" data-ccp="card" hidden><div class="frow">${C.cards.map((c) => `<button class="chip" data-ccc="${c.card}"><span class="dot" style="background:${CARDC[c.card] || "#5B6B7F"}"></span>${esc(cinfo[c.card] ? cinfo[c.card].full : "x" + c.card)} <small class="muted">${esc(cinfo[c.card] ? cinfo[c.card].ctype || "" : "")} · ${cnt((r) => r[1] === c.card)}</small></button>`).join("")}</div></div>
+   <div class="ddp" data-ccp="type" hidden><div class="frow"><button class="chip" data-cct="*">เลือกทั้งหมด / ล้าง</button>${types.map(([t, n]) => `<button class="chip" data-cct="${esc(t)}"><span class="dot" style="background:${NATC[n] || "#9E9E9E"}"></span>${esc(t)} <small class="muted">${cnt((r) => r[4] === t)}</small></button>`).join("")}</div></div>
+   <div class="ddp" data-ccp="nat" hidden><div class="frow">${Object.entries(NATL).map(([k, l]) => `<button class="chip" data-ccn="${k}"><span class="dot" style="background:${NATC[k]}"></span>${l} <small class="muted">${cnt((r) => r[5] === k)}</small></button>`).join("")}</div>
+     <p class="muted" style="font-size:.8rem;margin:0">ค่าเริ่มต้น = ใช้ส่วนตัว + บริจาค/ทำบุญ (ไม่รวมรายการชำระค่าบัตร/คืนเงินซึ่งเป็นยอดติดลบ)</p></div>
+   <div class="ddp" data-ccp="per" hidden><div class="frow"><input type="date" id="ccFrom" value="${CCF.from}"> – <input type="date" id="ccTo" value="${CCF.to}">
+     <button class="chip" data-ccpp="all">ทั้งหมด</button><button class="chip" data-ccpp="before">ก่อนตั้งมูลนิธิ</button><button class="chip" data-ccpp="after">หลังตั้งมูลนิธิ</button>
+     <select id="ccYr"><option value="">รายปี…</option>${yrs.map((y) => `<option value="${y}">ปี ${+y + 543}</option>`).join("")}</select></div></div>
+   <div class="ddp" data-ccp="ctry" hidden><div class="frow">${ctry.map((c) => `<button class="chip" data-ccy="${esc(c)}">${esc(c)} <small class="muted">${cnt((r) => r[6] === c)}</small></button>`).join("")}</div></div>
+  </div>
+  <div class="grid g4 kp8" id="ccKpi" style="margin-top:12px"></div>
+  <div class="grid g2" style="margin-top:12px"><div class="card"><div class="lab" style="margin-top:0">ตามประเภท — กดแท่งเพื่อกรอง</div><div class="chartbox tall"><canvas id="cCcT2"></canvas></div></div>
+    <div class="card"><div class="lab" style="margin-top:0">รายเดือน แยกตามบัตร (ล้านบาท) — กดแท่งเพื่อดูเดือนนั้น</div><div class="chartbox tall"><canvas id="cCcM"></canvas></div></div></div>
+  <div id="ccMer"></div>
+  <h2>${IC("list")} รายการ <small id="ccCnt"></small></h2>
+  <div class="frow" style="margin:-4px 0 8px"><button class="chip" id="ccXl">${IC("doc", 13)} Excel (ทุกแถวตามตัวกรอง)</button><button class="chip" id="ccSr" title="กลับไปเรียงตามวันที่ล่าสุด">↺ ลำดับเดิม</button><button class="chip" id="ccCfx">✕ ล้างช่องกรองคอลัมน์</button>
+    <small class="muted" style="align-self:center">กดหัวคอลัมน์เพื่อเรียง (กดซ้ำสลับ ▲▼ · Shift + กด = เรียงหลายชั้น) · ช่องกรองใต้หัวคอลัมน์: คั่นด้วย , = หรือ · ขึ้นต้น ! = ไม่เอา · ยอด: &gt;100000 / 1000-5000</small></div>
+  <div class="tblwrap tall" data-noxbar="1"><table id="ccT"><thead><tr>${CCOLS.map(([l, , k], c) => `<th data-cs="${c}" class="srt${k === "a" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
+    <tr class="cfr">${CCOLS.map(([, , k], c) => `<th><input data-cf="${c}" value="${esc(CCF.cf[c] || "")}" placeholder="${k === "a" ? "≥ / ช่วง" : k === "d" ? "2567 / 2024-05" : "กรอง…"}"></th>`).join("")}</tr></thead><tbody></tbody></table></div>
+  <div id="ccMore" style="text-align:center;margin:8px 0"></div>
+  <p class="muted" style="font-size:.82rem">${CCNOTE}</p>`;
+}
+function ccSync() {                                                     // ป้ายบนปุ่มตัวกรอง + สถานะชิป
+  const m = $("#main"), F = CCF, setP = (k, txt, on) => { const b = $(`[data-ccd="${k}"]`, m); if (!b) return; b.querySelector("span").textContent = txt; b.classList.toggle("on", on); };
+  const cut = DB.cut || "2022-06-25";
+  setP("card", F.cards.size ? `บัตร x${[...F.cards].join(", x")}` : "บัตรทุกใบ", F.cards.size > 0);
+  setP("type", F.types.size ? (F.types.size === 1 ? [...F.types][0] : `${F.types.size} ประเภท`) : "ทุกประเภท", F.types.size > 0);
+  const natDef = F.nats.size === 2 && F.nats.has("per") && F.nats.has("chr");
+  setP("nat", !F.nats.size ? "ทุกลักษณะ (รวมชำระค่าบัตร)" : natDef ? "ใช้จ่าย (ไม่รวมชำระค่าบัตร)" : [...F.nats].map((k) => NATL[k]).join(" + "), !natDef);
+  setP("per", F.from || F.to ? (F.from === cut && !F.to ? "หลังตั้งมูลนิธิ" : !F.from && F.to && F.to < cut ? "ก่อนตั้งมูลนิธิ" : `${F.from ? dTh(F.from) : "…"} – ${F.to ? dTh(F.to) : "…"}`) : "ทุกช่วงเวลา", !!(F.from || F.to));
+  setP("ctry", F.ctry.size ? [...F.ctry].join(", ") : "ทุกประเทศ", F.ctry.size > 0);
+  $$("[data-ccc]", m).forEach((b) => b.classList.toggle("on", F.cards.has(b.dataset.ccc)));
+  $$("[data-cct]", m).forEach((b) => b.classList.toggle("on", F.types.has(b.dataset.cct)));
+  $$("[data-ccn]", m).forEach((b) => b.classList.toggle("on", F.nats.has(b.dataset.ccn)));
+  $$("[data-ccy]", m).forEach((b) => b.classList.toggle("on", F.ctry.has(b.dataset.ccy)));
+  const f = $("#ccFrom"), t = $("#ccTo"); if (f) f.value = F.from; if (t) t.value = F.to;
+  const any = F.q || F.cards.size || F.types.size || !natDef || F.ctry.size || F.from || F.to || F.min || Object.values(F.cf).some((v) => v && v.trim());
+  const c = $("#ccClr"); if (c) c.hidden = !any;
+  $$("#ccT [data-cs]").forEach((th) => { const i = F.sort.findIndex((x) => x[0] === +th.dataset.cs); th.querySelector(".si").textContent = i < 0 ? "" : (F.sort[i][1] > 0 ? "▲" : "▼") + (F.sort.length > 1 ? i + 1 : ""); });
+}
+function ccUpd() {
+  const R = ccRows(), C = DB.cc, cut = DB.cut || "2022-06-25", sum = (A) => A.reduce((t, r) => t + r[7], 0);
+  const tot = sum(R), aft = sum(R.filter((r) => r[0] >= cut)), abr = R.filter((r) => r[6] && r[6] !== "ไทย"), mer = new Map();
+  R.forEach((r) => { const k = r[2].replace(/\s+/g, " ").trim(), e = mer.get(k) || [0, 0, r[4]]; e[0] += r[7]; e[1]++; mer.set(k, e); });
+  const big = R.reduce((b, r) => (Math.abs(r[7]) > Math.abs(b ? b[7] : 0) ? r : b), null);
+  $("#ccSum").textContent = `${fmt0(R.length)} / ${fmt0(C.tx.length)} รายการ · ${fmt(tot)} บาท`;
+  $("#ccKpi").innerHTML = [["ยอดรวมตามตัวกรอง", M(tot), `${fmt(tot)} บาท`, ""], ["จำนวนรายการ", fmt0(R.length), `${fmt0(mer.size)} ร้านค้า / รายการ`, ""],
+    ["หลังตั้งมูลนิธิ (25 มิ.ย. 65)", M(aft), tot ? `${(aft / tot * 100).toFixed(1)}% ของยอดตามตัวกรอง` : "", "r"], ["ต่างประเทศ", M(sum(abr)), `${fmt0(abr.length)} รายการ`, ""]]
+    .map(([l, v, s, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join("") +
+    (big ? `<div class="card kpi" style="grid-column:span 2"><div class="l">รายการใหญ่สุด</div><div class="v">${M(big[7])}</div><div class="s">${dTh(big[0])} · x${big[1]} · ${esc(big[2])}</div></div>` : "");
+  // ชาร์ตตามประเภท
+  ["ccT2", "ccM"].forEach((k) => { if (CH[k]) { CH[k].destroy(); delete CH[k]; } });
+  const tp = new Map(); R.forEach((r) => { const e = tp.get(r[4]) || [0, 0, r[5]]; e[0] += r[7]; e[1]++; tp.set(r[4], e); });
+  const T = [...tp.entries()].sort((a, b) => b[1][0] - a[1][0]).slice(0, 16);
+  CH.ccT2 = new Chart($("#cCcT2"), { type: "bar", data: { labels: T.map(([t]) => (t.length > 30 ? t.slice(0, 29) + "…" : t)), datasets: [{ data: T.map(([, v]) => v[0] / 1e6), backgroundColor: T.map(([t, v]) => (CCF.types.has(t) ? "#FFD403" : NATC[v[2]] || "#9E9E9E")) }] },
+    options: { indexAxis: "y", maintainAspectRatio: false, onClick: (e, el) => { if (!el.length) return; const t = T[el[0].index][0]; CCF.types.has(t) ? CCF.types.delete(t) : CCF.types.add(t); CCF.lim = 300; ccSync(); ccUpd(); },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.raw * 1e6)} บาท (${fmt0(T[c.dataIndex][1][1])} ครั้ง)` } } }, scales: { x: { title: { display: true, text: "ล้านบาท" } }, y: { ticks: { font: { size: 11 } } } } } });
+  const ms = [...new Set(R.map((r) => r[0].slice(0, 7)))].sort(), cards = [...new Set(R.map((r) => r[1]))];
+  CH.ccM = new Chart($("#cCcM"), { type: "bar", data: { labels: ms.map((x) => `${MTH[+x.slice(5)]} ${String(+x.slice(0, 4) + 543).slice(2)}`),
+      datasets: cards.map((cd) => ({ label: "x" + cd, backgroundColor: CARDC[cd] || "#5B6B7F", stack: "s", data: ms.map((x) => R.filter((r) => r[1] === cd && r[0].startsWith(x)).reduce((t, r) => t + r[7], 0) / 1e6) })) },
+    options: { maintainAspectRatio: false, onClick: (e, el) => { if (!el.length) return; const x = ms[el[0].index]; CCF.from = x + "-01"; CCF.to = x + "-31"; CCF.lim = 300; ccSync(); ccUpd(); },
+      plugins: { legend: { labels: { boxWidth: 10 } }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } }, scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true } } } });
+  // ร้านค้ารายใหญ่ตามตัวกรอง
+  const MR = [...mer.entries()].sort((a, b) => b[1][0] - a[1][0]);
+  $("#ccMer").innerHTML = accd(`${IC("users", 16)} ร้านค้า / รายการ รวมตามชื่อ (ตามตัวกรอง) — กดแถวเพื่อค้นหาร้านนั้น`, `${fmt0(MR.length)} ราย`,
+    `<div class="tblwrap" data-noxbar="1"><table><tr><th>#</th><th>ร้านค้า / รายการ</th><th>ประเภท</th><th class="n">ครั้ง</th><th class="n">ยอด (บาท)</th></tr>${MR.slice(0, 50).map(([k, v], i) => `<tr class="click" data-ccq="${esc(k)}"><td>${i + 1}</td><td>${esc(k)}</td><td>${esc(v[2])}</td><td class="n">${fmt0(v[1])}</td><td class="n">${fmt(v[0])}</td></tr>`).join("")}</table></div>${MR.length > 50 ? `<p class="muted" style="font-size:.8rem">แสดง 50 อันดับแรก</p>` : ""}`);
+  // ตาราง
+  $("#ccCnt").textContent = `${fmt0(R.length)} รายการ · ${fmt(tot)} บาท${R.length > CCF.lim ? ` · แสดง ${fmt0(CCF.lim)} แถวแรก` : ""}`;
+  $("#ccT tbody").innerHTML = R.slice(0, CCF.lim).map((r) => `<tr><td>${dTh(r[0])}</td><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${CARDC[r[1]] || "#5B6B7F"}"></span> x${esc(r[1])}</td><td>${esc(r[2])}</td><td><small>${esc(r[3])}</small></td><td>${esc(r[4])}</td><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${NATC[r[5]] || "#999"}"></span> ${esc(NATL[r[5]] || r[5])}</td><td>${esc(r[6])}</td><td class="n${r[7] < 0 ? " neg" : ""}">${fmt(r[7])}</td></tr>`).join("") || `<tr><td colspan="8" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
+  $("#ccMore").innerHTML = R.length > CCF.lim ? `<button class="chip" id="ccMoreB">แสดงเพิ่มอีก ${fmt0(Math.min(500, R.length - CCF.lim))} แถว</button> <button class="chip" id="ccAllB">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
+  CCR = R;
+}
+let CCR = [];
+function ccTxClick(e) {
+  const m = $("#main"), F = CCF, b = e.target.closest("button"), upd = () => { F.lim = 300; ccSync(); ccUpd(); };
+  const th = e.target.closest("th[data-cs]");
+  if (th) { const c = +th.dataset.cs, i = F.sort.findIndex((x) => x[0] === c);
+    if (!e.shiftKey) F.sort = i < 0 ? [[c, CCOLS[c][2] === "t" ? 1 : -1]] : [[c, -F.sort[i][1]]];
+    else if (i < 0) F.sort.push([c, CCOLS[c][2] === "t" ? 1 : -1]); else if (F.sort[i][1] === (CCOLS[c][2] === "t" ? 1 : -1)) F.sort[i][1] *= -1; else F.sort.splice(i, 1);
+    ccSync(); return ccUpd(); }
+  const tr = e.target.closest("tr[data-ccq]"); if (tr) { F.q = tr.dataset.ccq; $("#ccQ").value = F.q; upd(); return $("#ccT").scrollIntoView({ behavior: "smooth", block: "start" }); }
+  if (!b) { if (!e.target.closest("#ccF")) { $$("[data-ccp]", m).forEach((p) => (p.hidden = true)); $$("[data-ccd]", m).forEach((x) => x.classList.remove("open")); } return; }
+  if (b.dataset.ccd) { const p = $(`[data-ccp="${b.dataset.ccd}"]`, m), was = p.hidden; $$("[data-ccp]", m).forEach((x) => (x.hidden = true)); $$("[data-ccd]", m).forEach((x) => x.classList.remove("open")); p.hidden = !was; b.classList.toggle("open", was); return; }
+  const tog = (S, v) => (S.has(v) ? S.delete(v) : S.add(v));
+  if (b.dataset.ccc) { tog(F.cards, b.dataset.ccc); return upd(); }
+  if (b.dataset.cct) { if (b.dataset.cct === "*") { if (F.types.size) F.types.clear(); else $$("[data-cct]", m).forEach((x) => x.dataset.cct !== "*" && F.types.add(x.dataset.cct)); } else tog(F.types, b.dataset.cct); return upd(); }
+  if (b.dataset.ccn) { tog(F.nats, b.dataset.ccn); return upd(); }
+  if (b.dataset.ccy) { tog(F.ctry, b.dataset.ccy); return upd(); }
+  if (b.dataset.ccpp) { const cut = DB.cut || "2022-06-25", p = b.dataset.ccpp; F.from = p === "after" ? cut : ""; F.to = p === "before" ? new Date(Date.parse(cut) - 864e5).toISOString().slice(0, 10) : ""; $("#ccYr").value = ""; return upd(); }
+  if (b.id === "ccClr") { const keep = F.sort; CCF = CCF0(); CCF.sort = keep; $("#ccQ").value = ""; $("#ccMin").value = ""; $$("[data-cf]", m).forEach((x) => (x.value = "")); $("#ccYr").value = ""; ccSync(); return ccUpd(); }
+  if (b.id === "ccCfx") { F.cf = {}; $$("[data-cf]", m).forEach((x) => (x.value = "")); return upd(); }
+  if (b.id === "ccSr") { F.sort = [[0, -1]]; ccSync(); return ccUpd(); }
+  if (b.id === "ccMoreB") { F.lim += 500; return ccUpd(); }
+  if (b.id === "ccAllB") { F.lim = CCR.length; return ccUpd(); }
+  if (b.id === "ccXl") { const rows = [CCOLS.map((c) => c[0])].concat(CCR.map((r) => [dTh(r[0]), "x" + r[1], r[2], r[3], r[4], NATL[r[5]] || r[5], r[6], r[7]]));
+    return download2("รายการบัตรเครดิต (ตามตัวกรอง).xlsx", xlsxBlob("รายการบัตรเครดิต", rows, [12, 8, 36, 24, 30, 18, 12, 14])); }
 }
 // ชาร์ต "ค่าบัตรจ่ายโดยบัญชีใด" (ผู้สั่งงาน 18 พ.ย. 69): บัญชีต้นทาง -> บัตร + รายเดือน + รายการรายครั้ง ; กดแถวบัญชีต้นทางในตารางเพื่อดูเฉพาะบัญชีนั้น
 function miniFlow(el, L, R, links, hd) {                                    // L, R: [{id, lab, sub, v, col}] ; links: [{a, b, v}]
@@ -616,15 +770,15 @@ function ccBlock(C) {
   const nat = Object.fromEntries(C.nature.map((x) => [x.k, x])), t1 = C.pay.src.filter((s) => s.t1).reduce((t, s) => t + s.amt, 0);
   const CI = C.card_info || [], RF = C.card_refunds || [], rfSum = RF.reduce((t, r) => t + r.amt, 0), over = CI.reduce((t, c) => t + (c.bal < 0 ? -c.bal : 0), 0);
   const trips = C.trips.reduce((t, x) => t + x.amt, 0);
-  return `<div id="ccBlk"></div><h2>${IC("card")} การใช้บัตรเครดิต ${esc(C.holder || "")} <small>KBANK VISA x${C.cards.map((c) => c.card).join(" / x")} · ${dTh(C.range[0])} – ${dTh(C.range[1])} · statement ${C.files} ฉบับ</small></h2>
-  <div class="grid g4 kp8">${[["ยอดใช้จ่ายสุทธิ", C.total, `${fmt0(C.n)} รายการ`, ""], ["ใช้ส่วนตัว", nat.per?.amt || 0, `${((nat.per?.amt || 0) / C.total * 100).toFixed(1)}%`, "r"], ["บริจาค / ทำบุญ", nat.chr?.amt || 0, `${((nat.chr?.amt || 0) / C.total * 100).toFixed(2)}% · ${(C.chr || []).length} รายการ`, "g"],
+  const HEAD = `<h2>${IC("card")} การใช้บัตรเครดิต ${esc(C.holder || "")} <small>KBANK VISA x${C.cards.map((c) => c.card).join(" / x")} · ${dTh(C.range[0])} – ${dTh(C.range[1])} · statement ${C.files} ฉบับ</small></h2>`;
+  const SUM1 = `<div class="grid g4 kp8">${[["ยอดใช้จ่ายสุทธิ", C.total, `${fmt0(C.n)} รายการ`, ""], ["ใช้ส่วนตัว", nat.per?.amt || 0, `${((nat.per?.amt || 0) / C.total * 100).toFixed(1)}%`, "r"], ["บริจาค / ทำบุญ", nat.chr?.amt || 0, `${((nat.chr?.amt || 0) / C.total * 100).toFixed(2)}% · ${(C.chr || []).length} รายการ`, "g"],
     ["สินค้าแบรนด์เนม / เครื่องประดับ", (C.types.find((t) => t.k === "lux") || {}).amt || 0, `${(C.types.find((t) => t.k === "lux") || {}).n || 0} รายการ`, ""],
     ["ชำระค่าบัตรจากบัญชีรับบริจาค", t1, `${(t1 / C.pay.total * 100).toFixed(1)}% ของยอดชำระ`, "r"], ["เงินชำระเกินในบัตร โอนคืนเข้าบัญชีส่วนตัว", rfSum, RF.length ? `${RF.length} ครั้ง · ยังค้างในบัตรอีก ${M(over)}` : "ไม่พบ", "x"],
     ["เดินทางต่างประเทศ", trips, `${C.trips.length} ทริป`, ""], ["หลังตั้งมูลนิธิ (25 มิ.ย. 65)", C.period["หลังตั้งมูลนิธิ"]?.[0] || 0, `${fmt0(C.period["หลังตั้งมูลนิธิ"]?.[1] || 0)} รายการ`, ""]]
     .map(([l, v, s, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${s}</div></div>`).join("")}</div>
   <div class="grid g2" style="margin-top:12px"><div class="card"><div class="lab" style="margin-top:0">ตามประเภทร้านค้า</div><div class="chartbox tall"><canvas id="cCcT"></canvas></div></div>
-    <div class="card"><div class="lab" style="margin-top:0">รายปี (พ.ศ.)</div><div class="chartbox tall"><canvas id="cCcY"></canvas></div></div></div>
-  ${CI.length ? `<h2>${IC("card")} บัตรแต่ละใบ <small>เลขบัญชีบัตรใน statement ธนาคาร = 6 หลักแรก + 4 หลักท้ายของเลขบัตร</small></h2>
+    <div class="card"><div class="lab" style="margin-top:0">รายปี (พ.ศ.)</div><div class="chartbox tall"><canvas id="cCcY"></canvas></div></div></div>`;
+  const PAY = `${CI.length ? `<h2>${IC("card")} บัตรแต่ละใบ <small>เลขบัญชีบัตรใน statement ธนาคาร = 6 หลักแรก + 4 หลักท้ายของเลขบัตร</small></h2>
   <div class="tblwrap"><table><tr><th>เลขบัตร</th><th>บัญชีบัตร (statement ธนาคาร)</th><th>ประเภท</th><th>ช่วงรายการ</th><th class="n">ใช้จ่ายสุทธิ</th><th class="n">ชำระเข้าบัตร</th><th class="n">จากบัญชีรับบริจาค</th><th class="n">ยอดคงค้างล่าสุด</th></tr>
     ${CI.map((c) => `<tr><td><b>${esc(c.full)}</b></td><td>KBANK ${esc(c.acc)}</td><td>${esc(c.ctype)}</td><td>${dTh(c.first)} – ${dTh(c.last)} <small class="muted">(${c.stmts} ฉบับ)</small></td><td class="n">${fmt(c.amt)}</td><td class="n">${fmt(c.pay)}</td><td class="n">${c.pay_t1 ? `<b style="color:var(--red)">${fmt(c.pay_t1)}</b>` : ""}</td><td class="n">${c.bal < 0 ? `<b>${fmt(c.bal)}</b><br><small class="muted">ชำระเกิน</small>` : fmt(c.bal || 0)}</td></tr>`).join("")}</table></div>
   ${RF.length ? `<p class="muted" style="font-size:.86rem;margin:.5em 0 0">${IC("warn", 14)} ยอดเงินเกินในบัตรที่โอนคืนเข้าบัญชีเงินฝาก: ${RF.map((r) => `บัตร x${r.card} ${dTh(r.d)} <b>${fmt(r.amt)}</b> บาท → ${esc((r.name || "ไม่พบใน statement ธนาคาร").replace(/^KBNK /, "KBANK "))}${r.time ? " (" + esc(r.time) + ")" : ""}`).join(" ; ")}</p>` : ""}` : ""}
@@ -641,16 +795,18 @@ function ccBlock(C) {
   ${(C.trace || []).map((t) => accd(`${IC("route", 16)} ${esc(t.title)}`, `${t.rows.length} แถว`,
     `<p class="muted" style="font-size:.84rem;margin:0 0 6px">${esc(t.note)}</p>${(t.leads || []).length ? `<div class="lab" style="color:var(--red)">${IC("search", 14)} เบาะแสที่พบ</div><ul style="margin:.2em 0 .6em 1.1em;padding:0;font-size:.9rem">${t.leads.map((l) => `<li>${esc(l.replace(/KBNK /g, "KBANK "))}</li>`).join("")}</ul>` : ""}
     <div class="tblwrap"><table><tr><th>วันเวลา</th><th>บัญชี / บัตร</th><th>รายการ / คู่โอน</th><th class="n">เงินเข้า</th><th class="n">เงินออก / ใช้บัตร</th><th class="n">คงเหลือ</th><th>หมายเหตุ</th></tr>${t.rows.map((r) => `<tr${r.note ? ' style="background:#FFF4CC"' : ""}><td>${ccTm(r.t)}</td><td>${r.t1 ? `<b style="color:var(--red)">${esc(r.src.replace(/^KBNK /, "KBANK "))}</b>` : esc(r.src.replace(/^KBNK /, "KBANK "))}</td><td>${esc(r.desc.replace(/KBNK /g, "KBANK "))}</td><td class="n">${r.in ? fmt(r.in) : ""}</td><td class="n">${r.out ? fmt(r.out) : ""}</td><td class="n">${r.bal == null ? "" : fmt(r.bal)}</td><td><b>${esc(r.note || "")}</b></td></tr>`).join("")}</table></div>`)).join("")}
-  <h2>${IC("list")} ประเภทการใช้จ่าย</h2>
+`;
+  const SUM2 = `<h2>${IC("list")} ประเภทการใช้จ่าย</h2>
   <div class="tblwrap"><table><tr><th>ประเภท</th><th>ลักษณะ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th class="n">ก่อนตั้ง</th><th class="n">หลังตั้ง</th></tr>
     ${C.types.map((t) => `<tr><td>${esc(t.label)}</td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${NATC[t.nat]}"></span> ${esc({ per: "ใช้ส่วนตัว", chr: "บริจาค/ทำบุญ" }[t.nat] || t.nat)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td class="n">${fmt(t.before)}</td><td class="n">${fmt(t.after)}</td></tr>`).join("")}</table></div>
   ${accd(`${IC("users", 16)} ร้านค้ารายใหญ่ (รวมสาขา)`, `${C.merchants.length} อันดับ`, `<div class="tblwrap"><table><tr><th>#</th><th>ร้านค้า</th><th>ประเภท</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th></tr>${C.merchants.map((x, i) => `<tr><td>${i + 1}</td><td>${esc(x.m)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td><td class="n">${fmt0(x.n)}</td></tr>`).join("")}</table></div>`)}
   ${accd(`${IC("route", 16)} เดินทางต่างประเทศ`, `${C.trips.length} ทริป · ${M(trips)}`, `<div class="tblwrap"><table><tr><th>#</th><th>วันแรก</th><th>วันสุดท้าย</th><th>ประเทศ</th><th class="n">ยอด (บาท)</th><th class="n">ครั้ง</th><th>รายการใหญ่สุด</th></tr>${C.trips.map((t) => `<tr><td>${t.no}</td><td>${dTh(t.start)}</td><td>${dTh(t.end)}</td><td>${esc(t.countries)}</td><td class="n">${fmt(t.amt)}</td><td class="n">${fmt0(t.n)}</td><td><small>${t.top.slice(0, 2).map(([v, d]) => `${esc(d)} ${fmt0(v)}`).join("<br>")}</small></td></tr>`).join("")}</table></div>`)}
   ${accd(`${IC("warn", 16)} รายการตั้งแต่ 50,000 บาท`, `${C.big.length} รายการ`, `<div class="tblwrap"><table><tr><th>วันที่</th><th>บัตร</th><th>ร้านค้า</th><th>เมือง/ประเทศ</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${C.big.map((x) => `<tr><td>${dTh(x.d)}</td><td>x${x.card}</td><td>${esc(x.m)}</td><td>${esc(x.loc)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td></tr>`).join("")}</table></div>`)}
   ${accd(`${IC("check", 16)} บริจาค / ทำบุญ`, `${(C.chr || []).length} รายการ · ${fmt((C.chr || []).reduce((t, x) => t + x.amt, 0))} บาท`, `<div class="tblwrap"><table><tr><th>วันที่</th><th>ร้านค้า/องค์กร</th><th>เมือง</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${(C.chr || []).map((x) => `<tr><td>${dTh(x.d)}</td><td>${esc(x.m)}</td><td>${esc(x.loc)}</td><td>${esc(x.type)}</td><td class="n">${fmt(x.amt)}</td></tr>`).join("")}</table></div>`)}
-  ${accd(`${IC("list", 16)} รายการทั้งหมด`, `${fmt0(C.tx.length)} แถว`, `<div class="tblwrap tall"><table><tr><th>วันที่</th><th>บัตร</th><th>ร้านค้า</th><th>เมือง/ประเทศ</th><th>ประเภท</th><th>ประเทศ</th><th class="n">ยอด (บาท)</th></tr>${C.tx.map((r) => `<tr><td>${dTh(r[0])}</td><td>x${r[1]}</td><td>${esc(r[2])}</td><td>${esc(r[3])}</td><td>${esc(r[4])}</td><td>${esc(r[6])}</td><td class="n">${fmt(r[7])}</td></tr>`).join("")}</table></div>`)}
-  <p class="muted" style="font-size:.82rem">จัดประเภทจากชื่อร้านค้าตาม statement บัตร (ไม่ใช่รายการสินค้าจริง) ต้องยืนยันด้วยใบเสร็จ ; รายงานฉบับเต็ม + Excel Pivot อยู่ในโฟลเดอร์ 4_รายงานนำเสนอ/8_บัตรเครดิต</p>`;
+  <p class="muted" style="font-size:.82rem">${CCNOTE}</p>`;
+  return { HEAD, SUM: SUM1 + SUM2, PAY };
 }
+const CCNOTE = "จัดประเภทจากชื่อร้านค้าตาม statement บัตร (ไม่ใช่รายการสินค้าจริง) ต้องยืนยันด้วยใบเสร็จ ; รายงานฉบับเต็ม + Excel Pivot อยู่ในโฟลเดอร์ 4_รายงานนำเสนอ/8_บัตรเครดิต";
 function ccCharts(C) {
   if (!C || !$("#cCcT")) return;
   const T = C.types.filter((t) => t.amt > 0).slice(0, 14);
@@ -1435,7 +1591,7 @@ const ACS_T = [["tbl", "ตารางบัญชี", "bank"], ["ppl", "บ�
 function pAcct() {
   if (ACS === "ppl") pPpl(); else if (ACS === "trace") pTrace(); else pAccTable();
   const m = $("#main");
-  m.insertAdjacentHTML("afterbegin", `<div class="frow subnav" id="acSub" style="margin-bottom:10px">${ACS_T.map(([k, l, ic]) => `<button class="chip ${ACS === k ? "on" : ""}" data-acs="${k}">${IC(ic, 15)} ${l}</button>`).join("")}</div>`);
+  m.insertAdjacentHTML("afterbegin", `<div class="frow subnav only-m" id="acSub" style="margin-bottom:10px">${ACS_T.map(([k, l, ic]) => `<button class="chip ${ACS === k ? "on" : ""}" data-acs="${k}">${IC(ic, 15)} ${l}</button>`).join("")}</div>`);
   $("#acSub").onclick = (e) => { const b = e.target.closest("button[data-acs]"); if (!b) return; e.stopPropagation(); ACS = b.dataset.acs; PV = ""; render(); window.scrollTo(0, 0); };
 }
 let ACC_ROWS = null;

@@ -69,10 +69,14 @@ function shellInit() {
   $("#menuBtn").innerHTML = IC("menu", 22); $("#backBtn").innerHTML = IC("back", 22); $("#prefBtn").innerHTML = IC("gear", 21);
   $("#srchBtn").innerHTML = `${IC("search", 18)}<span class="sb-t">ค้นหา ชื่อ · เลขบัญชี · ยอดเงิน · หน้า</span><kbd>Ctrl K</kbd>`;
   $("#tabs").innerHTML = `<div class="side-hd"><img src="logo.jpg" alt=""><b>${esc(DB.case || "")}</b><button class="ib" id="drawerX" aria-label="ปิดเมนู">${IC("x", 20)}</button></div>` +
-    GROUPS.map(([g, ks]) => `${g ? `<div class="side-g">${g}</div>` : ""}` + ks.map((k) => { const [, l, ic] = tabOf(k); return `<button data-t="${k}">${IC(ic, 20)}<span class="tx"><span>${l}</span><small></small></span></button>`; }).join("")).join("") +
+    GROUPS.map(([g, ks]) => `${g ? `<div class="side-g">${g}</div>` : ""}` + ks.map((k) => { const [, l, ic] = tabOf(k); return `<button data-t="${k}">${IC(ic, 20)}<span class="tx"><span>${l}</span><small></small></span>${SUBS[k] ? `<span class="car" data-car="${k}" role="button" aria-label="แสดงหน้าย่อย"></span>` : ""}</button>` + (SUBS[k] ? `<div class="side-sub" data-sub="${k}"></div>` : ""); }).join("")).join("") +
     `<div class="side-g">ตั้งค่า</div><button data-x="pref">${IC("gear", 20)}<span class="tx"><span>ตั้งค่าการแสดงผล</span><small>ตัวเลข · ธีม · ชาร์ต</small></span></button>`;
   $("#bnav").innerHTML = BNAV.map((k) => `<button data-t="${k}">${IC(tabOf(k)[2], 22)}<span>${BNAV_L[k]}</span></button>`).join("");
-  const nav = (e) => { const b = e.target.closest("button"); if (!b) return; if (b.id === "drawerX") return drawer(false); if (b.dataset.x === "pref") { drawer(false); return openPrefs(); } if (b.dataset.t) { drawer(false); go(b.dataset.t); } };
+  const nav = (e) => {
+    const car = e.target.closest("[data-car]");
+    if (car) { e.stopPropagation(); const k = car.dataset.car; SEXP.has(k) ? SEXP.delete(k) : SEXP.add(k); sideSubs(); return; }
+    const b = e.target.closest("button"); if (!b) return; if (b.id === "drawerX") return drawer(false);
+    if (b.dataset.sgo) { const [t, v, s] = b.dataset.sgo.split("|"); if (t === "brief") { BRV = v || BRV; if (s) BRS = s; } else if (t === "acct") { ACS = s || ACS; } else if (t === "cc") { CCV = s || CCV; } drawer(false); go(t); window.scrollTo(0, 0); return; } if (b.dataset.x === "pref") { drawer(false); return openPrefs(); } if (b.dataset.t) { drawer(false); go(b.dataset.t); } };
   $("#tabs").onclick = nav; $("#bnav").onclick = nav;
   $("#menuBtn").onclick = () => drawer(true); $("#drawerMask").onclick = () => drawer(false);
   $("#prefBtn").onclick = openPrefs; $("#srchBtn").onclick = openSearch;
@@ -96,14 +100,27 @@ function shellSync() {
   document.body.dataset.tab = TAB;
   subPanel();
 }
+/* หน้าย่อยคลี่ออกจากเมนูซ้ายแบบหุบได้ มีสามเหลี่ยมเล็กบอกว่ามีหน้าย่อย (ผู้ใช้สั่ง 19 พ.ย. 69 แทนแถบย่อยแยกคอลัมน์) */
+const SUBS = {
+  brief: () => BRCH.map(([k, l, ic]) => ({ go: `brief|${k}`, l, ic, on: TAB === "brief" && BRV === k,
+    kids: k === "sus" && TAB === "brief" && BRV === "sus" && DB.formal ? susKeys().map((s) => ({ go: `brief|sus|${s}`, l: shortName(DB.formal.suspects[s].name), no: DB.formal.suspects[s].no, on: BRS === s })) : null })),
+  acct: () => ACS_T.map(([k, l, ic]) => ({ go: `acct||${k}`, l, ic, on: TAB === "acct" && ACS === k })),
+  cc: () => CCV_T.map(([k, l, ic]) => ({ go: `cc||${k}`, l, ic, on: TAB === "cc" && CCV === k })),
+};
+const SEXP = new Set(); let SLAST = "";
+function sideSubs() {
+  if (TAB !== SLAST) { SEXP.clear(); if (SUBS[TAB]) SEXP.add(TAB); SLAST = TAB; }   // เปิดหน้าใดคลี่หน้าย่อยของหน้านั้น หุบของหน้าอื่น
+  Object.keys(SUBS).forEach((k) => {
+    const box = $(`#tabs [data-sub="${k}"]`), btn = $(`#tabs button[data-t="${k}"]`); if (!box) return;
+    const op = SEXP.has(k); btn.classList.toggle("exp", op); box.classList.toggle("open", op);
+    box.innerHTML = op ? SUBS[k]().map((x) => `<button data-sgo="${x.go}" class="${x.on ? "on" : ""}">${IC(x.ic, 16)}<span>${esc(x.l)}</span></button>` +
+      (x.kids ? `<div class="side-sub3">${x.kids.map((c) => `<button data-sgo="${c.go}" class="${c.on ? "on" : ""}"><span class="no">${c.no}</span><span>${esc(c.l)}</span></button>`).join("")}</div>` : "")).join("") : "";
+  });
+}
 function subPanel() {
-  const el = $("#sub"); let h = "";
-  const X = DB.formal;
-  if (TAB === "brief" && X) h = `<div class="sub-hd">บทสรุปทางการ</div>` + BRCH.map(([k, l, ic]) => `<button data-sgo="brief|${k}" class="${BRV === k ? "on" : ""}">${IC(ic, 17)}<span>${l}</span></button>`).join("") +
-    (BRV === "sus" ? `<div class="sub-hd">ผู้ต้องหา</div>` + susKeys().map((k) => `<button data-sgo="brief|sus|${k}" class="s2 ${BRS === k ? "on" : ""}"><span class="no">${X.suspects[k].no}</span><span>${esc(shortName(X.suspects[k].name))}</span></button>`).join("") : "");
-  /* หน้าอื่นไม่แสดงแถบย่อย — รายการซ้ำกับเมนูข้าง (ผู้ใช้สั่งเอาออก 19 พ.ย. 69) */
-  el.innerHTML = h; el.hidden = !h;
-  document.body.classList.toggle("has-sub", !!h);
+  const el = $("#sub"); el.innerHTML = ""; el.hidden = true;           // ไม่ใช้แถบย่อยแยกคอลัมน์แล้ว
+  document.body.classList.remove("has-sub");
+  sideSubs();
 }
 
 /* ---------- ค้นหาอัจฉริยะ ---------- */
