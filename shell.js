@@ -483,7 +483,7 @@ document.addEventListener("fullscreenchange", () => { if (!document.fullscreenEl
    cfg = { id, title, ph, rows, cols: [[หัว, get(r) -> ข้อความ/ตัวเลข, ชนิด t|a|d|n|x, html(r, i)?]], facets: [[key, ป้ายทั้งหมด, get(r), [[ค่า, ป้าย, สี]]?]],
            search(r) -> ข้อความ, sort0, rowAttr(r), onRow(r, e), onUpdate(rows), sum(rows), xl, note } ; สถานะอยู่ XTS[id] */
 const XTS = {};
-const xtS = (id) => (XTS[id] = XTS[id] || { q: "", f: {}, cf: {}, sort: null, lim: 300 });
+const xtS = (id) => (XTS[id] = XTS[id] || { q: "", f: {}, cf: {}, sort: null, lim: 300, open: new Set() });
 function xtSet(id, key, v, only) {
   const S = xtS(id), F = (S.f[key] = S.f[key] || new Set());
   if (v === "" || v == null) F.clear(); else if (only) { const was = F.size === 1 && F.has(v); F.clear(); if (!was) F.add(v); } else (F.has(v) ? F.delete(v) : F.add(v));
@@ -513,7 +513,10 @@ function xtMount(host, cfg) {
     if (S.sort.length) R = R.slice().sort((a, b) => { for (const [c, d] of S.sort) { const t = C_[c][2], x = C_[c][1](a), y = C_[c][1](b);
       const v = t === "a" || t === "n" ? (+x || 0) - (+y || 0) : String(x ?? "").localeCompare(String(y ?? ""), "th"); if (v) return v * d; } return 0; });
     const tb = host.querySelector("tbody");
-    tb.innerHTML = R.slice(0, S.lim).map((r, i) => `<tr ${cfg.rowAttr ? cfg.rowAttr(r) : ""}>${C_.map(([, g, t, h]) => `<td${t === "a" || t === "n" ? ' class="n"' : ""}>${h ? h(r, i) : t === "n" ? i + 1 : t === "d" ? (g(r) ? dTh(g(r)) : "") : t === "a" ? (g(r) ? fmt0(g(r)) : "–") : esc(g(r) ?? "")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${C_.length}" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
+    if (!S.open) S.open = new Set();
+    tb.innerHTML = R.slice(0, S.lim).map((r, i) => { const op = cfg.detail && S.open.has(cfg.key ? cfg.key(r) : i);
+      return `<tr data-xi="${i}" ${cfg.rowAttr ? cfg.rowAttr(r) : ""}${op ? ' data-op="1"' : ""}>${C_.map(([, g, t, h], c) => `<td${t === "a" || t === "n" ? ' class="n"' : ""}>${c === 0 && cfg.detail ? `<span class="xcar">${op ? "▾" : "▸"}</span> ` : ""}${h ? h(r, i) : t === "n" ? i + 1 : t === "d" ? (g(r) ? dTh(g(r)) : "") : t === "a" ? (g(r) ? fmt0(g(r)) : "–") : esc(g(r) ?? "")}</td>`).join("")}</tr>`
+        + (op ? `<tr class="xdet"><td colspan="${C_.length}">${cfg.detail(r)}</td></tr>` : ""); }).join("") || `<tr><td colspan="${C_.length}" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
     host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more">แสดงเพิ่มอีก ${fmt0(Math.min(cfg.lims ? 100 : 500, R.length - S.lim))} แถว</button> <button class="chip" data-xx="all">แสดงทั้งหมด ${fmt0(R.length)} แถว</button>` : "";
     const sm = cfg.sum ? cfg.sum(R) : "";
     host.querySelector("[data-xsum]").textContent = `${fmt0(R.length)} / ${fmt0(cfg.rows.length)} รายการ${sm ? " · " + sm : ""}`;
@@ -543,7 +546,9 @@ function xtMount(host, cfg) {
       if (k === "xl") { const cs = C_.filter((c) => c[2] !== "x"), rows = [cs.map((c) => c[0])].concat(R.map((r, i) => cs.map((c) => (c[2] === "n" ? i + 1 : c[2] === "d" ? (c[1](r) ? dTh(c[1](r)) : "") : c[1](r) ?? ""))));
         return download2(cfg.xl + ".xlsx", xlsxBlob("รายการ", rows, cs.map((c) => (c[2] === "t" ? 30 : 14)))); } }
     if (!b && !e.target.closest("[data-xf]") && !e.target.closest("input")) { host.querySelectorAll("[data-xp]").forEach((x) => (x.hidden = true)); host.querySelectorAll("[data-xd]").forEach((x) => x.classList.remove("open")); }
-    const tr = e.target.closest("tbody tr"); if (tr && cfg.onRow && !b) { const i = [...tr.parentNode.children].indexOf(tr); if (R[i]) cfg.onRow(R[i], e); }
+    const tr = e.target.closest("tbody tr[data-xi]"); if (tr && !b && !e.target.closest(".xdet")) { const r = R[+tr.dataset.xi]; if (!r) return;
+      if (cfg.detail) { const k = cfg.key ? cfg.key(r) : +tr.dataset.xi; S.open.has(k) ? S.open.delete(k) : S.open.add(k); return upd(); }
+      if (cfg.onRow) cfg.onRow(r, e); }
   };
   host.onchange = (e) => { if (e.target.dataset.xlim) { S.limSel = +e.target.value; S.lim = S.limSel || Infinity; upd(); } };
   host.oninput = (e) => { const t = e.target; if (t.dataset.xq == null && t.dataset.xcf == null) return; clearTimeout(tm); tm = setTimeout(() => { if (t.dataset.xq != null) S.q = t.value; else S.cf[t.dataset.xcf] = t.value; reset(); }, 250); };

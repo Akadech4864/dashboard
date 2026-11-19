@@ -1302,7 +1302,11 @@ function pAna() {
         ["กลุ่ม", (r) => r.gl, "t", (r) => `<span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${DB.groups[r.g][2]}"></span> ${esc(r.gl)}`],
         ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? fmt(r.i) : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? fmt(r.o) : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
       facets: [["g", "ทุกกลุ่มคู่โอน", (r) => r.gl, [...new Map(cpRows.map((r) => [r.gl, DB.groups[r.g][2]])).entries()].map(([l, c]) => [l, l, c])], ["bank", "ทุกธนาคาร", (r) => r.bank || "(ไม่ระบุ)"]],
-      rowAttr: () => 'class="click" title="กดเพื่อใช้คู่โอนนี้เป็นคำค้นของหน้า"', onRow: (r) => { FHIST.push(fSnap()); F.q = r.acc || r.nm; $("#fQ").value = F.q; upd(); } });
+      key: (r) => r.ci, rowAttr: () => 'class="click" title="กดเพื่อดูรายการของคู่โอนนี้"',
+      detail: (r) => { const L = IDX.filter((i) => cpOf(i) === r.ci).sort((a, b) => DB.tx[a][1] - DB.tx[b][1]), sh = L.slice(0, 300);
+        return `<div class="xdetb"><div class="frow" style="margin:0 0 6px"><b>${fmt0(L.length)} รายการ</b><span class="muted">เรียงตามเวลา${L.length > 300 ? " · แสดง 300 รายการแรก" : ""}</span>
+          <button class="chip" onclick="FHIST.push(fSnap());F.q='${esc(r.acc || r.nm).replace(/'/g, "")}';$('#fQ').value=F.q;ANA_UPD()">${IC("search", 13)} กรองทั้งหน้าด้วยคู่โอนนี้</button></div>
+          <table class="xmini"><tr><th>วันเวลา</th><th>บัญชี</th><th>ประเภท</th><th class="n">ยอด (บาท)</th></tr>${sh.map((i) => { const x = DB.tx[i], a = DB.accounts[x[0]]; return `<tr><td>${dTh(min2iso(x[1]))} ${txT(i)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${KCOL[x[2]]}"></span> ${DB.kinds[x[2]].split(" (")[0]}</td><td class="n">${fmt(x[3])}</td></tr>`; }).join("")}</table></div>`; } });
     SORTED = txSort(IDX);
     const big = SORTED.slice(0, SHOWN);
     $("#txLab").textContent = `เรียงตาม ${TXS.map(([k, d], n) => `${n + 1}.${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")} — แสดง ${fmt0(big.length)} จาก ${fmt0(IDX.length)} แถว · กดหัวคอลัมน์เพื่อเรียงเพิ่ม (กดซ้ำสลับ ↑↓ / ครั้งที่ 3 เอาออก)`;
@@ -1311,7 +1315,7 @@ function pAna() {
     $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("a", "บัญชี")}${th("k", "ประเภท")}${th("v", "ยอด (บาท)", "n")}${th("c", "คู่โอน")}${th("g", "กลุ่มคู่โอน")}</tr>` +
       big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i); return `<tr class="click" data-ti="${i}" title="กดเพื่อไล่เงินเป็นทอดจากรายการนี้ (Timeline ด้านบน)"><td>${dTh(iso)} ${txT(i)}</td><td>${esc(a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}</td><td>${esc(DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
     $("#tTx").onclick = (e) => { const h = e.target.closest("th[data-ts]");
-      if (!h) { const tr = e.target.closest("tr[data-ti]"); if (tr) { TLS.hist.push(TLS.seed); TLS.keep = true; TLS.seed = tlSeedTx(+tr.dataset.ti); TLS.v = "lst"; tlRender(); $("#tlBox").scrollIntoView({ behavior: "smooth", block: "start" }); } return; } const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
+      if (!h) { const tr = e.target.closest("tr[data-ti]"); if (tr) { TLS.hist.push(TLS.seed); TLS.keep = true; TLS.seed = tlSeedTx(+tr.dataset.ti); TLS.v = "lst"; TLS.open = true; tlRender(); $("#tlBox").scrollIntoView({ behavior: "smooth", block: "start" }); } return; } const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
       if (n < 0) TXS.push([k, k === "v" ? -1 : 1]); else if (TXS[n][1] === (k === "v" ? -1 : 1)) TXS[n][1] *= -1; else TXS.splice(n, 1);
       if (!TXS.length) TXS = TXS0(); SHOWN = 200; upd(true); };
     if (tableOnly) return;
@@ -1622,7 +1626,7 @@ const trName = (m) => (m === "pro" ? "ตามสัดส่วน" : "เข�
    ต้นสาย = รายการทอด 1 ของกล่องที่คลี่ในชาร์ต (F.chain[0]) หรือแถวใดก็ได้ที่กด (ตารางรายการ / ตาราง timeline) ; กรองช่วงวัน-เวลาเริ่มต้นได้
    วิธีไล่: เงินที่เข้าบัญชีที่มี statement ณ เวลาใด จับกับรายการเงินออกของบัญชีนั้นตั้งแต่เวลานั้น เรียงตามเวลาจนครบยอด (รายการเงินออก 1 รายการใช้ได้ไม่เกินยอดของมัน)
    ไล่ต่อไม่เกิน TL_MAX ทอด — เป็นการไล่ตามลำดับเวลา (ข้อสันนิษฐาน) ไม่ใช่การระบุตัวเงิน ; ยอดปลายสายรวม = ยอดต้นสาย */
-let TLS = { v: "lst", from: "", to: "", seed: null, hist: [] }, TLC = { key: "", res: null, ck: null };
+let TLS = { v: "lst", from: "", to: "", seed: null, hist: [], open: false }, TLC = { key: "", res: null, ck: null };
 const TL_MAX = 10, TL_CAP = 30000;
 const TLV = [["lst", "รายการ"], ["grp", "รวมก้อน"], ["hop", "ตามทอด"], ["end", "ปลายสาย"]];
 const tlAcc = (ai) => { const a = DB.accounts[ai]; return `${a.name || ""} · ${a.bank} ${a.acc}`; };
@@ -1657,11 +1661,12 @@ const tlTo = (p) => (p.i < 0 ? "(คงอยู่ในบัญชี)" : p.t
 function tlRender() {
   const box = $("#tlBox"); if (!box) return;
   box.onclick = (e) => { if (e.target.closest("#tlX")) return; const v = e.target.closest("[data-tlv]"); if (v) { TLS.v = v.dataset.tlv; TLS.keep = true; return tlRender(); }
-    const b = e.target.closest("[data-tl]"); if (!b) return; if (b.dataset.tl === "back") { TLS.seed = TLS.hist.pop() || null; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "rep") tlReport(); };
+    const b = e.target.closest("[data-tl]"); if (!b) return; if (b.dataset.tl === "open" || b.dataset.tl === "close") { TLS.open = b.dataset.tl === "open"; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "back") { TLS.seed = TLS.hist.pop() || null; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "rep") tlReport(); };
   box.onchange = (e) => { if (e.target.id === "tlFrom" || e.target.id === "tlTo") { TLS[e.target.id === "tlFrom" ? "from" : "to"] = e.target.value; TLS.keep = true; tlRender(); } };
   const ck = JSON.stringify(F.chain) + trMode(); if (TLC.ck !== null && TLC.ck !== ck && TLS.seed && !TLS.keep) { TLS.seed = null; TLS.hist = []; } TLC.ck = ck; TLS.keep = false;
+  if (!TLS.open) { box.innerHTML = `<button class="tlbar0" data-tl="open">${IC("route", 16)} <b>Timeline เส้นเงินเป็นทอด</b><span class="muted">${F.chain.length || TLS.seed ? "พร้อมวิเคราะห์ — " : ""}กดเพื่อวิเคราะห์เชิงลึก</span><span class="tlgo">▸</span></button>`; return; }
   const sd = tlSeeds();
-  const hd = `<div class="tlh"><h2>${IC("route")} Timeline เส้นเงินเป็นทอด</h2>${TLS.seed ? `<button class="chip" data-tl="back">← ${TLS.hist.length ? "ย้อนกลับ" : "กลับไปตามชาร์ต"}</button>` : ""}</div>`;
+  const hd = `<div class="tlh"><h2>${IC("route")} Timeline เส้นเงินเป็นทอด</h2><button class="chip" data-tl="close">▾ ซ่อน</button>${TLS.seed ? `<button class="chip" data-tl="back">← ${TLS.hist.length ? "ย้อนกลับ" : "กลับไปตามชาร์ต"}</button>` : ""}</div>`;
   if (!sd || !sd.items.length) { box.innerHTML = `<div class="card tlc">${hd}<p class="muted" style="margin:4px 0 0">กดกล่อง ▶ ในชาร์ตเพื่อเลือกต้นสาย หรือกดแถวในตารางรายการด้านล่าง</p></div>`; return; }
   const key = [sd.label, sd.items.length, sd.items.reduce((t, x) => t + x.amt, 0).toFixed(2), TLS.from, TLS.to, trMode()].join("|");
   if (TLC.key !== key) { TLC.res = tlTrace(sd); TLC.key = key; }
@@ -1790,7 +1795,7 @@ function flowBuild(pair) {
       for (const id of ids) for (const ai of srcAccs(id)) for (const i of txOfAcc(ai)) { const r = DB.tx[i];
         if (r[1] < a0 || r[1] >= b0 || IN_K.includes(r[2]) || r[3] < F.min) continue;
         if (F.cpm === "pair" && !(txQ(i) && pqOn(txQ(i)))) continue;
-        const d = lid(cpOf(i)), k2 = id + ">" + d, o = out.get(k2) || [0, 0]; o[0] += r[3]; o[1] += r[5] || 1; out.set(k2, o); add(tot, d, r[3]); }
+        const d = lid(cpOf(i)); if (d === id) continue; const k2 = id + ">" + d, o = out.get(k2) || [0, 0]; o[0] += r[3]; o[1] += r[5] || 1; out.set(k2, o); add(tot, d, r[3]); }
       if (!out.size) break;
       const kk = new Set([...tot.entries()].sort((x, y) => y[1] - x[1]).slice(0, N).map((x) => x[0]));
       ids.forEach((id) => (cols[c].get(id).out = 0));
@@ -1880,7 +1885,7 @@ function drawFlow(box, pair) {
   if (!dn && PREF.flAuto !== false) {                                   // ผู้ใช้เลือกแสดง N คอลัมน์ -> คลี่กล่องใหญ่สุดที่ไล่ต่อได้ของคอลัมน์สุดท้ายจนครบ (ผู้สั่งงาน 19 พ.ย. 69)
     for (let g = 0; g < 8 && 3 + fb.chain.length < F.flc; g++) {
       const last = fb.cols[2 + fb.chain.length]; if (!last) break;
-      const nx = [...last.values()].filter((n) => n.id.length > 1 && n.id !== "rem" && n.id !== "nst" && srcAccs(n.id).length).sort((a, b) => Math.max(b.in, b.out) - Math.max(a.in, a.out))[0];
+      const usedIds = new Set(fb.chain.flat()), nx = [...last.values()].filter((n) => n.id.length > 1 && n.id !== "rem" && n.id !== "nst" && !usedIds.has(n.id) && srcAccs(n.id).length).sort((a, b) => Math.max(b.in, b.out) - Math.max(a.in, a.out))[0];
       if (!nx) break;
       F.chain = fb.chain.map((a) => [...a]).concat([[nx.id]]); const nb = flowBuild(pair); if (nb.chain.length <= fb.chain.length) break; fb = nb;
     }
