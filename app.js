@@ -1145,7 +1145,7 @@ function pAna() {
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <div id="tlBox"></div>
   <div id="tCp"></div>
-  <h2 id="txH">${IC("list")} รายการ <small id="txLab"></small> <span class="ibxs"><button class="ibx" id="txReset" title="กลับลำดับเดิม (วันที่-เวลา)" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="txXlsx" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="fCsv" title="ส่งออก CSV" aria-label="ส่งออก CSV">${IC("csv", 16)}</button></span></h2>
+  <h2 id="txH">${IC("list")} รายการ <small id="txLab"></small> <span class="ibxs"><span id="txFb"></span><button class="ibx" id="txReset" title="กลับลำดับเดิม (วันที่-เวลา)" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="txXlsx" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="fCsv" title="ส่งออก CSV" aria-label="ส่งออก CSV">${IC("csv", 16)}</button></span></h2>
   <div class="tblwrap tbl1" id="tTx"></div>
   <p style="text-align:center"><button class="chip" id="more" title="แสดงเพิ่ม" aria-label="แสดงเพิ่ม">${IC("more", 16)}</button></p>
   <h2>ตามเวลา <small id="granLab"></small> <button class="ibx" id="gBtn" title="สลับ รายเดือน / รายปี" aria-label="สลับ รายเดือน / รายปี">${IC("swap", 16)}</button></h2>
@@ -1179,7 +1179,7 @@ function pAna() {
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
     else if (b.dataset.fc) F.flc = +b.dataset.fc;
     else if (b.id === "flClr") { FHIST.push(fSnap()); F.chain = []; }
-    else if (b.id === "flBack" || b.closest("#flBack")) { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; const y = F._y; delete F._y; if (y != null) { upd(); setTimeout(() => scrollTo({ top: y }), 30); return; } }
+    else if (b.id === "flBack" || b.closest("#flBack") || b.dataset.fb) { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; const y = F._y; delete F._y; if (y != null) { upd(); setTimeout(() => scrollTo({ top: y }), 30); return; } }
     else if (b.id === "dnGo") return donorSearch($("#dnQ").value);
     else if (b.dataset.dn != null) return donorDetail(+b.dataset.dn);
     else if (b.dataset.dnb != null) return donorSearch($("#dnQ").value);
@@ -1256,13 +1256,14 @@ function pAna() {
     $$("[data-fn]", m).forEach((b) => b.classList.toggle("on", F.fln === +b.dataset.fn));
     $$("[data-fc]", m).forEach((b) => b.classList.toggle("on", F.flc === +b.dataset.fc));
     { const c_ = $("#flClr"); if (c_) c_.hidden = !F.chain.length; }
+    { const tf = $("#txFb"); if (tf) tf.innerHTML = FHIST.length ? `<button class="ibx fbk" data-fb="1" title="ย้อนกลับ (ตัวกรองก่อนหน้า)" aria-label="ย้อนกลับ">${IC("back", 16)}${FHIST.length > 1 ? `<small>${FHIST.length}</small>` : ""}</button>` : ""; const hb = $("#backBtn"); if (hb) hb.hidden = NAVD <= 0 && !FHIST.length; }
     { const fb_ = $("#flBack"); if (fb_) { fb_.hidden = !FHIST.length; fb_.querySelector("span").textContent = FHIST.length > 1 ? FHIST.length : ""; } }
     drawFlow($("#flow"), pair); ONRS = () => TAB === "ana" && drawFlow($("#flow"), pair);
     tlRender();
     // ตาราง
     // คู่โอนรายใหญ่ (ผู้ใช้สั่ง 19 พ.ย. 69): ตารางรายการกลาง XT — เลือก 50 / 100 / 200 / ทุกรายการ + ค้นหาชื่อคู่โอน + ตัวกรองกลุ่ม/ธนาคาร + เรียง + กรองรายคอลัมน์ ; กดแถว = ใช้เป็นคำค้นของหน้า
     const cpRows = [...byC.entries()].filter((x) => x[1][0] + x[1][1] > 0).map(([ci, v]) => { const c = DB.cps[ci]; return { ci, nm: c[1] || "", acc: c[0] || "", bank: c[2] || "", g: c[3], gl: DB.groups[c[3]][1].split(" (")[0], i: v[0], o: v[1], n: v[2], t: v[0] + v[1] }; });
-    xtMount($("#tCp"), { id: "anaCp", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", noBar: true, note: "ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบนของหน้า (มีผลทั้งชาร์ตและตาราง) · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้", rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)",
+    xtMount($("#tCp"), { id: "anaCp", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", noBar: true, pre: FHIST.length ? `<button class="ibx fbk" data-fb="1" title="ย้อนกลับ (ตัวกรองก่อนหน้า)" aria-label="ย้อนกลับ">${IC("back", 16)}${FHIST.length > 1 ? `<small>${FHIST.length}</small>` : ""}</button>` : "", note: "ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบนของหน้า (มีผลทั้งชาร์ตและตาราง) · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้", rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)",
       search: (r) => `${r.nm} ${r.acc} ${r.bank} ${r.gl}`, sort0: [[7, -1]], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
       cols: [["#", () => 0, "n"], ["คู่โอน", (r) => r.nm, "t", (r) => `<span class="gbar" style="--c:${DB.groups[r.g][2]}">${r.nm ? `<b style="font-weight:600">${esc(r.nm)}</b>` : `<span class="muted">ไม่ระบุชื่อ</span>`}</span>`], ["บัญชี", (r) => `${r.bank} ${r.acc}`.trim(), "t"],
         ["กลุ่ม", (r) => r.gl, "t", (r) => gTag(DB.groups[r.g][2], r.gl)],

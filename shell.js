@@ -89,7 +89,7 @@ function shellInit() {
   $("#tabs").onclick = nav; $("#bnav").onclick = nav;
   $("#menuBtn").onclick = () => drawer(true); $("#drawerMask").onclick = () => drawer(false);
   $("#prefBtn").onclick = openPrefs; $("#srchBtn").onclick = openSearch;
-  $("#backBtn").onclick = () => history.back();
+  $("#backBtn").onclick = () => { const f = TAB === "ana" && typeof FHIST !== "undefined" && FHIST.length && $("#flBack"); if (f) f.click(); else history.back(); };   // หน้าวิเคราะห์: ย้อนตัวกรองก่อน แล้วจึงย้อนหน้า
   $("#sub").onclick = (e) => { const b = e.target.closest("[data-sgo]"); if (!b) return; const [t, v, s] = b.dataset.sgo.split("|"); if (t === "brief") { BRV = v || BRV; if (s) { BRS = s; SUSC = 1; } else if (v === "sus") BRS = ""; } go(t); };
   addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
@@ -104,7 +104,7 @@ function drawer(on) { document.body.classList.toggle("drawer", on); $("#drawerMa
 let NAVD = 0;                                                            // จำนวนหน้าที่ย้อนกลับได้
 function shellSync() {
   $$("#tabs button[data-t], #bnav button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB));
-  $("#backBtn").hidden = NAVD <= 0;
+  $("#backBtn").hidden = NAVD <= 0 && !(TAB === "ana" && typeof FHIST !== "undefined" && FHIST.length);
   const [, l] = tabOf(TAB); $("#pageTitle").textContent = TAB === "home" ? (DB.case || "") : l;
   document.body.dataset.tab = TAB;
   subPanel();
@@ -543,7 +543,7 @@ function xtMount(host, cfg) {
     <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="ibx" data-xclr="1" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button><span class="muted fsum" data-xsum="1"></span></div>
     ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip${c ? " gchip" : ""}" data-xk="${k}" data-xv="${esc(v)}"${c ? ` style="--c:${c}"` : ""}>${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>` : ""}
   <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small> ${infoI(cfg.note)}</h2>
-  <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? ibx("xls", "ส่งออก Excel (ทุกแถวตามตัวกรอง)", 'data-xx="xl"') : ""}${ibx("reset", "กลับลำดับเดิม", 'data-xx="sr"')}${ibx("fx", "ล้างช่องกรองคอลัมน์", 'data-xx="cf"')}</div>
+  <div class="frow" style="margin:-4px 0 8px">${cfg.pre || ""}${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? ibx("xls", "ส่งออก Excel (ทุกแถวตามตัวกรอง)", 'data-xx="xl"') : ""}${ibx("reset", "กลับลำดับเดิม", 'data-xx="sr"')}${ibx("fx", "ล้างช่องกรองคอลัมน์", 'data-xx="cf"')}</div>
   <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${C_.map(([, , t], c) => (t === "x" || t === "n" ? "<th></th>" : `<th><input data-xcf="${c}" value="${esc(S.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : t === "d" ? "2569 / 2026-11" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
   <div data-xmore="1" style="text-align:center;margin:8px 0"></div>`;
