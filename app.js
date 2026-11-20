@@ -362,7 +362,8 @@ function pCharges(el) {
   const tick = (on, col) => (on ? `<span class="ck" style="background:${col}">${IC("check", 15)}</span>` : `<span class="ck no">–</span>`);
   const stat = (p) => { const st = p.s.status || ""; const sh = p.sh; return `${st ? badge(st) : ""}${sh ? ` <span class="badge y">${IC("cal", 12)} ${esc(sh.issue.replace(/\s+/g, " ").replace(/^แจ้งข้อกล่าวหา\s*/, "นัดแจ้งข้อกล่าวหา "))} ${esc(sh.date)}${sh.time ? " " + esc(sh.time) : ""}${sh.st ? " · " + esc(sh.st) : ""}</span>` : ""}`; };
   const m = el || $("#main");
-  m.innerHTML = `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย</small> ${addBtn("charges")}</h2>
+  const ab = addBtn("charges");                                         // ฝังในสรุปทางการ (el) = ไม่ซ้ำหัวข้อกับหัวบท (ผู้ใช้แจ้ง 20 พ.ย. 69 "หัวข้อหลักและย่อยดูซ้ำกัน")
+  m.innerHTML = `${el ? (ab ? `<div class="frow" style="justify-content:flex-end;margin:-4px 0 6px">${ab}</div>` : "") : `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย</small> ${ab}</h2>`}
   <div class="tiles"><button class="tile ${!sel ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ผู้ต้องหาทั้งหมด</span></button>${COMBO.map(tile).join("")}</div>
   <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย${sel ? " · " + esc(cLab(sel)) : ""}</small></h2>
   <div class="tblwrap"><table class="cmx"><tr><th class="pt">รูป</th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
