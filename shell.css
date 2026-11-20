@@ -50,7 +50,7 @@ body.drawer .side{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.3)}
 .side-sub.open{display:flex}
 .side-sub button{display:flex;align-items:center;gap:9px;width:100%;border:0;background:transparent;color:#C3D1E2;text-align:left;padding:7px 10px;border-radius:8px;font:inherit;font-size:.87rem;cursor:pointer}
 .side-sub button:hover{background:rgba(255,255,255,.07)}
-.side-sub button.on{background:rgba(255,212,3,.16);color:#FFD403;font-weight:700;box-shadow:inset 3px 0 0 #FFD403}
+.side-sub button.on{background:rgba(255,212,3,.18);color:#FFD403;font-weight:700}
 .side-sub3{display:flex;flex-direction:column;gap:1px;margin:1px 0 4px 16px;padding-left:6px;border-left:1px dashed rgba(255,255,255,.16)}
 .side-sub3 button{padding:5px 8px;font-size:.83rem}
 .side-sub3 .no{width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.12);display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;flex:none}
@@ -74,7 +74,7 @@ body.drawer .side{transform:none;box-shadow:8px 0 30px rgba(0,0,0,.3)}
   .sub-hd{font-size:.72rem;font-weight:700;color:var(--mut);padding:10px 10px 4px;letter-spacing:.03em}
   .subpanel button{display:flex;align-items:center;gap:9px;border:0;background:transparent;color:var(--ink);text-align:left;padding:8px 10px;border-radius:10px;font:inherit;font-size:.9rem;cursor:pointer}
   .subpanel button:hover{background:var(--soft)}
-  .subpanel button.on{background:var(--soft);color:var(--acc);font-weight:700;box-shadow:inset 3px 0 0 var(--yel)}
+  .subpanel button.on{background:var(--soft);color:var(--acc);font-weight:700}
   .subpanel button.s2{padding:6px 10px;font-size:.86rem}
   .subpanel .no{width:22px;height:22px;border-radius:50%;background:var(--soft);display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex:none}
 }
