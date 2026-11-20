@@ -1199,6 +1199,7 @@ function pAna() {
   const ddClose = () => { $$("[data-ddp]", m).forEach((p) => (p.hidden = true)); $$("[data-dd]", m).forEach((x) => x.classList.remove("open")); };
   m.onclick = (e) => {
     if (!e.target.closest("#fCard")) ddClose();
+    const kc = e.target.closest("[data-kk]"); if (kc) { FHIST.push(fSnap()); const ks = kc.dataset.kk ? kc.dataset.kk.split(",").map(Number) : [], same = ks.length && ks.length === F.kinds.size && ks.every((k) => F.kinds.has(k)); F.kinds = new Set(same ? [] : ks); F.noAuto = false; return upd(); }
     const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.p || b.dataset.g || b.dataset.gx != null || b.dataset.k || b.dataset.c) F.noAuto = false;   // เปลี่ยนตัวกรอง = กลับไปคลี่อัตโนมัติได้
     if (b.dataset.dd) { const p = $(`[data-ddp="${b.dataset.dd}"]`, m), was = p.hidden; ddClose(); p.hidden = !was; b.classList.toggle("open", was); return; }
@@ -1242,7 +1243,8 @@ function pAna() {
   const txRow = (i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i), inn = IN_K.includes(r[2]);
     const me = [a.name, a.bank, a.acc], cp = [c[1] || "", c[2] || "", c[0] || ""], [S, D] = inn ? [cp, me] : [me, cp];
     const note = [(r[5] || 1) > 1 ? `ยอดรวม ${fmt0(r[5])} ครั้ง` : "", q && F.cpm !== "raw" && pqOn(q) ? `คู่ถอน-ฝาก: ${DB.pk[q]}${DB.txp && DB.txp[i] ? ` (ถอน ${fmt(DB.txp[i][0])} ฝาก ${fmt(DB.txp[i][1])})` : ""}` : ""].filter(Boolean).join(" · ");
-    return [iso.slice(0, 10), txT(i), ...S, ...D, r[3], DB.groups[c[3]][1].split(" (")[0], note]; };
+    const t = String(txT(i) || ""), tm = /^\d{1,2}:\d{2}$/.test(t) ? t + ":00" : t;   // ไฟล์ส่งออก: วันที่ 20/11/2026 เวลา 11:00:00 (ผู้ใช้สั่ง 20 พ.ย. 69)
+    return [`${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`, tm, ...S, ...D, r[3], DB.groups[c[3]][1].split(" (")[0], note]; };
   const TXH = ["วันที่", "เวลา", "ผู้โอน", "ธนาคารผู้โอน", "บัญชีผู้โอน", "ผู้รับ", "ธนาคารผู้รับ", "บัญชีผู้รับ", "ยอดเงิน (บาท)", "กลุ่มคู่โอน", "หมายเหตุ"];
   function txXlsx() {                                                  // ส่งออก Excel (.xlsx) ทุกแถวที่กรอง เรียงตามที่ตั้งไว้
     const rows = (SORTED.length ? SORTED : IDX).map(txRow);
@@ -1269,8 +1271,11 @@ function pAna() {
       const tk = gy ? Math.floor(TXM[i] / 12) : TXM[i]; let t = byT.get(tk); if (!t) byT.set(tk, (t = [0, 0, 0, 0, 0])); t[k] += amt;
     }
     const tin = K[0][0] + K[1][0] + K[4][0], tout = K[2][0] + K[3][0];
-    $("#aKpi").innerHTML = [["เงินเข้ารวม", tin, K[0][1] + K[1][1] + K[4][1], ""], ["เงินออกรวม", tout, K[2][1] + K[3][1], "r"], ["ถอนเงินสด", K[3][0], K[3][1], "x"], ["ฝากเงินสด", K[1][0], K[1][1], "g"], ["โอนออก / จ่าย", K[2][0], K[2][1], "r"], ["รับโอน", K[0][0], K[0][1], ""], ["รับบริจาค", K[4][0], K[4][1], "y"], ["สุทธิ (เข้า − ออก)", tin - tout, IDX.length, ""]]
-      .map(([l, v, n, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${fmt0(n)} ${l.startsWith("สุทธิ") ? "แถวข้อมูล" : "ครั้ง"}</div></div>`).join("");
+    // การ์ดยอดรวม = ตัวกรองประเภทรายการ (กด = กรองชาร์ต/ตาราง ; กดซ้ำ / การ์ดสุทธิ = ทุกประเภท ; ผู้ใช้สั่ง 20 พ.ย. 69) — ยอดบนการ์ดไม่ขึ้นกับตัวกรองประเภท จึงเห็นยอดทุกใบเสมอ
+    let KK = K, nAll = IDX.length; if (F.kinds.size) { const ks = F.kinds; F.kinds = new Set(); KK = DB.kinds.map(() => [0, 0]); const I2 = filterTx(); nAll = I2.length; for (const i of I2) { const r = DB.tx[i]; KK[r[2]][0] += r[3]; KK[r[2]][1] += r[5] || 1; } F.kinds = ks; }
+    const tinK = KK[0][0] + KK[1][0] + KK[4][0], toutK = KK[2][0] + KK[3][0], kOn = (ks) => ks.length === F.kinds.size && ks.every((k) => F.kinds.has(k));
+    $("#aKpi").innerHTML = [["เงินเข้ารวม", tinK, KK[0][1] + KK[1][1] + KK[4][1], "", [0, 1, 4]], ["เงินออกรวม", toutK, KK[2][1] + KK[3][1], "r", [2, 3]], ["ถอนเงินสด", KK[3][0], KK[3][1], "x", [3]], ["ฝากเงินสด", KK[1][0], KK[1][1], "g", [1]], ["โอนออก / จ่าย", KK[2][0], KK[2][1], "r", [2]], ["รับโอน", KK[0][0], KK[0][1], "", [0]], ["รับบริจาค", KK[4][0], KK[4][1], "y", [4]], ["สุทธิ (เข้า − ออก)", tinK - toutK, nAll, "", []]]
+      .map(([l, v, n, c, ks]) => `<div class="card kpi click ${c}${ks.length && kOn(ks) ? " on" : ""}" data-kk="${ks.join(",")}" title="${ks.length ? "กรองชาร์ตและตาราง: " + l : "ทุกประเภทรายการ"}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${fmt0(n)} ${l.startsWith("สุทธิ") ? "แถวข้อมูล" : "ครั้ง"}</div></div>`).join("");
     $("#fSum").textContent = `${fmt0(IDX.length)} แถว`;
     { const yr = F.from.slice(5) === "01-01" && F.to === F.from.slice(0, 4) + "-12-31" ? F.from.slice(0, 4) : "";
       const pk_ = F.from <= DB.lo && F.to >= DB.hi ? "all" : F.from <= DB.lo && F.to === "2022-06-24" ? "before" : F.from === DB.cut && F.to >= DB.hi ? "after" : "";
