@@ -328,9 +328,7 @@ function pCase() {
   <section class="tlp fin" id="phSus" style="--c:#6A1B9A"><header><span class="tl4n">${IC("scale", 15)}</span><div><b>ใครถูกดำเนินคดี ข้อหาอะไร</b><small>${CHG3.map(([k, l, , c]) => `<span class="cc3" style="--k:${c}">${l} ${P.filter((p) => p.cs.some((x) => x[0] === k)).length} ราย</span>`).join(" ")}</small></div></header>
     <div class="susg">${P.map((p, i) => `<button class="susc" data-gosus="${i}">${p.img ? `<span class="pf">${thumbEl(p.img)}</span>` : `<span class="pf ph">${IC("user", 28)}</span>`}<div class="susb"><small>ผู้ต้องหาที่ ${i + 1} · ${esc(p.s.extra1 || "")}</small><b>${esc(p.s.title)}</b>
       <span class="cc3s">${p.cs.map(([, l, , c]) => `<span class="cc3" style="--k:${c}">${l}</span>`).join("")}</span><small class="muted">${esc(p.s.status || "")}${p.sh ? ` · นัดแจ้งข้อหา ${esc(p.sh.date)}${p.sh.st ? " (" + esc(p.sh.st) + ")" : ""}` : ""}</small></div></button>`).join("")}</div>
-    <p class="muted" style="font-size:.8rem;margin:6px 0 0">ข้อหาและสถานะตามข้อมูลในเว็บ (ตามข่าว / มติ) และแท็บคุมหมายเรียกผู้ต้องหา — รายละเอียดข้อหารายข้อ ดูที่ สรุปทางการ › ผู้ต้องหาและข้อหา</p></section>
-  <h2>${IC("book")} ข้อมูลคดีโดยย่อ <small>${C.case.length} หัวข้อ</small> ${addBtn("case")}</h2>
-  <div class="accs">${C.case.map((s) => accd(`${sico(icFor(s.title))} ${esc(s.title)}`, "", `<div class="pgd">${esc(s.detail)}</div>${acts2("case", s.id)}`, wide)).join("")}</div>${newsBlock()}`;
+    <p class="muted" style="font-size:.8rem;margin:6px 0 0">ข้อหาและสถานะตามข้อมูลในเว็บ (ตามข่าว / มติ) และแท็บคุมหมายเรียกผู้ต้องหา — รายละเอียดข้อหารายข้อ ดูที่ สรุปทางการ › ผู้ต้องหาและข้อหา</p></section>`;   // ตัด "ข้อมูลคดีโดยย่อ" (ซ้ำกับ timeline) + ภาพข่าว ออก (ผู้ใช้สั่ง 20 พ.ย. 69)
   const m = $("#main");
   m.onclick = (e) => { const a = e.target.closest("a.tl4c"); if (a) { e.preventDefault(); const t = $(a.getAttribute("href")); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
     const s = e.target.closest("[data-gosus]"); if (s) { BRV = "chg"; go("brief"); } };
