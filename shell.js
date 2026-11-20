@@ -85,12 +85,12 @@ function shellInit() {
     const car = e.target.closest("[data-car]");
     if (car) { e.stopPropagation(); const k = car.dataset.car; SEXP.has(k) ? SEXP.delete(k) : SEXP.add(k); sideSubs(); return; }
     const b = e.target.closest("button"); if (!b) return; if (b.id === "drawerX") return drawer(false);
-    if (b.dataset.sgo) { const [t, v, s] = b.dataset.sgo.split("|"); if (t === "brief") { BRV = v || BRV; if (s) BRS = s; } else if (t === "acct") { ACS = s || ACS; } else if (t === "cc") { CCV = s || CCV; } drawer(false); go(t); window.scrollTo(0, 0); return; } if (b.dataset.x === "pref") { drawer(false); return openPrefs(); } if (b.dataset.t) { drawer(false); go(b.dataset.t); } };
+    if (b.dataset.sgo) { const [t, v, s] = b.dataset.sgo.split("|"); if (t === "brief") { BRV = v || BRV; if (s) { BRS = s; SUSC = 1; } else if (v === "sus") BRS = ""; } else if (t === "acct") { ACS = s || ACS; } else if (t === "cc") { CCV = s || CCV; } drawer(false); go(t); window.scrollTo(0, 0); return; } if (b.dataset.x === "pref") { drawer(false); return openPrefs(); } if (b.dataset.t) { drawer(false); go(b.dataset.t); } };
   $("#tabs").onclick = nav; $("#bnav").onclick = nav;
   $("#menuBtn").onclick = () => drawer(true); $("#drawerMask").onclick = () => drawer(false);
   $("#prefBtn").onclick = openPrefs; $("#srchBtn").onclick = openSearch;
   $("#backBtn").onclick = () => history.back();
-  $("#sub").onclick = (e) => { const b = e.target.closest("[data-sgo]"); if (!b) return; const [t, v, s] = b.dataset.sgo.split("|"); if (t === "brief") { BRV = v || BRV; if (s) BRS = s; } go(t); };
+  $("#sub").onclick = (e) => { const b = e.target.closest("[data-sgo]"); if (!b) return; const [t, v, s] = b.dataset.sgo.split("|"); if (t === "brief") { BRV = v || BRV; if (s) { BRS = s; SUSC = 1; } else if (v === "sus") BRS = ""; } go(t); };
   addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openSearch(); }
     else if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); openSearch(); }
@@ -141,7 +141,7 @@ function searchIndex() {
   TABS.forEach(([k, l, ic]) => I.push({ g: "หน้า", ic, t: l, s: "", key: nrm(l), go: () => go(k) }));
   BRCH.forEach(([k, l, ic]) => I.push({ g: "หน้า", ic, t: "สรุปทางการ · " + l, s: "", key: nrm(l), go: () => { BRV = k; go("brief"); } }));
   const X = DB.formal;
-  if (X) susKeys().forEach((k) => { const s = X.suspects[k]; I.push({ g: "ผู้ต้องหา", ic: "scale", t: s.name, s: `ผู้ต้องหาที่ ${s.no} · ${s.role.split(" ; ")[0]}`, key: nrm(s.name), go: () => { BRV = "sus"; BRS = k; go("brief"); } }); });
+  if (X) susKeys().forEach((k) => { const s = X.suspects[k]; I.push({ g: "ผู้ต้องหา", ic: "scale", t: s.name, s: `ผู้ต้องหาที่ ${s.no} · ${s.role.split(" ; ")[0]}`, key: nrm(s.name), go: () => { BRV = "sus"; BRS = k; SUSC = 1; go("brief"); } }); });
   try { people().forEach((p) => I.push({ g: "บุคคล", ic: "user", t: p.name, s: p.cat || "", key: nrm(p.name), go: () => { PPQ = p.name; ACS = "ppl"; go("acct"); } })); } catch (e) { }
   try { accRows().rows.forEach((r) => I.push({ g: "บัญชี", ic: "bank", t: `${r.name || ""}`, s: `${r.bank || ""} ${fa(r.acc)}${r.stm ? " · มี statement" : ""}`, key: nrm(r.name || "") + " " + dg(r.acc), acc: dg(r.acc), go: () => { ACS = "tbl"; go("acct"); setTimeout(() => accDetail(r.k), 60); } })); } catch (e) { }
   try { tsLand().forEach((r) => I.push({ g: "ทรัพย์สิน", ic: "home", t: `${r.loc || r.no || ""}`, s: `${r.own || ""} ${r.deed ? "โฉนด " + r.deed : ""}`, key: nrm(`${r.loc} ${r.own} ${r.deed} ${r.from}`), go: () => { ASF.q = r.deed || r.loc || ""; go("asset"); } })); } catch (e) { }
@@ -231,7 +231,7 @@ const ctaRow = (L) => `<div class="cta">${L.map(([go_, ic, l, pri]) => `<button 
 function wireGo() {
   $("#main").onclick = (e) => {
     const a = e.target.closest("[data-act]"); if (a) { if (a.dataset.act === "present") presentOn(); else if (a.dataset.act === "print") window.print(); else if (a.dataset.act === "copyrecs") copyRecs(); return; }
-    const s = e.target.closest("[data-sus]"); if (s) { BRV = "sus"; BRS = s.dataset.sus; return go("brief"); }
+    const s = e.target.closest("[data-sus]"); if (s) { BRV = "sus"; BRS = s.dataset.sus; SUSC = 1; return go("brief"); }
     const c = e.target.closest("[data-ch]"); if (c) { BRV = c.dataset.ch; if (TAB === "brief") { render(); scrollTo(0, 0); history.replaceState({ t: "brief", v: BRV }, "", "#brief"); } else go("brief"); return; }
     const b = e.target.closest("[data-go]"); if (b) { const [t, v] = b.dataset.go.split("|"); if (v) BRV = v; go(t); }
   };
@@ -319,9 +319,9 @@ function pHome() {
 }
 
 /* ---------- สรุปทางการ (แบบโต้ตอบ) ---------- */
-const BRCH = [["sum", "บทสรุป", "star"], ["chg", "ผู้ต้องหาและข้อหา", "scale"], ["t1", "บัญชีรับบริจาค", "bank"], ["don", "ผู้บริจาค (ผู้เสียหาย)", "users"], ["sus", "พฤติการณ์รายผู้ต้องหา", "user"],
-  ["ev", "พฤติการณ์ตามเวลา", "clock"], ["ptn", "รูปแบบการฟอกเงิน", "route"], ["grp", "บุคคลที่เกี่ยวข้อง", "users"], ["pend", "บัญชีที่ควรขอ statement", "doc"]];
-let BRV = "sum", BRS = "pan";
+const BRCH = [["sum", "บทสรุป", "star"], ["t1", "บัญชีรับบริจาค", "bank"], ["don", "ผู้บริจาค (ผู้เสียหาย)", "users"], ["sus", "ผู้ต้องหา", "scale"], ["grp", "แผนผังความเชื่อมโยง", "flow"],
+  ["ev", "พฤติการณ์ตามเวลา", "clock"], ["ptn", "รูปแบบการฟอกเงิน", "route"], ["pend", "บัญชีที่ควรขอ statement", "doc"]];   // 20 พ.ย. 69: รวม ผู้ต้องหาและข้อหา + พฤติการณ์รายผู้ต้องหา = "ผู้ต้องหา" ; บุคคลที่เกี่ยวข้อง = "แผนผังความเชื่อมโยง" (Link chart)
+let BRV = "sum", BRS = "", SUSC = 0;                                   // BRS = ผู้ต้องหาที่เปิดรายละเอียด ("" = ตารางอย่างเดียว) ; SUSC = เลื่อนไปที่รายละเอียดหลังวาด
 const WHY = {
   pan: { F: "เจ้าของบัญชีรับบริจาค 2 บัญชีที่ชื่อบัญชีระบุวัตถุประสงค์เพื่อองค์กรและการสร้างมูลนิธิ แต่เงินส่วนใหญ่ไม่ได้ใช้ตามที่ประกาศ", C: "ใช้เพจเผยแพร่เลขบัญชีและข้อความขอรับบริจาค ซึ่งไม่ตรงกับการใช้เงินจริง", M: "รับเงินบริจาคเข้าบัญชีส่วนตัว ชำระบัตรเครดิต ซื้อประกัน / กองทุน และโอนต่อให้ผู้ต้องหาที่ 2" },
   ath: { M: "รับเงินจากบัญชีรับบริจาค ผู้ต้องหาที่ 1 และเครือข่ายผู้รับเหมา แล้วโอนต่อ ถอนเงินสด ซื้อหน่วยลงทุน และจ่ายผู้ขายที่ดินที่มีเงินโอนกลับ" },
@@ -332,6 +332,7 @@ const WHY = {
 };
 function pBrief() {
   if (!DB.formal) return pOver();
+  if (BRV === "chg") BRV = "sus";                                       // ลิงก์เดิมของบทผู้ต้องหาและข้อหา
   const N_ = NUMS(), { X, K, S } = N_, i = BRCH.findIndex((c) => c[0] === BRV), ch = BRCH[Math.max(0, i)];
   const nav = `<div class="br-nav only-m">${BRCH.map(([k, l]) => `<button data-ch="${k}" class="${k === BRV ? "on" : ""}">${l}</button>`).join("")}</div>`;
   const pn = `<div class="br-pn">${i > 0 ? `<button class="btn o" data-ch="${BRCH[i - 1][0]}">${IC("back", 16)} ${BRCH[i - 1][1]}</button>` : "<span></span>"}${i < BRCH.length - 1 ? `<button class="btn" data-ch="${BRCH[i + 1][0]}">${BRCH[i + 1][1]} ${IC("next", 16)}</button>` : ""}</div>`;
@@ -342,7 +343,7 @@ function pBrief() {
   (BRP[ch[0]] || (() => { }))(N_);
   wireGo(); sideSubs();                                               // ไฮไลท์บทในเมนูข้างตามบทที่เปิด (กดปุ่มบทถัดไป/ก่อนหน้า ; ผู้ใช้แจ้ง 20 พ.ย. 69)
   const m = $("#main"), prev = m.onclick;
-  m.onclick = (e) => { const p = e.target.closest("[data-sp]"); if (p) { BRS = p.dataset.sp; render(); subPanel(); return; } prev(e); };
+  m.onclick = (e) => { const p = e.target.closest("[data-sp]"); if (p) { BRS = p.dataset.sp; SUSC = BRS ? 1 : 0; render(); subPanel(); return; } prev(e); };
   const cur = $(".br-nav .on"); if (cur) cur.scrollIntoView({ inline: "center", block: "nearest" });
 }
 const BRF = {
@@ -360,8 +361,6 @@ const BRF = {
     return `<div class="facts">${L.map(([ic, t, s, c]) => `<div class="fact" style="--c:${c}">${IC(ic, 22)}<div><b>${t}</b><p>${s}</p></div></div>`).join("")}</div>
       ${secH("pie", "เงินออกจากบัญชีรับบริจาค แยกผู้รับ")}<div class="card"><div class="chartbox tall"><canvas id="bOut"></canvas></div></div>`;
   },
-  chg: () => `<div id="chgBox"></div>
-    <div class="note">✓ = ข้อหาที่แจ้ง / มีมติ ; สถานะตามข้อมูลชุดสืบสวน (บางรายการตามข่าว ต้องตรวจทานกับสำนวน) · ฉ้อโกงประชาชน ป.อ. ม.341 ประกอบ ม.343 · นำเข้าข้อมูลเท็จ พ.ร.บ.คอมพิวเตอร์ ม.14 (1) · ฟอกเงิน พ.ร.บ.ป้องกันและปราบปรามการฟอกเงิน ม.5 ประกอบ ม.60 — เลขมาตราต้องตรวจทานกับตัวบทฉบับปัจจุบัน</div>`,   // ตารางข้อหา + เงินรับตรง รวมในตารางบน (ผู้ใช้สั่ง 20 พ.ย. 69 "ซ้ำซ้อน")
   t1: ({ X }) => {
     const MO = X.monthly || {}, top = Object.entries(MO).sort((a, b) => (b[1].don || 0) - (a[1].don || 0)).slice(0, 6).sort((a, b) => a[0].localeCompare(b[0]));
     const susM = (v) => ["pan", "ath", "tre", "con", "bld", "oth_sus"].reduce((a, k) => a + (v[k] || 0), 0);
@@ -380,7 +379,10 @@ const BRF = {
       tbl(["ยอดสะสมต่อราย (บาท)", "ผู้บริจาค (ราย)", "%", "ยอดรวม"], D.bands.filter((b) => b[2] > 0).map((b) => [labs[D.bands.indexOf(b)], fmt0(b[2]), pc(b[2], D.unique), M(b[3])]), [1, 2, 3]) +
       `<div class="note">ข้อมูลรายผู้โอนครอบคลุมเงินเข้า ${M(D.amt_all)} ; ส่วนที่เหลือเข้ามาทางช่องทางที่ statement ไม่แสดงผู้โอนรายคน จำนวนผู้บริจาคจริงจึงมากกว่านี้ — ใช้เลือกผู้บริจาคกลุ่มตัวอย่างสอบปากคำเป็นผู้เสียหาย</div>`;
   },
-  sus: (N_) => {
+  sus: (N_) => `<div id="chgBox"></div>
+    <div class="note">✓ = ข้อหาที่แจ้ง / มีมติ ; สถานะตามข้อมูลชุดสืบสวน (บางรายการตามข่าว ต้องตรวจทานกับสำนวน) · ฉ้อโกงประชาชน ป.อ. ม.341 ประกอบ ม.343 · นำเข้าข้อมูลเท็จ พ.ร.บ.คอมพิวเตอร์ ม.14 (1) · ฟอกเงิน พ.ร.บ.ป้องกันและปราบปรามการฟอกเงิน ม.5 ประกอบ ม.60 — เลขมาตราต้องตรวจทานกับตัวบทฉบับปัจจุบัน</div>
+    ${N_.S[BRS] ? `<div id="susD" class="susd" style="--c:${SCOL[BRS] || "var(--navy)"}"><div class="susx">${ibx("less", "ปิด", 'data-sp=""')}</div>${BRF._susD(N_)}</div>` : ""}`,   // ตารางผู้ต้องหา (กดแถว) + พฤติการณ์ของคนที่เลือก
+  _susD: (N_) => {
     const { X, S, cashOf, perOf, pt } = N_, k = S[BRS] ? BRS : "pan", s = S[k], q = pt(k);
     const picks = `<div class="sp">${susKeys().map((x) => `<button data-sp="${x}" class="${x === k ? "on" : ""}" style="--c:${SCOL[x]};--ci:${inkOn(SCOL[x])}"><span>${S[x].no}</span>${esc(shortName(S[x].name).split(" ")[0])}</button>`).join("")}</div>`;
     const ph = photoOf(s.name), com = ["prp", "srk", "prc"].includes(k), why = WHY[com ? "com" : k] || {};
@@ -419,11 +421,14 @@ const BRF = {
       ["coin", "ถอนเป็นเงินสดจำนวนมาก", `${M(K.cash)} + ${M(susCash)}`, "1, 2, 3, 7"]];
     return `<div class="ptn">${R.map(([ic, t, v, w], i) => `<div class="pt"><span class="pt-n">${i + 1}</span>${IC(ic, 22)}<div><b>${t}</b><span class="pt-v">${v}</span><small>ผู้ต้องหาที่ ${w}</small></div></div>`).join("")}</div>
       <div class="note">ยอดแต่ละรูปแบบซ้อนกันได้ (เงินก้อนเดียวผ่านหลายรูปแบบ) ไม่ควรนำมารวมกัน ; รูปแบบที่ 4 และ 9 วิเคราะห์จากยอดและเวลา ต้องยืนยันด้วยเอกสารธนาคาร</div>`; },
-  grp: ({ X }) => {                                                        // ตารางกลุ่ม -> กดแถว = ชาร์ตความเชื่อมโยง + กราฟ + ตารางรายบัญชี (ผู้ใช้สั่ง 20 พ.ย. 69 "ผู้บริหารดูเข้าใจง่าย ตัวอักษรน้อย")
-    const G = X.groups || {}, ks = Object.keys(GRPT).filter((k) => G[k] && G[k].n_acc);
-    return `<p class="muted">ข้อเท็จจริงทางการเงินเพื่อประกอบการสอบปากคำพยาน / ขยายผล — ไม่ใช่การสรุปความรับผิด</p>
-      <div class="tblwrap"><table class="grpt"><tr><th>กลุ่ม</th><th class="n">บัญชี (มี STM)</th><th class="n">จากบัญชีรับบริจาค</th><th class="n">จากผู้ต้องหาที่ 1</th><th class="n">จากผู้ต้องหาที่ 2</th><th class="n">โอนกลับ</th><th data-nos="1"></th></tr>
-      ${ks.map((k) => { const t = G[k].tot, c = grpCol(k); return `<tr class="click${BRG === k ? " on" : ""}" data-grp="${k}" style="--c:${c}"><td>${gTag(c, GRPT[k])}</td><td class="n">${G[k].n_acc} (${G[k].n_stm})</td><td class="n">${M(t.t1)}</td><td class="n">${M(t.pan)}</td><td class="n">${M(t.ath)}</td><td class="n"><b class="amt-out">${M(t.back)}</b></td><td class="gchev">${IC("next", 16)}</td></tr>`; }).join("")}</table></div>
+  grp: () => {                                                             // Link chart + ตารางกลุ่ม (กดแถว/กล่อง = รายละเอียด) คำนวณจาก lkData (ผู้ใช้สั่ง 20 พ.ย. 69)
+    const D = lkData(LKM), gk = lkGroups(D), oS = (o) => D.sum(o, (k) => k !== "t1" && k !== "pan" && k !== "ath");
+    return `<div class="lkbar"><div class="seg">${[["all", "รวมคู่ถอน-ฝากเงินสด"], ["raw", "ยอดโอนตรง"]].map(([k, l]) => `<button data-lkm="${k}" class="${LKM === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        ${infoI("คำนวณจากรายการเดินบัญชีทั้งหมด คู่บัญชีที่เห็นทั้ง 2 ฝั่งใช้ยอดฝั่งที่มากกว่า · รวมคู่ถอน-ฝากเงินสด = นับเงินสดที่ถอนแล้วนำฝากเข้าบัญชีอื่น (จับคู่จากยอดและเวลา ต้องยืนยันด้วยเอกสารธนาคาร) เป็นเส้นโอนด้วย · ยอดโอนตรง = ตาม statement ไม่จับคู่ (ตรงกับตารางในรายงานฉบับทางการ) · เส้น = เงินโอน หนาตามยอด สีตามต้นทาง แสดงตั้งแต่ 100,000 บาท · เส้นประแดง = โอนกลับเข้าผู้ต้องหา / บัญชีรับบริจาค · จุดสีใต้รูป = ข้อหา · เลขในวงกลุ่ม = จำนวนบัญชี · กดรูปผู้ต้องหา = พฤติการณ์รายคน · กดกลุ่ม = รายละเอียดกลุ่ม · เป็นข้อเท็จจริงทางการเงินเพื่อประกอบการสอบปากคำ / ขยายผล ไม่ใช่การสรุปความรับผิด")}</div>
+      <div class="card flowcard lkc"><div id="lkBox" class="flowbox"></div>
+        <div class="lkleg">${["F", "C", "M"].map((q) => `<span><i style="background:${CHC[q][1]}"></i>${CHC[q][0]}</span>`).join("")}<span><i class="dash"></i>โอนกลับ</span></div></div>
+      <div class="tblwrap"><table class="grpt"><tr><th>กลุ่ม</th><th class="n">บัญชี (มี STM)</th><th class="n">จากบัญชีรับบริจาค</th><th class="n">จากผู้ต้องหาที่ 1</th><th class="n">จากผู้ต้องหาที่ 2</th><th class="n">จากผู้ต้องหาอื่น</th><th class="n">โอนกลับ</th><th data-nos="1"></th></tr>
+      ${gk.map((g) => { const t = D.agg(g), c = grpCol(g); return `<tr class="click${BRG === g ? " on" : ""}" data-grp="${g}" style="--c:${c}"><td>${gTag(c, GRPT[g])}</td><td class="n">${t.n} (${t.stm})</td><td class="n"><span class="amt-in">${M(t.in.t1 || 0)}</span></td><td class="n">${M(t.in.pan || 0)}</td><td class="n">${M(t.in.ath || 0)}</td><td class="n">${M(oS(t.in))}</td><td class="n"><b class="amt-out">${M(t.tout)}</b></td><td class="gchev">${IC("next", 16)}</td></tr>`; }).join("")}</table></div>
       <div id="grpD"></div>`;
   },
   pend: ({ X }) => {                                                       // สีตามกลุ่ม + สถานะขอ (แท็บคุมบัญชี) + ปุ่มเพิ่มเข้าชีต (ผู้ใช้สั่ง 20 พ.ย. 69)
@@ -442,10 +447,10 @@ const BRF = {
   },
 };
 const BRP = {
-  chg: () => { const el = $("#chgBox"); if (el) pCharges(el); },
-  grp: ({ X }) => { const box = $(".br-body"); if (!box) return; drawGrp(X);
-    box.addEventListener("click", (e) => { const tr = e.target.closest("tr[data-grp]"); if (tr) { e.stopPropagation(); BRG = BRG === tr.dataset.grp ? "" : tr.dataset.grp; $$("tr[data-grp]", box).forEach((r) => r.classList.toggle("on", r.dataset.grp === BRG)); drawGrp(X, true); return; }
-      if (e.target.closest("[data-grpx]")) { BRG = ""; $$("tr[data-grp]", box).forEach((r) => r.classList.remove("on")); drawGrp(X); } }); },
+  grp: () => { const box = $(".br-body"); if (!box) return; drawLink(); drawGrp(); ONRS = () => TAB === "brief" && BRV === "grp" && drawLink();
+    box.addEventListener("click", (e) => { const mb = e.target.closest("[data-lkm]"); if (mb) { e.stopPropagation(); LKM = mb.dataset.lkm; return render(); }
+      const tr = e.target.closest("tr[data-grp]"); if (tr) { e.stopPropagation(); BRG = BRG === tr.dataset.grp ? "" : tr.dataset.grp; $$("tr[data-grp]", box).forEach((r) => r.classList.toggle("on", r.dataset.grp === BRG)); return drawGrp(true); }
+      if (e.target.closest("[data-grpx]")) { BRG = ""; $$("tr[data-grp]", box).forEach((r) => r.classList.remove("on")); drawGrp(); } }); },
   pend: ({ X }) => { const el = $(".br-body"); if (!el) return; el.addEventListener("click", (e) => { const b = e.target.closest(".tadd"); if (!b) return; e.stopPropagation();
     const x = X.pending[+b.dataset.tadd], m = String(x.acc).match(/^(\S+) (\S+) (.+)$/); if (m) teamAdd({ bank: m[1], acc: m[2], name: m[3] }); }); },
   sum: ({ X, K }) => { const L = Object.entries(X.t1_out).filter(([, v]) => v[0] > 0).sort((a, b) => b[1][0] - a[1][0]).slice(0, 16);
@@ -461,7 +466,9 @@ const BRP = {
     CH.bBand = new Chart($("#bBand"), { type: "bar", data: { labels: B.map((b) => labs[D.bands.indexOf(b)]), datasets: [{ label: "ผู้บริจาค (ราย)", data: B.map((b) => b[2]), backgroundColor: "#E0A800" }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาค แยกตามยอดสะสมต่อราย" } } } });
     const Y = Object.entries(D.yr).filter(([, v]) => v[0] > 0);
     CH.bDy = new Chart($("#bDy"), { type: "bar", data: { labels: Y.map(([y]) => +y + 543), datasets: [{ label: "ผู้บริจาค (ราย)", data: Y.map(([, v]) => v[0]), backgroundColor: "#00897B" }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาครายปี" } } } }); },
-  sus: ({ S }) => { const k = S[BRS] ? BRS : "pan", s = S[k];
+  sus: ({ S }) => { const cb = $("#chgBox"); if (cb) pCharges(cb); if (!S[BRS]) { SUSC = 0; return; }
+    if (SUSC) { SUSC = 0; setTimeout(() => { const d = $("#susD"); if (d) d.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); }
+    const k = BRS, s = S[k];
     const yrs = Object.keys(s.yr || {}).filter((y) => Object.values(s.yr[y]).some((v) => v >= 1000));
     if ($("#bSy")) { const P = [["in_t1", "รับจากบัญชีรับบริจาค", "#1565C0"], ["in_sus", "รับจากผู้ต้องหาอื่น", "#7CB342"], ["out_sus", "โอนให้ผู้ต้องหาอื่น", "#B3261E"], ["out_cash", "ถอนเงินสด", "#616161"], ["out_per", "ใช้ส่วนตัว / ทรัพย์สิน", "#263238"]];
       CH.bSy = new Chart($("#bSy"), { type: "bar", data: { labels: yrs.map((y) => +y + 543), datasets: P.map(([f, l, c]) => ({ label: l, data: yrs.map((y) => (s.yr[y][f] || 0) / 1e6), backgroundColor: c })) }, options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${M(c.raw * 1e6)}` } } } } }); }
@@ -731,56 +738,136 @@ function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setM
 `;
 if (typeof ICP !== "undefined" && !ICP.plus) ICP.plus = '<path d="M12 5v14M5 12h14"/>';
 
-
-/* ---------- บทบุคคลที่เกี่ยวข้อง: รายละเอียดกลุ่มที่เลือก (ผู้ใช้สั่ง 20 พ.ย. 69) ---------- */
-const GRPT = { pco: "บริษัทของผู้ต้องหาที่ 1", rel_pan: "ญาติของผู้ต้องหาที่ 1", rel_ath: "ญาติของผู้ต้องหาที่ 2", lnd: "ผู้ขายที่ดิน", ctr: "ผู้รับเหมา / ช่างอื่น", nom: "แม่ครัวมูลนิธิ", kpk: "ผู้ทำบัญชีมูลนิธิ / เค พาร์ค", sst: "บุคคลที่ชุดสืบระบุตัวแล้ว" };
-let BRG = "";
+/* ---------- บท "แผนผังความเชื่อมโยง" (ผู้ใช้สั่ง 20 พ.ย. 69 : Link chart ตัวละคร + บุคคลที่เกี่ยวข้อง แยกเงินโอนกลับรายคน รวมคู่ถอน-ฝากเงินสดเป็นค่าเริ่มต้น) ----------
+   คำนวณจากรายการ DB.tx ทั้งหมด (ชุดเดียวกับหน้าวิเคราะห์) : คู่บัญชีที่เห็นทั้ง 2 ฝั่งใช้ยอดฝั่งที่มากกว่า ; LKM all = รวมคู่ถอน-ฝากเงินสดที่จับคู่ได้ / raw = ยอดโอนตรงตาม statement
+   ตัวละครหลัก (core) = บัญชีรับบริจาค + ผู้ต้องหา ; กลุ่ม = GRPT ; ชาร์ตวาดเส้นที่ปลายข้างหนึ่งเป็นตัวละครหลัก ยอดตั้งแต่ LK_MIN */
+const GRPT = { pco: "บริษัทของผู้ต้องหาที่ 1", rel_pan: "ญาติของผู้ต้องหาที่ 1", rel_ath: "ญาติของผู้ต้องหาที่ 2", rel: "ญาติ (ไม่ระบุฝ่าย)", lnd: "ผู้ขายที่ดิน", ctr: "ผู้รับเหมา / ช่างอื่น", nom: "แม่ครัวมูลนิธิ", kpk: "ผู้ทำบัญชีมูลนิธิ / เค พาร์ค", sst: "บุคคลที่ชุดสืบระบุตัวแล้ว" };
+let BRG = "", LKM = "all";
+const LKC = {}, LK_MIN = 100000;
 const grpCol = (k) => ENTC[k] || "#90A4AE";
 const accNm = (a) => { const m = String(a).match(/^(\S+) (\S+) (.+)$/); return m ? m[3] : String(a); };
-function drawGrp(X, scroll) {
+const t1Col_ = () => (DB.groups.find((x) => x[0] === "t1") || [0, 0, "#1565C0"])[2];
+const eLab = (e) => (e === "t1" ? "บัญชีรับบริจาค" : DB.formal.suspects[e] ? `ผู้ต้องหาที่ ${DB.formal.suspects[e].no}` : GRPT[e] || e);
+const eCol = (e) => (e === "t1" ? t1Col_() : DB.formal.suspects[e] ? SCOL[e] || "#6A1B9A" : grpCol(e));
+function lkData(mode) {
+  if (LKC[mode]) return LKC[mode];
+  const X = DB.formal, S = X.suspects, SK = susKeys(), accEnt = new Map(), labEnt = new Map();
+  Object.keys(X.groups || {}).forEach((g) => (X.groups[g].top || []).forEach((a) => { const m = String(a.acc).match(/^(\S+) (\S+) /); if (m && dg(m[2]) && !/x/i.test(m[2])) accEnt.set(dg(m[2]), g); labEnt.set(nk(a.acc), g); }));   // เลขบัญชีไม่ครบ (xxxxxx) จับด้วยป้าย ธนาคาร+เลข+ชื่อ
+  SK.forEach((k) => (S[k].accounts || []).forEach((a) => accEnt.set(dg(a.acc), k)));
+  const gcode = (g) => DB.groups[g][0], entG = (code, name) => (code === "rel" ? ({ relp: "rel_pan", rela: "rel_ath" }[(DB.pmap || {})[nk(name || "")]] || "rel") : code);
+  const aK = DB.accounts.map((a) => "a" + dg(a.acc)), cK = DB.cps.map((c, ci) => (c[0] && !/x/i.test(c[0]) && dg(c[0]) ? "a" + dg(c[0]) : "c" + ci));
+  const entK = new Map(), cIdx = new Map(), aIdx = new Map();
+  DB.cps.forEach((c, ci) => { if (!cIdx.has(cK[ci])) { cIdx.set(cK[ci], ci); entK.set(cK[ci], (c[0] && !/x/i.test(c[0]) && accEnt.get(dg(c[0]))) || labEnt.get(nk(`${c[2]} ${c[0]} ${c[1]}`)) || entG(gcode(c[3]), c[1])); } });
+  DB.accounts.forEach((a, ai) => { aIdx.set(aK[ai], ai); entK.set(aK[ai], accEnt.get(dg(a.acc)) || entG(gcode(a.g), a.name)); });
+  const P = new Map(), raw = mode === "raw", Q = DB.txq, O = DB.txo, T = DB.tx;
+  for (let i = 0; i < T.length; i++) { const r = T[i], ai = r[0], ci = raw && Q && Q[i] && O[i] >= 0 ? O[i] : r[4], inn = IN_K.includes(r[2]);
+    const sk = inn ? cK[ci] : aK[ai], dk = inn ? aK[ai] : cK[ci], key = sk + ">" + dk; let e = P.get(key);
+    if (!e) P.set(key, (e = { o: 0, i: 0, no: 0, ni: 0, sk, dk })); if (inn) { e.i += r[3]; e.ni += r[5] || 1; } else { e.o += r[3]; e.no += r[5] || 1; } }
+  const core = new Set(["t1", ...SK]), M_ = new Map(), AC = new Map();
+  const acc = (g, k) => { let m = AC.get(g); if (!m) AC.set(g, (m = new Map())); let a = m.get(k); if (!a) m.set(k, (a = { in: {}, out: {} })); return a; };
+  P.forEach((e) => { const v = Math.max(e.o, e.i); if (v <= 0) return; const se = entK.get(e.sk), de = entK.get(e.dk); if (!se || !de || se === de || (!core.has(se) && !core.has(de))) return;
+    const k = se + ">" + de, m = M_.get(k) || [0, 0]; m[0] += v; m[1] += Math.max(e.no, e.ni); M_.set(k, m);
+    if (!core.has(se)) { const a = acc(se, e.sk); a.out[de] = (a.out[de] || 0) + v; } if (!core.has(de)) { const a = acc(de, e.dk); a.in[se] = (a.in[se] || 0) + v; } });
+  const lab = (k) => { if (aIdx.has(k)) { const a = DB.accounts[aIdx.get(k)]; return `${a.bank} ${a.acc} ${a.name}`; } const c = DB.cps[cIdx.get(k)] || []; return `${c[2] || "-"} ${c[0] || "-"} ${c[1] || "ไม่ระบุชื่อ"}`; };
+  const sum = (o, f) => Object.entries(o).reduce((t, [k, v]) => t + (!f || f(k) ? v : 0), 0);
+  const agg = (g) => { const m = AC.get(g); if (!m) return null; const t = { n: m.size, stm: 0, in: {}, out: {}, tin: 0, tout: 0 };
+    m.forEach((a, k) => { if (aIdx.has(k)) t.stm++; Object.entries(a.in).forEach(([e, v]) => { t.in[e] = (t.in[e] || 0) + v; t.tin += v; }); Object.entries(a.out).forEach(([e, v]) => { t.out[e] = (t.out[e] || 0) + v; t.tout += v; }); }); return t; };
+  return (LKC[mode] = { M: M_, AC, lab, stm: (k) => aIdx.has(k), coreL: ["t1", ...SK], core, agg, sum });
+}
+const lkGroups = (D) => Object.keys(GRPT).filter((g) => { const t = D.agg(g); return t && t.tin + t.tout >= 1; });
+/* Link chart: กลาง = บัญชีรับบริจาค / วงใน = ผู้ต้องหา / วงนอก = กลุ่มที่เกี่ยวข้อง ; เส้นหนาตามยอด สีตามต้นทาง ; เส้นประแดง = โอนกลับเข้าตัวละครหลัก */
+function linkSvg(D, W) {
+  const S = DB.formal.suspects, SK = susKeys(), H = Math.round(W * 0.82), cx = W / 2, cy = H / 2, m = Math.min(W, H), r1 = m * 0.245, r2 = m * 0.405, N = {};
+  N.t1 = { x: cx, y: cy, r: m * 0.068, col: t1Col_(), a: 0 };
+  SK.forEach((k, i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / SK.length; N[k] = { x: cx + r1 * Math.cos(a), y: cy + r1 * Math.sin(a), r: m * 0.044, col: eCol(k), a }; });
+  const gk = lkGroups(D), AG = Object.fromEntries(gk.map((g) => [g, D.agg(g)]));
+  const pref = (g) => { let sx = 0, sy = 0; const t = AG[g]; SK.forEach((k) => { const w = (t.in[k] || 0) + (t.out[k] || 0); if (w > 0) { sx += w * Math.cos(N[k].a); sy += w * Math.sin(N[k].a); } }); return sx || sy ? Math.atan2(sy, sx) : Math.PI / 2; };
+  const gs = gk.map((g) => ({ g, p: pref(g) })).sort((a, b) => a.p - b.p), n = gs.length || 1, step = (2 * Math.PI) / n, ad = (a, b) => { let d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
+  let best = 0, bc = Infinity; for (let o = 0; o < 48; o++) { const base = -Math.PI + (o * step) / 48; let c = 0; gs.forEach((x, i) => { const a = base + i * step; c += ad(a, x.p) ** 2; SK.forEach((k) => { if (ad(a, N[k].a) < 0.12) c += 3; }); }); if (c < bc) { bc = c; best = base; } }
+  const gmax = Math.max(1, ...gk.map((g) => AG[g].tin + AG[g].tout));
+  gs.forEach((x, i) => { const a = best + i * step, t = AG[x.g]; N[x.g] = { x: cx + r2 * Math.cos(a), y: cy + r2 * Math.sin(a) * 0.94, r: m * (0.02 + 0.026 * Math.sqrt((t.tin + t.tout) / gmax)), col: grpCol(x.g), a, grp: 1 }; });
+  const E = []; D.M.forEach(([v], k) => { const [a, b] = k.split(">"); if (N[a] && N[b] && v >= LK_MIN) E.push({ a, b, v, back: !!N[a].grp }); });
+  E.sort((x, y) => y.v - x.v); const vmax = Math.max(1, ...E.map((e) => e.v)), wOf = (v) => 1.3 + m * 0.028 * Math.sqrt(v / vmax);
+  let es = "";
+  E.forEach((e) => { const A = N[e.a], B = N[e.b], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, w = wOf(e.v), bend = e.a === "t1" || e.b === "t1" ? 0.08 : 0.2;
+    const qx = (A.x + B.x) / 2 - uy * L * bend, qy = (A.y + B.y) / 2 + ux * L * bend, n0 = Math.hypot(qx - A.x, qy - A.y) || 1, n1 = Math.hypot(qx - B.x, qy - B.y) || 1, hs = Math.min(15, Math.max(6, w * 1.25));
+    const sx = A.x + ((qx - A.x) / n0) * (A.r + 2), sy = A.y + ((qy - A.y) / n0) * (A.r + 2), d1x = (qx - B.x) / n1, d1y = (qy - B.y) / n1, tx = B.x + d1x * (B.r + 2), ty = B.y + d1y * (B.r + 2), ex = tx + d1x * hs * 0.9, ey = ty + d1y * hs * 0.9;
+    const col = e.back ? "#B3261E" : N[e.a].col, tip = `${eLab(e.a)} → ${eLab(e.b)} : ${fmt(e.v)} บาท${e.back ? " (โอนกลับ)" : ""}`;
+    es += `<g class="lke${e.back ? " bk" : ""}" data-a="${e.a}" data-b="${e.b}"><path d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}" stroke="${col}" stroke-width="${w.toFixed(1)}" fill="none"${e.back ? ' stroke-dasharray="7 5"' : ""}><title>${esc(tip)}</title></path>
+      <polygon points="${tx.toFixed(1)},${ty.toFixed(1)} ${(ex - d1y * hs * 0.55).toFixed(1)},${(ey + d1x * hs * 0.55).toFixed(1)} ${(ex + d1y * hs * 0.55).toFixed(1)},${(ey - d1x * hs * 0.55).toFixed(1)}" fill="${col}"/></g>`; });
+  const F1 = "600 12px Sarabun, sans-serif", inT1 = (k) => (D.M.get("t1>" + k) || [0])[0];
+  let ns = `<g class="lkn" data-lk="t1"><circle cx="${cx}" cy="${cy}" r="${N.t1.r.toFixed(1)}" fill="${N.t1.col}" stroke="#fff" stroke-width="3"/><text x="${cx}" y="${cy - 3}" text-anchor="middle" class="lkt w">บัญชี</text><text x="${cx}" y="${cy + 11}" text-anchor="middle" class="lkt w">รับบริจาค</text><title>บัญชีรับบริจาค 3 บัญชี</title></g>`, defs = "";
+  SK.forEach((k) => { const o = N[k], s = S[k], ph = photoOf(s.name), r = o.r;
+    defs += `<clipPath id="lkc-${k}"><circle cx="${o.x.toFixed(1)}" cy="${o.y.toFixed(1)}" r="${(r - 2).toFixed(1)}"/></clipPath>`;
+    ns += `<g class="lkn" data-lk="${k}"><circle cx="${o.x.toFixed(1)}" cy="${o.y.toFixed(1)}" r="${r.toFixed(1)}" fill="#fff" stroke="${o.col}" stroke-width="4"/>${ph ? `<image href="data:image/jpeg;base64,${ph.th}" x="${(o.x - r).toFixed(1)}" y="${(o.y - r).toFixed(1)}" width="${(2 * r).toFixed(1)}" height="${(2 * r).toFixed(1)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#lkc-${k})"/>` : `<circle cx="${o.x.toFixed(1)}" cy="${(o.y - r * 0.18).toFixed(1)}" r="${(r * 0.3).toFixed(1)}" fill="${o.col}"/><path d="M${(o.x - r * 0.52).toFixed(1)},${(o.y + r * 0.62).toFixed(1)} a${(r * 0.52).toFixed(1)},${(r * 0.46).toFixed(1)} 0 0 1 ${(r * 1.04).toFixed(1)},0z" fill="${o.col}"/>`}
+      <circle cx="${(o.x - r * 0.72).toFixed(1)}" cy="${(o.y - r * 0.72).toFixed(1)}" r="9" fill="${o.col}" stroke="#fff" stroke-width="1.5"/><text x="${(o.x - r * 0.72).toFixed(1)}" y="${(o.y - r * 0.72 + 4).toFixed(1)}" text-anchor="middle" class="lkt w" style="font-size:10px;fill:${inkOn(o.col)}">${s.no}</text>
+      ${["F", "C", "M"].filter((q) => s.charges.includes(q)).map((q, i, a) => `<circle cx="${(o.x + (i - (a.length - 1) / 2) * 11).toFixed(1)}" cy="${(o.y + r + 1).toFixed(1)}" r="4.5" fill="${CHC[q][1]}" stroke="#fff" stroke-width="1.5"><title>${CHC[q][0]}</title></circle>`).join("")}
+      <text x="${o.x.toFixed(1)}" y="${(o.y + r + 19).toFixed(1)}" text-anchor="middle" class="fl1 flhalo">${esc(shortName(s.name).split(" ")[0])}</text>${inT1(k) >= 1 ? `<text x="${o.x.toFixed(1)}" y="${(o.y + r + 32).toFixed(1)}" text-anchor="middle" class="fl2 flhalo">${esc(M(inT1(k)))}</text>` : ""}<title>${esc(`ผู้ต้องหาที่ ${s.no} ${s.name}`)}</title></g>`; });
+  gs.forEach(({ g }) => { const o = N[g], t = AG[g], c = Math.cos(o.a), sn = Math.sin(o.a), anc = c > 0.35 ? "start" : c < -0.35 ? "end" : "middle", lx = o.x + (anc === "middle" ? 0 : c > 0 ? o.r + 7 : -o.r - 7), ly = anc === "middle" ? (sn > 0 ? o.y + o.r + 15 : o.y - o.r - 20) : o.y - 2;
+    const avail = anc === "start" ? W - lx - 6 : anc === "end" ? lx - 6 : Math.min(lx, W - lx) * 2 - 12;
+    ns += `<g class="lkn" data-lk="${g}"><circle cx="${o.x.toFixed(1)}" cy="${o.y.toFixed(1)}" r="${o.r.toFixed(1)}" fill="${o.col}" stroke="#fff" stroke-width="2.5"/><text x="${o.x.toFixed(1)}" y="${(o.y + 4).toFixed(1)}" text-anchor="middle" class="lkt w" style="fill:${inkOn(o.col)}">${t.n}</text>
+      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anc}" class="fl1 flhalo">${esc(fitT(GRPT[g], Math.max(70, avail), F1))}</text><text x="${lx.toFixed(1)}" y="${(ly + 14).toFixed(1)}" text-anchor="${anc}" class="fl2 flhalo">${esc(M(t.tin))}${t.tout >= 1 ? `<tspan fill="#B3261E"> ↩ ${esc(M(t.tout))}</tspan>` : ""}</text><title>${esc(`${GRPT[g]} · ${t.n} บัญชี · รับ ${fmt(t.tin)} บาท · โอนกลับ ${fmt(t.tout)} บาท`)}</title></g>`; });
+  return { W, H, svg: `<svg class="lk" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${es}${ns}</svg>` };
+}
+function drawLink() {
+  const el = $("#lkBox"); if (!el) return; const D = lkData(LKM), W = Math.max(700, el.clientWidth || 700), o = linkSvg(D, W);
+  el.innerHTML = o.svg + `<button class="ibx sm lkz" type="button" title="ขยายดูเต็มจอ (ซูม / เลื่อนได้)" aria-label="ขยายดูเต็มจอ">${IC("zoom", 15)}</button>`;
+  if (el.scrollWidth > el.clientWidth) el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
+  const svg = el.querySelector("svg"), hl = (id) => { svg.classList.toggle("hl", !!id); svg.querySelectorAll(".lke").forEach((g) => g.classList.toggle("on", !!id && (g.dataset.a === id || g.dataset.b === id))); };
+  svg.addEventListener("pointerover", (e) => { const n = e.target.closest(".lkn"); if (n && e.pointerType === "mouse") hl(n.dataset.lk); });
+  svg.addEventListener("pointerout", (e) => { if (e.target.closest(".lkn") && e.pointerType === "mouse") hl(""); });
+  el.onclick = (e) => { if (e.target.closest(".lkz")) { e.stopPropagation(); return openSvg("แผนผังความเชื่อมโยง", linkSvg(D, 1200).svg, 1200); }
+    const n = e.target.closest(".lkn"); if (!n) return; e.stopPropagation(); const id = n.dataset.lk;
+    if (id === "t1") { BRV = "t1"; render(); return scrollTo(0, 0); }
+    if (DB.formal.suspects[id]) { BRV = "sus"; BRS = id; SUSC = 1; render(); return; }
+    BRG = BRG === id ? "" : id; $$("tr[data-grp]").forEach((r) => r.classList.toggle("on", r.dataset.grp === BRG)); drawGrp(true); };
+}
+/* รายละเอียดกลุ่มที่เลือก: การ์ดสรุป + ชาร์ต 3 ชั้น (ต้นทาง → บุคคลในกลุ่ม → โอนกลับเข้าใคร) + กราฟ + ตารางรายบัญชี */
+function drawGrp(scroll) {
   const el = $("#grpD"); if (!el) return; if (CH.bGrp) { CH.bGrp.destroy(); delete CH.bGrp; }
-  const g = X.groups && X.groups[BRG]; if (!g) { el.innerHTML = ""; return; }
-  const c = grpCol(BRG), t = g.tot, inn = t.t1 + t.pan + t.ath + (t.sus || 0), T1C = (DB.groups.find((x) => x[0] === "t1") || [0, 0, "#1565C0"])[2];
-  const SRC = [["t1", "บัญชีรับบริจาค", T1C], ["pan", "ผู้ต้องหาที่ 1", SCOL.pan], ["ath", "ผู้ต้องหาที่ 2", SCOL.ath], ["sus", "ผู้ต้องหาอื่น", "#6A1B9A"]].filter(([k]) => (t[k] || 0) > 0);
-  const PM = new Map(); g.top.forEach((x) => {                         // รวมหลายบัญชีของคนเดียวกันเป็นกล่องเดียว (ไม่สนคำนำหน้า / ชื่อที่ statement ตัดท้าย)
-    const nm = accNm(x.acc).replace(/\s+/g, " ").trim(); let kk = nm.replace(/^(นางสาว|น\.ส\.|นาย|นาง)\s*/, "").replace(/\s+/g, "");
+  const D = lkData(LKM), A0 = D.AC.get(BRG), t = A0 && D.agg(BRG); if (!t) { el.innerHTML = ""; return; }
+  const c = grpCol(BRG), SRC = D.coreL.filter((e) => (t.in[e] || 0) >= 1), DST = D.coreL.filter((e) => (t.out[e] || 0) >= 1), sv = (o) => Object.values(o).reduce((q, v) => q + v, 0);
+  const accs = [...A0.entries()].map(([key, a]) => ({ key, lab: D.lab(key), stm: D.stm(key), in: a.in, out: a.out, tin: sv(a.in), tout: sv(a.out) })).sort((a, b) => b.tin + b.tout - (a.tin + a.tout));
+  const PM = new Map(); accs.forEach((x) => {                           // รวมหลายบัญชีของคนเดียวกันเป็นกล่องเดียว (ไม่สนคำนำหน้า / ชื่อที่ statement ตัดท้าย)
+    const nm = accNm(x.lab).replace(/\s+/g, " ").trim(); let kk = nm.replace(/^(นางสาว|น\.ส\.|นาย|นาง)\s*/, "").replace(/\s+/g, "");
     const k0 = [...PM.keys()].find((k) => k === kk || (Math.min(k.length, kk.length) >= 8 && (k.startsWith(kk) || kk.startsWith(k))));
-    if (k0 && kk.length > k0.length) { const o = PM.get(k0); PM.delete(k0); o.nm = o.acc = nm; PM.set(kk, o); } else if (k0) kk = k0;
-    const e = PM.get(kk) || { acc: nm, nm, n: 0, t1: 0, pan: 0, ath: 0, sus: 0, back: 0 }; e.n++; ["t1", "pan", "ath", "sus", "back"].forEach((k) => (e[k] += x[k] || 0)); PM.set(kk, e); });
-  const top = [...PM.values()].sort((a, b) => (b.t1 + b.pan + b.ath + b.back) - (a.t1 + a.pan + a.ath + a.back)), N = 7, A = top.slice(0, N), nA = A.reduce((q, a) => q + a.n, 0);
-  const oth = { acc: `อื่น ๆ (${g.n_acc - nA} บัญชี)`, t1: 0, pan: 0, ath: 0, sus: 0, back: 0, other: 1 };
-  ["t1", "pan", "ath", "sus", "back"].forEach((k) => (oth[k] = Math.max(0, (t[k] || 0) - A.reduce((q, a) => q + (a[k] || 0), 0))));
-  const MID = A.concat(oth.t1 + oth.pan + oth.ath + oth.sus + oth.back > 0.5 ? [oth] : []);
-  const ain = (a) => a.t1 + a.pan + a.ath + (a.sus || 0);
-  const cols = [SRC.map(([k, l, col]) => ({ id: "s" + k, lab: l, v: t[k], col })), MID.map((a, i) => ({ id: "m" + i, lab: a.other ? a.acc : a.nm + (a.n > 1 ? ` (${a.n})` : ""), tip: a.other ? a.acc : `${a.nm} · ${a.n} บัญชี`, v: Math.max(ain(a), a.back), vin: ain(a), col: a.other ? "#B0BEC5" : c })),
-    t.back > 0 ? [{ id: "back", lab: "โอนกลับ", v: t.back, col: "#B3261E" }] : []];
-  const links = []; MID.forEach((a, i) => { SRC.forEach(([k]) => { if ((a[k] || 0) > 0) links.push({ a: "s" + k, b: "m" + i, v: a[k] }); }); if (a.back > 0) links.push({ a: "m" + i, b: "back", v: a.back }); });
+    if (k0 && kk.length > k0.length) { const o = PM.get(k0); PM.delete(k0); o.nm = nm; PM.set(kk, o); } else if (k0) kk = k0;
+    const e = PM.get(kk) || { nm, n: 0, in: {}, out: {}, tin: 0, tout: 0 }; e.n++; e.tin += x.tin; e.tout += x.tout;
+    Object.entries(x.in).forEach(([k, v]) => (e.in[k] = (e.in[k] || 0) + v)); Object.entries(x.out).forEach(([k, v]) => (e.out[k] = (e.out[k] || 0) + v)); PM.set(kk, e); });
+  const top = [...PM.values()].sort((a, b) => b.tin + b.tout - (a.tin + a.tout)), NP = 7, A = top.slice(0, NP), R = top.slice(NP);
+  const oth = { nm: `อื่น ๆ (${R.reduce((q, a) => q + a.n, 0)} บัญชี)`, other: 1, n: 0, in: {}, out: {}, tin: 0, tout: 0 };
+  R.forEach((a) => { oth.tin += a.tin; oth.tout += a.tout; Object.entries(a.in).forEach(([k, v]) => (oth.in[k] = (oth.in[k] || 0) + v)); Object.entries(a.out).forEach(([k, v]) => (oth.out[k] = (oth.out[k] || 0) + v)); });
+  const MID = A.concat(R.length ? [oth] : []);
+  const cols = [SRC.map((e) => ({ id: "s" + e, lab: eLab(e), v: t.in[e], col: eCol(e) })), MID.map((a, i) => ({ id: "m" + i, lab: a.other ? a.nm : a.nm + (a.n > 1 ? ` (${a.n})` : ""), tip: a.other ? a.nm : `${a.nm} · ${a.n} บัญชี`, v: Math.max(a.tin, a.tout), vin: a.tin, col: a.other ? "#B0BEC5" : c })),
+    DST.map((e) => ({ id: "d" + e, lab: eLab(e), v: t.out[e], col: eCol(e) }))];
+  const links = []; MID.forEach((a, i) => { SRC.forEach((e) => { if ((a.in[e] || 0) > 0) links.push({ a: "s" + e, b: "m" + i, v: a.in[e] }); }); DST.forEach((e) => { if ((a.out[e] || 0) > 0) links.push({ a: "m" + i, b: "d" + e, v: a.out[e], col: "#B3261E" }); }); });
+  const oS = (o) => D.sum(o, (k) => k !== "t1" && k !== "pan" && k !== "ath"), tags = (o) => Object.entries(o).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([e, v]) => `<span class="gtag" style="--c:${eCol(e)}" title="${esc(fmt(v))} บาท"><i></i>${esc(eLab(e).replace("ผู้ต้องหาที่ ", "ที่ "))}</span>`).join(" ");
   el.innerHTML = `<div class="card gx grpd" style="--c:${c}"><div class="grpd-h">${gTag(c, GRPT[BRG])}${ibx("less", "ปิด", 'data-grpx="1"')}</div>
-    <div class="hero-k sm">${kpiC(M(inn), "รับเข้ากลุ่ม", "", c)}${kpiC(M(t.back), "โอนกลับ", inn ? `${(t.back / inn * 100).toFixed(1)}%` : "", "#B3261E")}${kpiC(`${g.n_acc}`, "บัญชี", `มี statement ${g.n_stm}`, "#00264D")}</div>
+    <div class="hero-k sm">${kpiC(M(t.tin), "รับเข้ากลุ่ม", "", c)}${kpiC(M(t.tout), "โอนกลับ", t.tin ? `${(t.tout / t.tin * 100).toFixed(1)}%` : "", "#B3261E")}${kpiC(`${t.n}`, "บัญชี", `มี statement ${t.stm}`, "#00264D")}</div>
     <div class="grpd-f" id="grpF"></div>
     <div class="chartbox" style="height:${Math.max(220, 46 + MID.length * 34)}px"><canvas id="bGrp"></canvas></div>
-    ${tbl(["บัญชี", "STM", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับ"], g.top.map((x) => [labAcc(x.acc), x.stm ? `<span class="badge g">${IC("check", 12)}</span>` : "–", M(x.t1), M(x.pan), M(x.ath), `<b class="amt-out">${M(x.back)}</b>`]), [2, 3, 4, 5])}</div>`;
-  flow3($("#grpF"), cols, links);
+    ${tbl(["บัญชี", "STM", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "จากผู้ต้องหาอื่น", "โอนกลับ", "กลับเข้า"], accs.map((x) => [labAcc(x.lab), x.stm ? `<span class="badge g">${IC("check", 12)}</span>` : "–", `<span class="amt-in">${M(x.in.t1 || 0)}</span>`, M(x.in.pan || 0), M(x.in.ath || 0), M(oS(x.in)), `<b class="amt-out">${M(x.tout)}</b>`, tags(x.out)]), [2, 3, 4, 5, 6])}</div>`;
+  flow3($("#grpF"), cols, links, ["ต้นทาง", "", DST.length ? "โอนกลับเข้า" : ""]);
   const lab = MID.map((a) => (a.other ? "อื่น ๆ" : fitT(a.nm, 150, "600 12px Sarabun, sans-serif")));
-  CH.bGrp = new Chart($("#bGrp"), { type: "bar", data: { labels: lab, datasets: SRC.map(([k, l, col]) => ({ label: l, data: MID.map((a) => (a[k] || 0) / 1e6), backgroundColor: col, stack: "in" })).concat([{ label: "โอนกลับ", data: MID.map((a) => a.back / 1e6), backgroundColor: "#B3261E", stack: "back" }]) },
+  CH.bGrp = new Chart($("#bGrp"), { type: "bar", data: { labels: lab, datasets: SRC.map((e) => ({ label: eLab(e), data: MID.map((a) => (a.in[e] || 0) / 1e6), backgroundColor: eCol(e), stack: "in" })).concat([{ label: "โอนกลับ", data: MID.map((a) => a.tout / 1e6), backgroundColor: "#B3261E", stack: "back" }]) },
     options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: (q) => ` ${q.dataset.label}: ${M(q.raw * 1e6)}` } } }, scales: { x: { stacked: true, ticks: { callback: (v) => v + " ล." } }, y: { stacked: true, ticks: { font: { size: 11 } } } } } });
   if (window.enhance) enhance(el);
   if (scroll) setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
 }
-/* ชาร์ตความเชื่อมโยง 3 คอลัมน์ (ต้นทาง → บัญชีในกลุ่ม → โอนกลับ) ; สีเส้น = สีกล่องต้นทาง ; จอแคบป้ายวางบนเส้นมีขอบสีพื้น */
-function flow3(el, C3, links) {
+/* ชาร์ตความเชื่อมโยง 3 คอลัมน์ (ต้นทาง → บุคคลในกลุ่ม → ปลายทางที่โอนกลับ) ; สีเส้น = สีกล่องต้นทาง (เส้นโอนกลับ = แดง) ; จอแคบป้ายวางบนเส้นมีขอบสีพื้น */
+function flow3(el, C3, links, hd) {
   if (!el) return; const cw = el.clientWidth || 700, nar = cw < 600, W = Math.max(300, cw), bw = 12, pad = 8;
   const xs = nar ? [4, Math.round(W * 0.4), W - bw - 4] : [Math.round(W * 0.2), Math.round(W * 0.52), Math.round(W * 0.8)];
   const tot = Math.max(1, ...C3.map((c) => c.reduce((q, n) => q + n.v, 0))), nMax = Math.max(1, ...C3.map((c) => c.length));
   const H0 = Math.max(200, nMax * 40), sc = (H0 - pad * (nMax - 1)) / tot, slot = (n) => Math.max(n.h, 28) + pad;
   C3.forEach((col) => col.forEach((n) => (n.h = Math.max(5, n.v * sc))));
-  const colH = C3.map((col) => col.reduce((q, n) => q + slot(n), 0)), H = Math.max(...colH) + 26;
-  C3.forEach((col, ci) => { let y = 22 + (H - 26 - colH[ci]) / 2; col.forEach((n) => { n.x = xs[ci]; n.y = y; n.oi = y; n.oo = y; y += slot(n); }); });
+  const colH = C3.map((col) => col.reduce((q, n) => q + slot(n), 0)), H = Math.max(...colH) + 30;
+  C3.forEach((col, ci) => { let y = 26 + (H - 30 - colH[ci]) / 2; col.forEach((n) => { n.x = xs[ci]; n.y = y; n.oi = y; n.oo = y; y += slot(n); }); });
   const by = {}; C3.flat().forEach((n) => (by[n.id] = n));
   const F1 = "600 12px Sarabun, sans-serif";
-  let svg = "";
+  let svg = (hd || []).map((h, ci) => (h && C3[ci].length ? `<text x="${ci === 0 && !nar ? xs[0] + bw : ci === 2 && nar ? xs[2] + bw : xs[ci]}" y="13" text-anchor="${(ci === 0 && !nar) || (ci === 2 && nar) ? "end" : "start"}" class="flh">${esc(h)}</text>` : "")).join("");
   links.forEach((l) => { const a = by[l.a], b = by[l.b]; if (!a || !b) return; const th = Math.max(1, l.v * sc), y0 = a.oo + th / 2, y1 = b.oi + th / 2, x0 = a.x + bw, x1 = b.x, mx = (x0 + x1) / 2; a.oo += th; b.oi += th;
-    svg += `<path class="fl" d="M${x0},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${x1},${y1.toFixed(1)}" stroke="${a.col}" stroke-width="${th.toFixed(1)}"><title>${esc(a.tip || a.lab)} → ${esc(b.tip || b.lab)} : ${fmt(l.v)} บาท</title></path>`; });
+    svg += `<path class="fl" d="M${x0},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${x1},${y1.toFixed(1)}" stroke="${l.col || a.col}" stroke-width="${th.toFixed(1)}"><title>${esc(a.tip || a.lab)} → ${esc(b.tip || b.lab)} : ${fmt(l.v)} บาท</title></path>`; });
   C3.forEach((col, ci) => col.forEach((n) => {
     const right = ci === 2 && nar, left = ci === 0 && !nar, lx = left || right ? n.x - 6 : n.x + bw + 6, anc = left || right ? "end" : "start";
     const avail = ci === 0 ? (nar ? xs[1] - xs[0] - bw - 14 : xs[0] - 10) : ci === 1 ? xs[2] - xs[1] - bw - 14 : (nar ? xs[2] - xs[1] - 30 : W - xs[2] - bw - 10);

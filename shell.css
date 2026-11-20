@@ -704,3 +704,31 @@ details.acc.gf>summary .ico.s,details.acc.gf>summary .ico.s svg{color:var(--c)}
 .grpd-f{margin:6px 0 10px;overflow:hidden}
 /* แถบสีหน้าชื่อบัญชีซ้อน 2 ขีด (ผู้ใช้แจ้ง 20 พ.ย. 69): ในกล่อง .gacc ไม่ใส่แถบของ labAcc ซ้ำ */
 .gacc .gbar{border-left:0;padding-left:0}
+
+/* ---------- สรุปทางการ รุ่น 8 บท (20 พ.ย. 69): บท "ผู้ต้องหา" (ตาราง + พฤติการณ์รายคน) / บท "แผนผังความเชื่อมโยง" (Link chart) ---------- */
+.cmx tr.on td{background:color-mix(in srgb,var(--c) 14%,var(--card))!important}
+.cmx tr.on td:first-child{box-shadow:inset 4px 0 0 var(--c)}
+.cmx .gchev{width:28px;color:var(--mut);text-align:center}
+.cmx tr.on .gchev{color:var(--c);transform:rotate(90deg)}
+.susd{margin-top:14px;padding-top:12px;border-top:3px solid var(--c);position:relative}
+.susd .susx{position:absolute;right:0;top:10px;z-index:2}
+.susd>.sp{padding-right:46px}
+.lkbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 8px}
+.lkc{padding:6px}
+.lkc .flowbox{overflow-x:auto;-webkit-overflow-scrolling:touch}
+svg.lk{display:block;margin:0 auto}
+svg.lk .lke path{opacity:.46;transition:opacity .12s}
+svg.lk .lke polygon{opacity:.8;transition:opacity .12s}
+svg.lk .lke.bk path{opacity:.72}
+svg.lk.hl .lke path,svg.lk.hl .lke polygon{opacity:.07}
+svg.lk.hl .lke.on path{opacity:.82}svg.lk.hl .lke.on polygon{opacity:1}
+svg.lk .lkn{cursor:pointer}
+svg.lk .lkn:hover circle:first-of-type{filter:brightness(1.08)}
+svg.lk .lkt{font-size:11px;font-weight:700}
+svg.lk .lkt.w{fill:#fff}
+.lkz{position:absolute;right:6px;bottom:6px;z-index:2;background:var(--card)}
+.lkc{position:relative}
+.lkleg{display:flex;flex-wrap:wrap;gap:4px 14px;padding:6px 8px 4px;font-size:.78rem;color:var(--mut)}
+.lkleg span{display:inline-flex;align-items:center;gap:5px}
+.lkleg i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.lkleg i.dash{width:22px;height:0;border-radius:0;border-top:3px dashed #B3261E}

@@ -364,18 +364,21 @@ function pCharges(el) {
   const m = el || $("#main");
   const T1IN = new Map();                                              // รับเงินบริจาคโดยตรง (จากสรุปทางการ) รวมไว้ในตารางนี้แทนตารางซ้ำ (ผู้ใช้สั่ง 20 พ.ย. 69)
   if (DB.formal && DB.formal.suspects && typeof chgOf === "function") Object.values(DB.formal.suspects).forEach((fs) => { const c = chgOf(fs.name); if (c) T1IN.set(c.id, fs.in_t1 || 0); });
+  const SKEY = new Map();                                              // ข้อหา (id) -> รหัสผู้ต้องหาในสรุปทางการ : กดแถว = เปิดพฤติการณ์รายคนใต้ตาราง (รวม 2 บท ; ผู้ใช้สั่ง 20 พ.ย. 69)
+  if (el && DB.formal && DB.formal.suspects && typeof chgOf === "function") Object.entries(DB.formal.suspects).forEach(([k, fs]) => { const c = chgOf(fs.name); if (c) SKEY.set(c.id, k); });
   const ab = addBtn("charges");                                         // ฝังในสรุปทางการ (el) = ไม่ซ้ำหัวข้อกับหัวบท (ผู้ใช้แจ้ง 20 พ.ย. 69 "หัวข้อหลักและย่อยดูซ้ำกัน")
   m.innerHTML = `${el ? (ab ? `<div class="frow" style="justify-content:flex-end;margin:-4px 0 6px">${ab}</div>` : "") : `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย</small> ${ab}</h2>`}
   <div class="tiles"><button class="tile ${!sel ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ผู้ต้องหาทั้งหมด</span></button>${COMBO.map(tile).join("")}</div>
   <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย${sel ? " · " + esc(cLab(sel)) : ""}</small></h2>
-  <div class="tblwrap"><table class="cmx"><tr><th class="ptc" data-nos="1"></th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}${T1IN.size ? `<th class="n">รับเงินบริจาคโดยตรง</th>` : ""}<th>สถานะ</th></tr>
-    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="ptc">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}${T1IN.size ? `<td class="n"><b>${T1IN.has(p.s.id) ? M(T1IN.get(p.s.id)) : "–"}</b></td>` : ""}<td>${stat(p)}</td></tr>`).join("")}
+  <div class="tblwrap"><table class="cmx"><tr><th class="ptc" data-nos="1"></th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}${T1IN.size ? `<th class="n">รับเงินบริจาคโดยตรง</th>` : ""}<th>สถานะ</th>${SKEY.size ? `<th data-nos="1"></th>` : ""}</tr>
+    ${show.map((p) => `<tr class="click${SKEY.get(p.s.id) && SKEY.get(p.s.id) === BRS ? " on" : ""}" data-c="${p.i}" data-sk="${SKEY.get(p.s.id) || ""}" style="--c:${SCOL[SKEY.get(p.s.id)] || "var(--navy)"}"><td class="ptc">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}${T1IN.size ? `<td class="n"><b>${T1IN.has(p.s.id) ? M(T1IN.get(p.s.id)) : "–"}</b></td>` : ""}<td>${stat(p)}</td>${SKEY.size ? `<td class="gchev">${IC("next", 16)}</td>` : ""}</tr>`).join("")}
   </table></div>
 `;
   m.onclick = (e) => {
     const b = e.target.closest("[data-cf],[data-c],.back"); if (!b) return;
     if (b.dataset.cf != null) { CHF = b.dataset.cf === sel ? "" : b.dataset.cf; render(); return; }
     if (b.dataset.c != null) {
+      if (b.dataset.sk) { BRS = BRS === b.dataset.sk ? "" : b.dataset.sk; SUSC = BRS ? 1 : 0; render(); if (window.subPanel) subPanel(); return; }
       const p = P[+b.dataset.c];
       openModal(`<div class="prof">${p.img ? `<span class="pf">${thumbEl(p.img)}</span>` : `<span class="pf ph">${IC("user", 44)}</span>`}<div><h3>${esc(p.s.title)}</h3><div class="muted">${esc(p.s.extra1)}</div><div style="margin-top:6px">${stat(p)}</div></div></div>
         <h3 style="margin-top:14px">${IC("scale", 18)} ข้อหา ${p.parts.length} ข้อ</h3>${p.parts.map((c, k) => `<div class="item" style="margin-top:8px"><span class="num">${k + 1}</span><div><p style="color:var(--ink)">${esc(c)}</p></div></div>`).join("")}
@@ -1056,8 +1059,10 @@ const PKC = ["", "#1B7A4A", "#2E7D32", "#9E9D24", "#00838F", "#0277BD", "#6A1B9A
 const txT = (i) => { const r = DB.tx[i]; if (r[2] === 4) return "(ทั้งเดือน)"; const sec = txSec(i); return min2iso(r[1]).slice(11, 16) + (sec >= 0 ? ":" + String(sec).padStart(2, "0") : ""); };
 const TXS0 = () => [["t", 1]];                                          // ค่าเริ่มต้นตารางรายการ: วันที่-เวลา เก่า -> ใหม่ (ผู้สั่งงาน 18 พ.ย. 69)
 let TXS = TXS0();
-const TXC = { t: "วันเวลา", a: "บัญชี", k: "ประเภท", v: "ยอด", c: "คู่โอน", g: "กลุ่มคู่โอน" };
-const txKey = (k, i) => { const r = DB.tx[i]; switch (k) { case "t": return r[1] * 60 + Math.max(0, txSec(i)); case "a": return DB.accounts[r[0]].name || ""; case "k": return r[2]; case "v": return r[3];
+const TXC = { t: "วันเวลา", a: "บัญชี", k: "ประเภท", v: "ยอด", c: "คู่โอน", g: "กลุ่มคู่โอน", s: "ผู้โอน", d: "ผู้รับ", i: "เงินเข้า", o: "เงินออก" };   // ตารางรายการรุ่น 20 พ.ย. 69: ผู้โอนซ้าย ผู้รับขวา แยกช่องเงินเข้า / ออก ไม่มีคอลัมน์ประเภท
+const txKey = (k, i) => { const r = DB.tx[i], inn = IN_K.includes(r[2]); switch (k) {
+  case "s": case "d": { const c = DB.cps[cpOf(i)], cn = c[1] || c[0] || "", an = DB.accounts[r[0]].name || ""; return (k === "s") === inn ? cn : an; }
+  case "i": return inn ? r[3] : 0; case "o": return inn ? 0 : r[3]; case "t": return r[1] * 60 + Math.max(0, txSec(i)); case "a": return DB.accounts[r[0]].name || ""; case "k": return r[2]; case "v": return r[3];
   case "c": { const c = DB.cps[cpOf(i)]; return (c[1] || c[0] || ""); } default: return DB.groups[DB.cps[cpOf(i)][3]][1]; } };
 function txSort(idx) {
   const ks = TXS.map(([k, d]) => { const m = new Map(); for (const i of idx) m.set(i, txKey(k, i)); return [m, d]; });
@@ -1265,8 +1270,11 @@ function pAna() {
     $("#txLab").textContent = `${fmt0(big.length)} / ${fmt0(IDX.length)} แถว · ${TXS.map(([k, d]) => `${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")}`;
     $("#more").hidden = big.length >= IDX.length;
     const th = (k, l, cls) => { const n = TXS.findIndex((x) => x[0] === k); return `<th class="srt ${cls || ""} ${n >= 0 ? "on" : ""}" data-ts="${k}">${l}${n >= 0 ? ` <small>${TXS[n][1] > 0 ? "▲" : "▼"}${TXS.length > 1 ? n + 1 : ""}</small>` : ""}</th>`; };
-    $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("a", "บัญชี")}${th("k", "ประเภท")}${th("v", "ยอด (บาท)", "n")}${th("c", "คู่โอน")}${th("g", "กลุ่มคู่โอน")}</tr>` +
-      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i); return `<tr class="click" data-ti="${i}" title="กดเพื่อไล่เงินเป็นทอดจากรายการนี้ (Timeline ด้านบน)"><td>${dTh(iso)} ${txT(i)}</td><td>${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td>${kTag(r[2])}</td><td class="n ${IN_K.includes(r[2]) ? "amt-in" : "amt-out"}">${fmt(r[3])}</td><td><span class="gbar" style="--c:${DB.groups[c[3]][2]}">${esc(c[1])} <small class="muted">${c[2]} ${c[0]}</small></span>${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}</td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+    $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("s", "ผู้โอน")}${th("d", "ผู้รับ")}${th("i", "เงินเข้า", "n")}${th("o", "เงินออก", "n")}${th("g", "กลุ่มคู่โอน")}</tr>` +
+      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i), inn = IN_K.includes(r[2]);
+        const me = `${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small>`;   // บัญชีที่มี statement = ป้ายสี ; คู่โอน = แถบสีกลุ่ม
+        const cp = `<span class="gbar" style="--c:${DB.groups[c[3]][2]}">${esc(c[1])} <small class="muted">${c[2]} ${c[0]}</small></span>${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}`;
+        return `<tr class="click" data-ti="${i}" title="ไล่เงินเป็นทอดจากรายการนี้"><td>${dTh(iso)} ${txT(i)}</td><td>${inn ? cp : me}</td><td>${inn ? me : cp}</td><td class="n amt-in">${inn ? fmt(r[3]) : ""}</td><td class="n amt-out">${inn ? "" : fmt(r[3])}</td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
     $("#tTx").onclick = (e) => { const h = e.target.closest("th[data-ts]");
       if (!h) { const tr = e.target.closest("tr[data-ti]"); if (tr) { TLS.hist.push(TLS.seed); TLS.keep = true; TLS.seed = tlSeedTx(+tr.dataset.ti); TLS.v = "lst"; TLS.open = true; tlRender(); $("#tlBox").scrollIntoView({ behavior: "smooth", block: "start" }); } return; } const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
       if (n < 0) TXS.push([k, k === "v" ? -1 : 1]); else if (TXS[n][1] === (k === "v" ? -1 : 1)) TXS[n][1] *= -1; else TXS.splice(n, 1);
