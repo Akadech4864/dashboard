@@ -1029,7 +1029,7 @@ function ptShow(el, pp) {
   else { const p = ptFind(el.dataset.pt, el.dataset.pa); if (!p) return ptHide(); html = ptCard(p, el.dataset.pt); }
   let d = document.getElementById("ptip"); if (!d) { d = document.createElement("div"); d.id = "ptip"; document.body.appendChild(d); }
   d.innerHTML = html; d.hidden = false; const r = el.getBoundingClientRect(), w = Math.min(320, innerWidth - 24); d.style.width = w + "px";
-  d.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left)) + "px"; const below = r.bottom + 8 + d.offsetHeight < innerHeight; d.style.top = (below ? r.bottom + 8 : r.top - d.offsetHeight - 8) + scrollY + "px"; d._el = el;
+  d.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left)) + "px"; const below = r.bottom + 8 + d.offsetHeight < innerHeight; d.style.top = (below ? r.bottom + 8 : r.top - d.offsetHeight - 8) + scrollY + "px"; d._el = el; d._sy = scrollY;
 }
 function ptHide() { const d = document.getElementById("ptip"); if (d) d.hidden = true; }
 /* ทุกตาราง (ผู้ใช้สั่ง 20 พ.ย. 69 "ทำการ์ดบทบาทแบบนี้ชื่อบุคคลกับทุกตาราง"): ชี้ช่องตารางที่มีชื่อ / เลขบัญชีของบุคคลที่มีบทบาท = การ์ดเดียวกัน (ไม่ต้องใส่ data-pt ทีละตาราง) */
@@ -1038,5 +1038,27 @@ document.addEventListener("pointerover", (e) => { if (e.pointerType !== "mouse")
   const td = e.target.closest(PT_TD); if (!td || td.closest("#ptip") || !DB || !DB.formal) return; const d = document.getElementById("ptip"); if (d && !d.hidden && d._el === td) return;
   const p = ptCell(td); if (p) { td.classList.add("ptok"); ptShow(td, p); } });
 document.addEventListener("pointerout", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg],td.ptok"); if (el && !el.contains(e.relatedTarget)) ptHide(); });
-document.addEventListener("click", (e) => { const el = e.target.closest(".ghd [data-pt], .ghd [data-ptg]"); if (el && matchMedia("(hover:none)").matches) { e.stopPropagation(); const d = document.getElementById("ptip"); if (d && !d.hidden && d._el === el) return ptHide(); return ptShow(el); } if (!e.target.closest("#ptip")) ptHide(); }, true);
-addEventListener("scroll", () => ptHide(), { passive: true });
+/* มือถือ (ผู้ใช้สั่ง 20 พ.ย. 69 "ทำให้มือถือกดดูการ์ดบทบาทได้ด้วย"): ช่องตารางที่มีบุคคลที่มีบทบาท = ปุ่มรูปคนเล็ก (.ptb) ท้ายช่อง แตะ = การ์ด (ไม่ไปกระตุ้นการกดแถว) ;
+   กดค้างที่ช่องนั้น ~0.45 วินาที = การ์ดเช่นกัน ; แตะที่อื่น / เลื่อนจอ = ปิด ; สแกนเฉพาะช่องใหม่ (data-ptx) เมื่อหน้า/ตารางเปลี่ยน */
+const PT_TOUCH = matchMedia("(hover:none)");
+let PTB_T = 0, PT_LP = null, PT_SUP = 0;
+function ptBadges() {
+  if (!PT_TOUCH.matches || typeof DB === "undefined" || !DB || !DB.formal) return;
+  document.querySelectorAll(PT_TD.split(",").map((x) => x.trim() + ":not([data-ptx])").join(",")).forEach((td) => { td.dataset.ptx = "1"; if (td.querySelector(".ptb")) return; const p = ptCell(td); if (!p) return;
+    td.classList.add("ptok"); const tr = td.parentElement; if (tr) { tr._ptp = tr._ptp || new Set(); if (tr._ptp.has(p.name)) return; tr._ptp.add(p.name); }   // 1 ปุ่มต่อบุคคลต่อแถว (เลขบัญชี + ชื่อในแถวเดียวกัน = ปุ่มเดียว ; กดค้างได้ทั้งสองช่อง)
+    td.insertAdjacentHTML("beforeend", `<button class="ptb" type="button" aria-label="บทบาท ${esc(p.name)}" title="บทบาท">${IC("user", 12)}</button>`); });
+}
+new MutationObserver(() => { if (!PT_TOUCH.matches) return; clearTimeout(PTB_T); PTB_T = setTimeout(ptBadges, 160); }).observe(document.body, { childList: true, subtree: true });
+const ptToggle = (el, p) => { const d = document.getElementById("ptip"); if (d && !d.hidden && d._el === el) return ptHide(); ptShow(el, p); };
+document.addEventListener("click", (e) => {
+  if (PT_SUP && Date.now() - PT_SUP < 700) { PT_SUP = 0; e.stopPropagation(); e.preventDefault(); return; }   // กดค้างแล้วปล่อย = ไม่นับเป็นการแตะแถว
+  const b = e.target.closest(".ptb"); if (b) { e.stopPropagation(); e.preventDefault(); const td = b.closest("td"), p = td && ptCell(td); if (p) ptToggle(td, p); return; }
+  const el = e.target.closest(".ghd [data-pt], .ghd [data-ptg]"); if (el && PT_TOUCH.matches) { e.stopPropagation(); return ptToggle(el); }
+  if (!e.target.closest("#ptip")) ptHide(); }, true);
+document.addEventListener("touchstart", (e) => { const td = e.target.closest("td.ptok"); clearTimeout(PT_LP); if (!td) return; const t = e.touches[0], x0 = t.clientX, y0 = t.clientY;
+  PT_LP = setTimeout(() => { const p = ptCell(td); if (p) { PT_SUP = Date.now(); ptShow(td, p); if (navigator.vibrate) try { navigator.vibrate(12); } catch (e2) { } } }, 450);
+  td._lp = [x0, y0]; }, { passive: true });
+document.addEventListener("touchmove", (e) => { const td = e.target.closest("td.ptok"); if (!td || !td._lp) return clearTimeout(PT_LP); const t = e.touches[0]; if (Math.abs(t.clientX - td._lp[0]) > 8 || Math.abs(t.clientY - td._lp[1]) > 8) clearTimeout(PT_LP); }, { passive: true });
+document.addEventListener("touchend", () => clearTimeout(PT_LP), { passive: true });
+document.addEventListener("contextmenu", (e) => { if (PT_SUP && Date.now() - PT_SUP < 1500 && e.target.closest("td.ptok")) e.preventDefault(); });
+addEventListener("scroll", () => { const d = document.getElementById("ptip"); if (d && !d.hidden && Math.abs(scrollY - (d._sy || 0)) > 40) ptHide(); }, { passive: true });   // เลื่อนเกิน 40 px จึงปิด (มือถือมีเลื่อนเล็กน้อยตอนแตะ)

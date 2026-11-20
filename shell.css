@@ -848,3 +848,10 @@ svg.lk2 .flh{font:700 12px Sarabun,sans-serif;fill:var(--mut)}
 [data-pt],[data-ptg]{cursor:help}
 td.ptok{cursor:help}
 td.ptok:hover{box-shadow:inset 0 -2px 0 #FFD403}
+/* มือถือ: ปุ่มรูปคนเล็กท้ายช่องตาราง = การ์ดบทบาท (20 พ.ย. 69) */
+.ptb{display:none}
+@media (hover:none){
+  .ptb{display:inline-grid;place-items:center;width:20px;height:20px;margin-left:5px;padding:0;border:1px solid color-mix(in srgb,#00264D 25%,transparent);border-radius:50%;background:#FFF6CC;color:#00264D;vertical-align:middle;flex:none}
+  td.ptok{-webkit-touch-callout:none}
+  #ptip{pointer-events:auto;max-width:calc(100vw - 24px)}
+}
