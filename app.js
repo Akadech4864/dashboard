@@ -281,19 +281,50 @@ window.closeModal = closeModal;
 /* ---------- ภาพรวม ---------- */
 function pOver() {
   const o = DB.over, ntx = DB.tx.length;
-  const yl = o.yearly || [];
+  const yl = (o.yearly || []).filter((r) => r[0]);                    // ตัดแถวผลรวมช่วงเวลา (ทุกช่วง / ก่อน / หลัง) ออกจากกราฟรายปี
   $("#main").innerHTML = `
   ${overExtra(o, ntx)}
   <div class="grid g2w"><div><h2>${IC("route")} เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small>แถว 1 → แถว 2 (ทุกช่วงเวลา)</small></h2>
   <div class="card"><div class="chartbox tall"><canvas id="cHop"></canvas></div></div></div>
   <div><h2>${IC("chart")} เงินบริจาคเข้า – ออก รายปี <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
-  <div class="card"><div class="chartbox tall"><canvas id="cYear"></canvas></div></div></div></div>`;
+  <div class="card"><div class="chartbox tall"><canvas id="cYear"></canvas></div></div></div></div>
+  <div id="yrBox"></div>`;
   const h = (o.hop1 || []).slice(0, 14);
   CH.hop = new Chart($("#cHop"), { type: "bar", data: { labels: h.map((r) => r[0].split(" (")[0]), datasets: [{ data: h.map((r) => r[1] / 1e6), backgroundColor: h.map((r) => r[3]) }] },
     options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.raw * 1e6)} บาท (${fmt0(h[c.dataIndex][2])} ครั้ง)` } } }, scales: { x: { title: { display: true, text: "ล้านบาท" } } } } });
   CH.year = new Chart($("#cYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] },
     options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)} บาท` } } } } });
   $("#main").onclick = (e) => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); };
+  yrTable();
+}
+/* ---------- สรุปรายปี 3 บัญชีรับบริจาค (เงินเข้า-ออก-คงเหลือ) + เงินออกไปที่ใด แยกประเภท ; สลับ รายปี / ก่อน-หลังตั้งมูลนิธิ ; กดแถว = ดูแยกประเภท (ผู้ใช้สั่ง 20 พ.ย. 69) ----------
+   ตาราง = ไฟล์ "สรุปรายปี 3 บัญชีรับบริจาค (เงินเข้า-ออก-คงเหลือ).xlsx" (DB.over.yearly) ; แยกประเภท = รายการเงินออกของ 3 บัญชีตาม statement (ยอดโอนตรง) จัดกลุ่มคู่โอนชุดเดียวกับชาร์ต */
+let YRV = "y", YRS = "";
+let YRC = null;
+function yrUse() {
+  if (YRC) return YRC;
+  const ti = DB.groups.findIndex((g) => g[0] === "t1"), A = new Set(DB.accounts.map((a, i) => (a.g === ti ? i : -1)).filter((i) => i >= 0)), cut = DB.cut || "2022-06-25", U = {};
+  const put = (k, g, v) => { const o = (U[k] = U[k] || { tot: 0, n: 0, g: {} }), e = (o.g[g] = o.g[g] || [0, 0]); e[0] += v; e[1]++; o.tot += v; o.n++; };
+  DB.tx.forEach((r, i) => { if (!A.has(r[0]) || IN_K.includes(r[2])) return; const ci = DB.txq && DB.txq[i] && DB.txo[i] >= 0 ? DB.txo[i] : r[4], g = DB.cps[ci][3], iso = min2iso(r[1]).slice(0, 10), be = +iso.slice(0, 4) + 543, bf = iso < cut;
+    put(be === 2565 ? "2565" + (bf ? "b" : "a") : String(be), g, r[3]); put(bf ? "pb" : "pa", g, r[3]); put("all", g, r[3]); });
+  return (YRC = U);
+}
+function yrTable() {
+  const el = $("#yrBox"); if (!el) return; const Y = DB.over.yearly || []; if (!Y.length) { el.innerHTML = ""; return; }
+  const key = (r) => (r[0] ? String(r[0]) + (r[1] ? (r[1].includes("ก่อน") ? "b" : "a") : "") : /ก่อน/.test(r[1]) ? "pb" : /หลัง/.test(r[1]) ? "pa" : "all");
+  const lab = (r) => (r[0] ? `${r[0]}${r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : ""}` : /ก่อน/.test(r[1]) ? "ก่อนตั้งมูลนิธิ" : /หลัง/.test(r[1]) ? "หลังตั้งมูลนิธิ" : "รวมทุกช่วง");
+  const rows = YRV === "y" ? Y.filter((r) => r[0]).concat(Y.filter((r) => !r[0] && !/ก่อน|หลัง/.test(r[1]))) : Y.filter((r) => !r[0]);
+  const U = yrUse(), ti = DB.groups.findIndex((g) => g[0] === "t1");
+  const det = (k) => { const u = U[k]; if (!u) return `<p class="muted" style="margin:6px 0">ไม่มีรายการเงินออก</p>`;
+    const L = Object.entries(u.g).map(([g, v]) => [+g, v[0], v[1]]).sort((a, b) => (a[0] === ti) - (b[0] === ti) || b[1] - a[1]), ext = L.filter((x) => x[0] !== ti).reduce((t, x) => t + x[1], 0) || 1;
+    return `<div class="yrd">${L.map(([g, v, n]) => { const c = DB.groups[g][2], intra = g === ti; return `<div class="yrb${intra ? " intra" : ""}"><span class="yl">${gTag(c, intra ? "โอนระหว่าง 3 บัญชี" : DB.groups[g][1].split(" (")[0])}</span><span class="yt"><i style="width:${intra ? 0 : Math.max(0.6, (v / ext) * 100).toFixed(1)}%;background:${c}"></i></span><b class="amt-out">${M(v)}</b><small class="muted">${intra ? "ไม่นับ" : ((v / ext) * 100).toFixed(1) + "%"} · ${fmt0(n)} ครั้ง</small></div>`; }).join("")}</div>`; };
+  const tr = (r) => { const k = key(r), on = YRS === k, tot = !r[0];
+    return `<tr class="click${on ? " on" : ""}${tot ? " yrtot" : ""}" data-yr="${k}"><td><b>${lab(r)}</b></td><td class="n">${fmt0(r[3])}</td><td class="n amt-in">${M(r[2])}</td><td class="n">${fmt0(r[5])}</td><td class="n amt-out">${M(r[4])}</td><td class="n">${M(r[2] - r[4])}</td><td class="n"><b>${M(r[6])}</b></td><td class="gchev">${IC("next", 16)}</td></tr>${on ? `<tr class="yrdet"><td colspan="8">${det(k)}</td></tr>` : ""}`; };
+  el.innerHTML = `<h2>${IC("chart")} สรุปรายปี 3 บัญชีรับบริจาค <small>เงินเข้า – ออก – คงเหลือ · เงินออกไปที่ใด</small> ${infoI("ตัวเลขเงินเข้า-ออก-คงเหลือ = ไฟล์สรุปรายปี 3 บัญชีรับบริจาค (รวมเงินโอนระหว่าง 3 บัญชี) · คงเหลือสิ้นงวด = ผลรวมยอดคงเหลือของบัญชีที่มีรายการแล้ว · ปี 2565 แยกที่ 25 มิ.ย. 2565 · กดแถว = เงินออกในปี / ช่วงนั้นไปที่ใด แยกตามกลุ่มผู้รับ (ตาม statement ยอดโอนตรง ; % คิดจากเงินออกที่ไม่นับโอนระหว่าง 3 บัญชี)")}</h2>
+    <div class="seg" style="margin:-4px 0 8px">${[["y", "รายปี"], ["p", "ก่อน / หลังตั้งมูลนิธิ"]].map(([k, l]) => `<button data-yrv="${k}" class="${YRV === k ? "on" : ""}">${l}</button>`).join("")}</div>
+    <div class="tblwrap" data-noxbar="1"><table class="yrt"><tr><th>ปี / ช่วง</th><th class="n">ครั้งเข้า</th><th class="n">เงินเข้า</th><th class="n">ครั้งออก</th><th class="n">เงินออก</th><th class="n">สุทธิ</th><th class="n">คงเหลือสิ้นงวด</th><th></th></tr>${rows.map(tr).join("")}</table></div>`;
+  el.onclick = (e) => { const v = e.target.closest("[data-yrv]"); if (v) { e.stopPropagation(); YRV = v.dataset.yrv; YRS = ""; return yrTable(); }
+    const t = e.target.closest("tr[data-yr]"); if (t) { e.stopPropagation(); YRS = YRS === t.dataset.yr ? "" : t.dataset.yr; yrTable(); } };
 }
 /* ---------- คดี / ข้อหา / ข้อต่อสู้ / งาน (กล่องไอคอน กดดูรายละเอียด) ---------- */
 const acts2 = (sec, id) => `<div class="acts in"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></div>`;

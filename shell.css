@@ -743,3 +743,17 @@ svg.lk .lkt.w{fill:#fff}
 
 /* ชาร์ตเส้นเงิน: ป้ายบอกยอดเงินออกที่ไม่แสดงเมื่อไล่เฉพาะกล่องที่คลี่ (20 พ.ย. 69) */
 .flnote{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 4px 6px;padding:5px 10px;border-radius:10px;background:color-mix(in srgb,#FFD403 16%,var(--card));border:1px solid color-mix(in srgb,#FFD403 55%,var(--line));font-size:.8rem;color:var(--ink)}
+
+/* ---------- ภาพรวม: สรุปรายปี 3 บัญชีรับบริจาค + เงินออกไปที่ใด (กดแถว) 20 พ.ย. 69 ---------- */
+.yrt tr.on td{background:color-mix(in srgb,#1565C0 10%,var(--card))!important}
+.yrt tr.yrtot td{border-top:2px solid var(--line);font-weight:700}
+.yrt .gchev{width:28px;color:var(--mut);text-align:center}
+.yrt tr.on .gchev{color:#1565C0;transform:rotate(90deg)}
+.yrt tr.yrdet td{background:var(--card)!important;padding:6px 10px 12px}
+.yrd{display:flex;flex-direction:column;gap:5px}
+.yrb{display:grid;grid-template-columns:minmax(150px,240px) 1fr 92px 120px;align-items:center;gap:8px;font-size:.84rem}
+.yrb .yt{height:12px;background:color-mix(in srgb,var(--line) 50%,transparent);border-radius:6px;overflow:hidden}
+.yrb .yt i{display:block;height:100%;border-radius:6px}
+.yrb b{text-align:right;font-variant-numeric:tabular-nums}
+.yrb.intra{opacity:.6}
+@media (max-width:640px){.yrb{grid-template-columns:1fr 84px;gap:2px 8px}.yrb .yt{grid-column:1/-1;order:3}.yrb small{grid-column:1/-1;order:4}}
