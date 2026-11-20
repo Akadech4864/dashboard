@@ -520,13 +520,13 @@ function xtSet(id, key, v, only) {
 function xtMount(host, cfg) {
   const S = xtS(cfg.id); if (!S.sort) S.sort = (cfg.sort0 || []).map((x) => x.slice());
   if (cfg.lims) { if (S.limSel == null) S.limSel = cfg.lims[0]; S.lim = S.limSel || Infinity; }
-  const C_ = cfg.cols, FA = cfg.facets || [];
+  const bar = !cfg.noBar, C_ = cfg.cols, FA = bar ? cfg.facets || [] : [];   // noBar = ไม่มีกล่องค้นหา/ตัวกรองของตาราง (ใช้ตัวกรองของหน้า + ช่องกรองรายคอลัมน์แทน)
   const opts = FA.map(([k, , g, o]) => o || [...new Set(cfg.rows.map(g).filter((v) => v !== "" && v != null))].sort((a, b) => String(a).localeCompare(String(b), "th")).map((v) => [v, v]));
   const cnt = (i, v) => cfg.rows.filter((r) => FA[i][2](r) === v).length;
-  host.innerHTML = `<div class="card fcard" data-xf="1">
+  host.innerHTML = `${bar ? `<div class="card fcard" data-xf="1">
     <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" data-xq="1" value="${esc(S.q)}" placeholder="${esc(cfg.ph || "ค้นหา")}"></label></div>
     <div class="fline">${FA.map(([k]) => `<button class="pill" data-xd="${k}"><span></span></button>`).join("")}<button class="ibx" data-xclr="1" hidden title="ล้างตัวกรอง" aria-label="ล้างตัวกรอง">${IC("fx", 16)}</button><span class="muted fsum" data-xsum="1"></span></div>
-    ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip${c ? " gchip" : ""}" data-xk="${k}" data-xv="${esc(v)}"${c ? ` style="--c:${c}"` : ""}>${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>
+    ${FA.map(([k], i) => `<div class="ddp" data-xp="${k}" hidden><div class="frow">${opts[i].map(([v, l, c]) => `<button class="chip${c ? " gchip" : ""}" data-xk="${k}" data-xv="${esc(v)}"${c ? ` style="--c:${c}"` : ""}>${c ? `<span class="dot" style="background:${c}"></span>` : ""}${esc(l)} <small class="muted">${cnt(i, v)}</small></button>`).join("")}</div></div>`).join("")}</div>` : ""}
   <h2>${IC("list")} ${esc(cfg.title || "รายการ")} <small data-xcnt="1"></small> ${infoI(cfg.note)}</h2>
   <div class="frow" style="margin:-4px 0 8px">${cfg.lims ? `<select class="pill fsel" data-xlim="1">${cfg.lims.map((n) => `<option value="${n}"${S.limSel === n ? " selected" : ""}>${n ? `แสดง ${n} อันดับ` : "แสดงทุกรายการ"}</option>`).join("")}</select>` : ""}${cfg.xl ? ibx("xls", "ส่งออก Excel (ทุกแถวตามตัวกรอง)", 'data-xx="xl"') : ""}${ibx("reset", "กลับลำดับเดิม", 'data-xx="sr"')}${ibx("fx", "ล้างช่องกรองคอลัมน์", 'data-xx="cf"')}</div>
   <div class="tblwrap tall" data-noxbar="1"><table class="xt"><thead><tr>${C_.map(([l, , t], c) => `<th ${t === "x" ? "" : `data-xs="${c}" class="srt${t === "a" || t === "n" ? " n" : ""}"`}>${l} <span class="si"></span></th>`).join("")}</tr>
@@ -536,7 +536,7 @@ function xtMount(host, cfg) {
   const txt = (r, c) => { const v = C_[c][1](r); return C_[c][2] === "d" && v ? `${v} ${dTh(v)} ${+String(v).slice(0, 4) + 543}` : String(v ?? ""); };
   let R = [];
   const upd = () => {
-    const q = S.q.trim().toLowerCase(), cf = Object.entries(S.cf).filter(([, v]) => v && v.trim());
+    const q = bar ? S.q.trim().toLowerCase() : "", cf = Object.entries(S.cf).filter(([, v]) => v && v.trim());
     R = cfg.rows.filter((r) => FA.every(([k, , g]) => !(S.f[k] && S.f[k].size) || S.f[k].has(g(r))) && (!q || String(cfg.search ? cfg.search(r) : C_.map((c) => c[1](r)).join(" ")).toLowerCase().includes(q))
       && cf.every(([c, v]) => cfMatch(txt(r, +c), +C_[+c][1](r) || 0, v, C_[+c][2] === "a")));
     if (S.sort.length) R = R.slice().sort((a, b) => { for (const [c, d] of S.sort) { const t = C_[c][2], x = C_[c][1](a), y = C_[c][1](b);
@@ -548,13 +548,13 @@ function xtMount(host, cfg) {
         + (op ? `<tr class="xdet"><td colspan="${C_.length}">${cfg.detail(r)}</td></tr>` : ""); }).join("") || `<tr><td colspan="${C_.length}" class="muted" style="text-align:center">ไม่พบรายการตามตัวกรอง</td></tr>`;
     host.querySelector("[data-xmore]").innerHTML = R.length > S.lim ? `<button class="chip" data-xx="more" title="แสดงเพิ่ม">${IC("more", 14)} ${fmt0(Math.min(cfg.lims ? 100 : 500, R.length - S.lim))}</button> <button class="chip" data-xx="all" title="แสดงทั้งหมด">ทั้งหมด ${fmt0(R.length)}</button>` : "";
     const sm = cfg.sum ? cfg.sum(R) : "";
-    host.querySelector("[data-xsum]").textContent = `${fmt0(R.length)} / ${fmt0(cfg.rows.length)} รายการ${sm ? " · " + sm : ""}`;
+    const xs_ = host.querySelector("[data-xsum]"); if (xs_) xs_.textContent = `${fmt0(R.length)} / ${fmt0(cfg.rows.length)} รายการ${sm ? " · " + sm : ""}`;
     host.querySelector("[data-xcnt]").textContent = `${fmt0(R.length)} รายการ${sm ? " · " + sm : ""}${R.length > S.lim ? ` · แสดง ${fmt0(S.lim)} แถวแรก` : ""}`;
     FA.forEach(([k, all], i) => { const b = host.querySelector(`[data-xd="${k}"]`), F = S.f[k], lab = (v) => (opts[i].find((o) => String(o[0]) === String(v)) || [v, v])[1];
       b.querySelector("span").textContent = F && F.size ? (F.size === 1 ? lab([...F][0]) : `${all.replace(/^ทุก/, "")} ${F.size} ค่า`) : all; b.classList.toggle("on", !!(F && F.size)); });
     host.querySelectorAll("[data-xk]").forEach((b) => b.classList.toggle("on", !!(S.f[b.dataset.xk] && [...S.f[b.dataset.xk]].some((v) => String(v) === b.dataset.xv))));
     host.querySelectorAll("[data-xs]").forEach((th) => { const i = S.sort.findIndex((x) => x[0] === +th.dataset.xs); th.querySelector(".si").textContent = i < 0 ? "" : (S.sort[i][1] > 0 ? "▲" : "▼") + (S.sort.length > 1 ? i + 1 : ""); });
-    host.querySelector("[data-xclr]").hidden = !(S.q || Object.values(S.f).some((f) => f.size) || Object.values(S.cf).some((v) => v && v.trim()));
+    const xc_ = host.querySelector("[data-xclr]"); if (xc_) xc_.hidden = !(S.q || Object.values(S.f).some((f) => f.size) || Object.values(S.cf).some((v) => v && v.trim()));
     if (cfg.onUpdate) cfg.onUpdate(R);
   };
   const reset = () => { S.lim = cfg.lims ? S.limSel || Infinity : 300; upd(); };
