@@ -282,13 +282,12 @@ function start() {
 }
 function go(t, noHist) {                                                // noHist = มาจากปุ่มย้อนกลับ / เปิดครั้งแรก (ไม่เพิ่มประวัติ)
   PV = ""; AV = ""; if (t === "prog") t = "work"; if (t === "charges") { BRV = "chg"; t = "brief"; } if (t === "stm" || t === "acc") { ACS = "tbl"; t = "acct"; } else if (t === "ppl" || t === "trace") { ACS = t; t = "acct"; }
-  const prev = TAB; TAB = TABS.some((x) => x[0] === t) ? t : "home";
-  if (!noHist && prev !== TAB) { history.pushState({ t: TAB, v: TAB === "brief" ? BRV : undefined }, "", "#" + TAB); NAVD++; }
-  else history.replaceState({ t: TAB, v: TAB === "brief" ? BRV : undefined }, "", "#" + TAB);
+  TAB = TABS.some((x) => x[0] === t) ? t : "home";
+  if (noHist && typeof VPOP !== "undefined") VPOP = true;              // ประวัติการเปิดหน้า (ปุ่มย้อนกลับ) จัดที่ vNav() ใน render — ครอบคลุมทุกหน้า / บท / หน้าย่อย (ผู้ใช้สั่ง 20 พ.ย. 69)
   render(); shellSync(); window.scrollTo(0, 0);
 }
 function killCharts() { Object.values(CH).forEach((c) => c.destroy()); CH = {}; }
-function render() { if (window.colSync) colSync(); killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ home: pHome, brief: pBrief, recs: pRecs, over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, cc: pCc, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
+function render() { if (typeof vNav === "function") vNav(); if (window.colSync) colSync(); killCharts(); ONRS = null; const m_ = $("#main"); m_.onclick = m_.onchange = m_.oninput = null; ({ home: pHome, brief: pBrief, recs: pRecs, over: pOver, case: pCase, charges: pCharges, defences: pDef, work: pWork, prog: pWork, acct: pAcct, asset: pAsset, cc: pCc, srch: pSrch, ana: pAna, img: pImg })[TAB](); navStats(); }
 const acts = (sec, id) => `<span class="acts"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></span>`;
 const addBtn = (sec) => `<button class="add" onclick="editItem('${sec}')">+ เพิ่ม</button>`;
 const badge = (s) => { if (!s) return ""; const c = /ค้าง|ต้อง|รอ/.test(s) ? "r" : /เสร็จ|มีหลักฐาน|แล้ว/.test(s) ? "g" : /พัก|มติ/.test(s) ? "y" : ""; return `<span class="badge ${c}">${esc(s)}</span>`; };
@@ -1210,14 +1209,13 @@ function pAna() {
      ${infoI("ยอดโอนตรง = ตาม statement (ถอนเงินสดยังเป็นถอนเงินสด) ; รวมคู่ถอน-ฝาก = รายการถอนเงินสดที่จับคู่กับการฝากได้ แสดงเป็นเงินเข้าบัญชีผู้ฝาก")}</div>
   </div>
   <div id="dnRes" class="dnres"></div>
-  <h2>${IC("flow")} เส้นเงินตามตัวกรอง ${infoI("ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิเป็นยอดรวมรายเดือน · กดกล่องเพื่อกรอง · กล่องที่มี ▶ = บัญชีที่มี statement กดเพื่อคลี่ทอดถัดไป (กดได้หลายกล่อง กดซ้ำเพื่อเอาออก) · ไล่แบบเข้าก่อนออกก่อน = เงินที่เข้า ณ เวลาใด จับกับรายการเงินออกถัดไปตามเวลาจนครบยอด · ตามสัดส่วน = โอนออกตามสัดส่วนยอดที่ไล่มาต่อยอดคงเหลือ (ตรงกับรายงาน) · เป็นการไล่ตามลำดับเวลา (ข้อสันนิษฐาน) ไม่ใช่การระบุตัวเงิน")}</h2>
-  <button class="fback" id="flBack" hidden title="ย้อนกลับ" aria-label="ย้อนกลับ">${IC("back", 20)}<span></span></button>
-  <div class="fltools">
+  <h2>${IC("flow")} เส้นเงินตามตัวกรอง ${infoI("ยอดตาม statement ของบัญชีที่เลือก — การโอนระหว่างบัญชีที่มี statement ทั้งสองฝั่งจะปรากฏทั้งฝั่งออกและฝั่งเข้า ; เงินบริจาคเข้าบัญชีมูลนิธิเป็นยอดรวมรายเดือน · กดกล่องเพื่อกรอง · กล่องที่มี ▶ = บัญชีที่มี statement กดเพื่อคลี่ทอดถัดไป (กดได้หลายกล่อง กดซ้ำเพื่อเอาออก) · ไล่แบบเข้าก่อนออกก่อน = เงินที่เข้า ณ เวลาใด จับกับรายการเงินออกถัดไปตามเวลาจนครบยอด · ตามสัดส่วน = โอนออกตามสัดส่วนยอดที่ไล่มาต่อยอดคงเหลือ (ตรงกับรายงาน) · เป็นการไล่ตามลำดับเวลา (ข้อสันนิษฐาน) ไม่ใช่การระบุตัวเงิน")}<span class="fltools ibxs hx">
     <select id="flM" title="มุมมอง"><option value="g">แสดงเป็นกลุ่ม</option><option value="d">แสดงรายบัญชี</option></select>
     <select id="flN" title="จำนวนกล่องต่อคอลัมน์">${[8, 14, 24, 32].map((n) => `<option value="${n}">${n} กล่อง</option>`).join("")}</select>
     <select id="flC" title="จำนวนคอลัมน์ที่แสดงพร้อมกัน">${[3, 4, 5, 6, 8].map((n) => `<option value="${n}">${n} คอลัมน์</option>`).join("")}</select>
     <select id="flT" title="วิธีไล่เงินเมื่อกดกล่อง ▶ คลี่ทอดถัดไป (กดได้หลายกล่อง)"><option value="fifo">ไล่แบบ เข้าก่อนออกก่อน</option><option value="pro">ไล่แบบ ตามสัดส่วน (ตรงกับรายงาน)</option><option value="all">ทุกรายการในช่วง (ไม่ไล่)</option></select>
-    <button class="ibx" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด" aria-label="ยุบทอด">${IC("shrink", 16)}</button></div>
+    <button class="ibx" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด" aria-label="ยุบทอด">${IC("shrink", 16)}</button></span></h2>
+  <button class="fback" id="flBack" hidden title="ย้อนกลับ" aria-label="ย้อนกลับ">${IC("back", 20)}<span></span></button>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <div id="tlBox"></div>
   <div class="grid g4 kp8" id="aKpi"></div>   <!-- การ์ดยอดรวมอยู่เหนือตาราง (ผู้ใช้สั่ง 20 พ.ย. 69 "จะได้เห็นยอดรวมง่าย ๆ") -->
@@ -1526,10 +1524,13 @@ function pTrace() {
     <div class="muted" style="font-size:.84rem">${esc(s.note)}</div>${bars(s.rows, s.total)}</div>` }));
   const mainH = () => `<h2>${IC("route")} ไล่เส้นเงิน <small>${IT.length} ชุด</small></h2><div class="tiles">${IT.map((x) => tile(x.k, x.ic, x.v, esc(x.l), x.s)).join("")}</div>`;
   const det = (k) => { const x = IT.find((y) => y.k === k); return x ? `${backBtn()}<h2>${IC(x.ic)} ${esc(x.l)}</h2>${x.h}` : ""; };
+  if (TRV === "cash") TRV = "";
   const wide = isWide(), v = wide ? (TRV || IT[0].k) : TRV, m = $("#main");
   m.innerHTML = wide ? `<div class="md"><div class="md-l">${mainH()}</div><div class="md-r">${det(v)}</div></div>` : (v ? det(v) : mainH());
   $$(".tile", m).forEach((b) => b.classList.toggle("on", b.dataset.v === v));
-  m.onclick = (e) => { const b = e.target.closest("button"); if (b && b.dataset.v != null) { TRV = b.dataset.v; render(); if (!wide) scrollTo(0, 0); } };
+  m.onclick = (e) => { const b = e.target.closest("button"); if (!b || b.dataset.v == null) return;
+    if (b.dataset.v === "cash") { resetF(); F.cpm = "pair"; return go("ana"); }      // คู่ถอน-ฝากเงินสด = หน้าวิเคราะห์เส้นเงิน กรองเฉพาะคู่ถอน-ฝาก
+    TRV = b.dataset.v; render(); if (!wide) scrollTo(0, 0); };
 }
 /* ---------- จอกว้าง / เมนู ---------- */
 Object.assign(ICP, {
@@ -1984,6 +1985,9 @@ function drawFlow(box, pair) {
   const pos = {}; let H = 0;
   cols.forEach((c, j) => { let y = top; const x = LW + j * gap; c.forEach((n) => { n.h = Math.max(minH, n.v * sc); n.y = y; n.x = x; n.oi = y; n.oo = y; n.inf = flowInfo(n.id); pos[vis[j] + ":" + n.id] = n; y += n.h + pad; }); H = Math.max(H, y - pad); });
   const cut = (s, n) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
+  const akey = (id) => { const t = id[0], k = +id.slice(1); if (t === "a" && DB.accounts[k]) return "n" + dg(DB.accounts[k].acc); if (t === "c" && DB.cps[k]) { const c = DB.cps[k]; return c[0] && !/x/i.test(c[0]) && dg(c[0]) ? "n" + dg(c[0]) : id; } return ""; };
+  const AKN = {}; cols.forEach((c) => c.forEach((n) => { n.ak = akey(n.id); if (n.ak) (AKN[n.ak] = AKN[n.ak] || []).push(n); }));
+  Object.values(AKN).forEach((L) => { if (L.length > 1) L.forEach((n, i) => (n.tg = `${i + 1}/${L.length}`)); });
   const mcL = wide ? 30 : 17, mcM = Math.max(10, Math.floor((gap - 40) / 7.2)), mcR = wide ? 28 : 16;
   let svg = "";
   links.sort((a, b) => (pos[a.a]?.y || 0) - (pos[b.a]?.y || 0) || (pos[a.b]?.y || 0) - (pos[b.b]?.y || 0));
@@ -1998,9 +2002,11 @@ function drawFlow(box, pair) {
     const io = (ci === 1 && n.in > 0) || n.sel || (dn && n.in > 0 && n.out > 0);
     const amt = io ? `เข้า ${M(n.in)} · ออก ${M(n.out)}` : M(n.v);
     const tip = `${f.lab}${f.sub ? " " + f.sub : ""} : ` + (io ? `เงินเข้า ${fmt(n.in)} / เงินออก ${fmt(n.out)} บาท` : `${fmt(n.v)} บาท`) + (n.exp ? (n.sel ? " · กดอีกครั้งเพื่อยุบ" : " · กดเพื่อไล่ทอดถัดไป") : "");
-    const tx = isL ? n.x - 6 : n.x + bw + 6, an = isL ? "end" : "start", cy = n.y + n.h / 2, two = n.h >= 32;
+    const tw = n.tg ? 7 + n.tg.length * 6 : 0, tx = (isL ? n.x - 6 : n.x + bw + 6) + (tw ? (isL ? -(tw + 4) : tw + 4) : 0), an = isL ? "end" : "start", cy = n.y + n.h / 2, two = n.h >= 32;
     const mark = n.exp ? (n.sel ? " ▼" : " ▶") : "";
-    svg += `<g class="fn${n.exp ? " fx" : ""}" data-n="${ci}:${n.id}" data-tip="${esc(tip)}"><rect x="${n.x}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${f.col}"${n.sel ? ' stroke="#FFD403" stroke-width="3"' : ""}/>` +
+    const by_ = two ? cy - 3 : cy + 4, tgx = isL ? n.x - 6 - tw : n.x + bw + 5;
+    const tag = n.tg ? `<g class="ftg"><rect x="${tgx.toFixed(1)}" y="${(by_ - 10.5).toFixed(1)}" width="${tw}" height="14" rx="3"/><text x="${(tgx + tw / 2).toFixed(1)}" y="${(by_ + 0.5).toFixed(1)}" text-anchor="middle">${n.tg}</text><title>บัญชีนี้ปรากฏ ${n.tg.split("/")[1]} กล่องในชาร์ต · กล่องนี้ลำดับที่ ${n.tg.split("/")[0]}</title></g>` : "";
+    svg += `<g class="fn${n.exp ? " fx" : ""}" data-n="${ci}:${n.id}"${n.tg ? ` data-ak="${n.ak}"` : ""} data-tip="${esc(tip)}${n.tg ? ` · ปรากฏ ${n.tg.split("/")[1]} กล่อง (กล่องที่ ${n.tg.split("/")[0]})` : ""}"><rect x="${n.x}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${f.col}"${n.sel ? ' stroke="#FFD403" stroke-width="3"' : ""}/>${tag}` +
       (two ? `<text x="${tx}" y="${(cy - 3).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, mc))}${mark}</text><text x="${tx}" y="${(cy + 12).toFixed(1)}" text-anchor="${an}" class="fl2">${amt}${wide && f.sub && (isL || last) ? " · " + esc(cut(f.sub, 22)) : ""}</text>`
         : `<text x="${tx}" y="${(cy + 4).toFixed(1)}" text-anchor="${an}" class="fl1">${esc(cut(f.lab, Math.max(8, mc - 6)))}${mark} <tspan class="fl2">${ci === 1 ? M(n.v) : amt}</tspan></text>`) + `</g>`;
   }));
@@ -2014,6 +2020,9 @@ function drawFlow(box, pair) {
     if (h >= 1) hid = `<div class="flnote">${IC("info", 14)} แสดงเฉพาะเส้นที่ไล่จากกล่องที่คลี่ ▼ · เงินออกอื่นตามตัวกรอง <b>${M(h)}</b> ไม่แสดง <button class="ibx sm" data-flall="1" title="แสดงทุกกล่อง (ยุบที่คลี่)" aria-label="แสดงทุกกล่อง">${IC("shrink", 14)}</button></div>`; }
   box.innerHTML = ban + hid + (first > sk0 ? `<div class="muted" style="font-size:.78rem;padding:2px 8px">◀ ${first - sk0}</div>` : "") +
     `<svg width="${W}" height="${Math.ceil(H + 8)}" viewBox="0 0 ${W} ${Math.ceil(H + 8)}">${hd}${svg}</svg>`;
+  const sv_ = box.querySelector("svg");                                  // ชี้กล่องที่มีป้ายเลข = ไฮไลต์กล่องอื่นของบัญชีเดียวกัน
+  if (sv_) { sv_.addEventListener("pointerover", (e) => { const g = e.target.closest("[data-ak]"); sv_.querySelectorAll(".akon").forEach((x) => x.classList.remove("akon")); if (g) sv_.querySelectorAll(`[data-ak="${g.dataset.ak}"]`).forEach((x) => x.classList.add("akon")); });
+    sv_.addEventListener("pointerleave", () => sv_.querySelectorAll(".akon").forEach((x) => x.classList.remove("akon"))); }
 }
 
 /* ---------- บุคคล (ภาพ + บัญชี + เส้นเงิน) ---------- */

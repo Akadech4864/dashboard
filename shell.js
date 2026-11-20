@@ -98,10 +98,39 @@ function shellInit() {
     else if (document.body.classList.contains("present") && (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ")) { e.preventDefault(); presentStep(1); }
     else if (document.body.classList.contains("present") && (e.key === "ArrowLeft" || e.key === "PageUp")) { e.preventDefault(); presentStep(-1); }
   });
-  addEventListener("popstate", (e) => { const t = (e.state && e.state.t) || (location.hash || "#home").slice(1); if (e.state && e.state.v) BRV = e.state.v; NAVD = Math.max(0, NAVD - 1); go(t, true); });
+  addEventListener("popstate", (e) => { const st = e.state || {}, t = st.t || (location.hash || "#home").slice(1);
+    if (st.v) BRV = st.v; if (st.s != null) BRS = st.s; if (st.c) CCV = st.c; if (st.a) ACS = st.a; NAVD = st.i || 0; VJ = st.j ? { lab: st.j } : null;
+    go(t, true); const y = st.y || 0; if (y) { setTimeout(() => scrollTo(0, y), 80); setTimeout(() => scrollTo(0, y), 500); } });
+  document.addEventListener("click", (e) => { VMENU = !!e.target.closest("#tabs, #bnav, #sub, .br-nav, .br-pn, .subnav, .top"); }, true);   // กดจากเมนู = ไม่แสดงปุ่ม "กลับ" ลอย (ยังย้อนด้วยปุ่ม ‹ บนแถบหัวได้)
 }
 function drawer(on) { document.body.classList.toggle("drawer", on); $("#drawerMask").hidden = !on; }
 let NAVD = 0;                                                            // จำนวนหน้าที่ย้อนกลับได้
+/* ประวัติการเปิดหน้าแบบรวมศูนย์ (ผู้ใช้สั่ง 20 พ.ย. 69 "กดเข้าไปแล้วไปคนละหน้า ให้มีปุ่มย้อนกลับมาหน้าเดิม ทำกับทุกส่วน")
+   vNav() เรียกทุกครั้งที่ render : มุมมอง (หน้า + บท/หน้าย่อย) เปลี่ยน = pushState พร้อมเก็บตำแหน่งเลื่อนของหน้าเดิม ; popstate คืนค่าทั้งหมด
+   มาจากการกดในเนื้อหา (ไม่ใช่เมนู) = แสดงปุ่มลอย "กลับ: <หน้าเดิม>" (#vback) */
+let VCUR = null, VPOP = false, VMENU = false, VJ = null;
+const vKey = () => TAB + "|" + (TAB === "brief" ? (BRV === "chg" ? "sus" : BRV) : TAB === "cc" ? CCV : TAB === "acct" ? ACS : "");
+const vLab = () => { const f = (L, k, d) => (L.find((x) => x[0] === k) || [0, d])[1];
+  if (TAB === "brief") { const b = BRV === "chg" ? "sus" : BRV, s = b === "sus" && BRS && DB.formal && DB.formal.suspects[BRS]; return f(BRCH, b, "สรุปทางการ") + (s ? " · " + shortName(s.name).split(" ")[0] : ""); }
+  if (TAB === "cc" && typeof CCV_T !== "undefined") return "บัตรเครดิต · " + f(CCV_T, CCV, "");
+  if (TAB === "acct" && typeof ACS_T !== "undefined") return f(ACS_T, ACS, "บัญชี / บุคคล");
+  return tabOf(TAB)[1]; };
+const vSt = (o) => Object.assign({ t: TAB, v: BRV, s: BRS, c: typeof CCV !== "undefined" ? CCV : "", a: typeof ACS !== "undefined" ? ACS : "", i: NAVD }, o || {});
+function vNav() {
+  const k = vKey();
+  if (!VCUR) { VCUR = { k, lab: vLab() }; VPOP = false; history.replaceState(vSt({ y: 0 }), "", "#" + TAB); return vbSync(); }
+  if (k === VCUR.k) { VPOP = false; VCUR.lab = vLab(); history.replaceState(Object.assign({}, history.state || {}, { v: BRV, s: BRS, c: vSt().c, a: vSt().a }), "", location.hash); return; }
+  const lab0 = VCUR.lab; VCUR = { k, lab: vLab() };
+  if (VPOP) { VPOP = false; return vbSync(); }
+  history.replaceState(Object.assign({}, history.state || {}, { y: scrollY }), "", location.hash);
+  VJ = VMENU ? null : { lab: lab0 }; VMENU = false; NAVD++;
+  history.pushState(vSt({ y: 0, j: VJ ? VJ.lab : "" }), "", "#" + TAB); vbSync();
+}
+function vbSync() {
+  let b = document.getElementById("vback");
+  if (!b) { b = document.createElement("button"); b.id = "vback"; b.type = "button"; b.className = "fback vback"; b.onclick = () => history.back(); document.body.appendChild(b); }
+  b.hidden = !VJ; if (VJ) { b.innerHTML = `${IC("back", 20)}<span>กลับ: ${esc(VJ.lab)}</span>`; b.title = "กลับไปหน้าเดิม: " + VJ.lab; b.setAttribute("aria-label", b.title); }
+}
 function shellSync() {
   $$("#tabs button[data-t], #bnav button").forEach((b) => b.classList.toggle("on", b.dataset.t === TAB));
   $("#backBtn").hidden = NAVD <= 0 && !(TAB === "ana" && typeof FHIST !== "undefined" && FHIST.length);
@@ -232,7 +261,7 @@ function wireGo() {
   $("#main").onclick = (e) => {
     const a = e.target.closest("[data-act]"); if (a) { if (a.dataset.act === "present") presentOn(); else if (a.dataset.act === "print") window.print(); else if (a.dataset.act === "copyrecs") copyRecs(); return; }
     const s = e.target.closest("[data-sus]"); if (s) { BRV = "sus"; BRS = s.dataset.sus; SUSC = 1; return go("brief"); }
-    const c = e.target.closest("[data-ch]"); if (c) { BRV = c.dataset.ch; if (TAB === "brief") { render(); scrollTo(0, 0); history.replaceState({ t: "brief", v: BRV }, "", "#brief"); } else go("brief"); return; }
+    const c = e.target.closest("[data-ch]"); if (c) { BRV = c.dataset.ch; if (TAB === "brief") { render(); scrollTo(0, 0); } else go("brief"); return; }
     const b = e.target.closest("[data-go]"); if (b) { const [t, v] = b.dataset.go.split("|"); if (v) BRV = v; go(t); }
   };
 }
@@ -422,12 +451,15 @@ const BRF = {
       ["coin", "ถอนเป็นเงินสดจำนวนมาก", `${M(K.cash)} + ${M(susCash)}`, "1, 2, 3, 7"]];
     return `<div class="ptn">${R.map(([ic, t, v, w], i) => `<div class="pt"><span class="pt-n">${i + 1}</span>${IC(ic, 22)}<div><b>${t}</b><span class="pt-v">${v}</span><small>ผู้ต้องหาที่ ${w}</small></div></div>`).join("")}</div>
       <div class="note">ยอดแต่ละรูปแบบซ้อนกันได้ (เงินก้อนเดียวผ่านหลายรูปแบบ) ไม่ควรนำมารวมกัน ; รูปแบบที่ 4 และ 9 วิเคราะห์จากยอดและเวลา ต้องยืนยันด้วยเอกสารธนาคาร</div>`; },
-  grp: () => {                                                             // Link chart + ตารางกลุ่ม (กดแถว/กล่อง = รายละเอียด) คำนวณจาก lkData (ผู้ใช้สั่ง 20 พ.ย. 69)
+  grp: () => {                                                             // แผนผังความเชื่อมโยงแบบคอลัมน์ ซ้าย → ขวา + โฟกัสทีละโหนด (ผู้ใช้สั่ง 20 พ.ย. 69 "งงมาก เส้นทับกันไปมา ออกแบบให้ดูง่ายกว่านี้")
     const D = lkData(LKM), gk = lkGroups(D), oS = (o) => D.sum(o, (k) => k !== "t1" && k !== "pan" && k !== "ath");
-    return `<div class="lkbar"><div class="seg">${[["all", "รวมคู่ถอน-ฝากเงินสด"], ["raw", "ยอดโอนตรง"]].map(([k, l]) => `<button data-lkm="${k}" class="${LKM === k ? "on" : ""}">${l}</button>`).join("")}</div>
-        ${infoI("คำนวณจากรายการเดินบัญชีทั้งหมด คู่บัญชีที่เห็นทั้ง 2 ฝั่งใช้ยอดฝั่งที่มากกว่า · รวมคู่ถอน-ฝากเงินสด = นับเงินสดที่ถอนแล้วนำฝากเข้าบัญชีอื่น (จับคู่จากยอดและเวลา ต้องยืนยันด้วยเอกสารธนาคาร) เป็นเส้นโอนด้วย · ยอดโอนตรง = ตาม statement ไม่จับคู่ (ตรงกับตารางในรายงานฉบับทางการ) · เส้น = เงินโอน หนาตามยอด สีตามต้นทาง แสดงตั้งแต่ 100,000 บาท · เส้นประแดง = โอนกลับเข้าผู้ต้องหา / บัญชีรับบริจาค · จุดสีใต้รูป = ข้อหา · เลขในวงกลุ่ม = จำนวนบัญชี · กดรูปผู้ต้องหา = พฤติการณ์รายคน · กดกลุ่ม = รายละเอียดกลุ่ม · เป็นข้อเท็จจริงทางการเงินเพื่อประกอบการสอบปากคำ / ขยายผล ไม่ใช่การสรุปความรับผิด")}</div>
+    return `<div class="lkbar"><div class="seg">${[["out", "เงินออก"], ["back", "โอนกลับ"], ["both", "ทั้งสองทาง"]].map(([k, l]) => `<button data-lkv="${k}" class="${LKV === k ? "on" : ""}">${l}</button>`).join("")}</div>
+        <select class="pill fsel" data-lkt="1" title="แสดงเส้นตั้งแต่ยอด">${LK_T.map(([v, l]) => `<option value="${v}"${LKT === v ? " selected" : ""}>เส้น ${l}</option>`).join("")}</select>
+        <select class="pill fsel" data-lkm2="1" title="วิธีนับเงินสด">${[["all", "รวมคู่ถอน-ฝากเงินสด"], ["raw", "ยอดโอนตรง"]].map(([k, l]) => `<option value="${k}"${LKM === k ? " selected" : ""}>${l}</option>`).join("")}</select>
+        ${infoI("อ่านจากซ้ายไปขวา: บัญชีรับบริจาค → ผู้ต้องหา → กลุ่มที่เกี่ยวข้อง · เส้นหนาตามยอด สีตามผู้โอน · เส้นประแดง = โอนกลับเข้าผู้ต้องหา / บัญชีรับบริจาค (เลือก โอนกลับ / ทั้งสองทาง) · เส้นโค้งข้างขวาของคอลัมน์ผู้ต้องหา = ผู้ต้องหาโอนให้กันเอง · กดกล่อง = ไฮไลต์เฉพาะเส้นของกล่องนั้นพร้อมยอด + ตารางเส้นเงินใต้ชาร์ต · กดเส้น / แถวในตาราง / ปุ่มเส้นทาง = เปิดหน้าวิเคราะห์เส้นเงินของคู่นั้น (มีปุ่มกลับมาหน้านี้) · กดพื้นว่าง = ยกเลิกไฮไลต์ · ยอดในกล่องเป็นยอดเต็ม เส้นที่ต่ำกว่าเกณฑ์ไม่วาดแต่อยู่ในตาราง · ญาติแยกฝ่ายเปิดหน้าวิเคราะห์เป็นกลุ่มญาติทั้งหมด · คู่บัญชีที่เห็น 2 ฝั่งใช้ยอดฝั่งที่มากกว่า · รวมคู่ถอน-ฝากเงินสด = นับเงินสดที่ถอนแล้วนำฝากเข้าบัญชีอื่น (จับคู่จากยอดและเวลา ต้องยืนยันด้วยเอกสารธนาคาร) · เป็นข้อเท็จจริงทางการเงินเพื่อประกอบการสอบปากคำ ไม่ใช่การสรุปความรับผิด")}<span id="lkFb" class="lkfb"></span></div>
       <div class="card flowcard lkc"><div id="lkBox" class="flowbox"></div>
-        <div class="lkleg">${["F", "C", "M"].map((q) => `<span><i style="background:${CHC[q][1]}"></i>${CHC[q][0]}</span>`).join("")}<span><i class="dash"></i>โอนกลับ</span></div></div>
+        <div class="lkleg"><span><i class="ln"></i>เงินออก (สีตามผู้โอน)</span><span><i class="dash"></i>โอนกลับ</span>${["F", "C", "M"].map((q) => `<span><i style="background:${CHC[q][1]}"></i>${CHC[q][0]}</span>`).join("")}</div></div>
+      <div id="lkFoc"></div>
       <div class="lab">ยอดเงินรายกลุ่ม</div>
       <div class="tblwrap"><table class="grpt"><tr><th>กลุ่ม</th><th class="n">บัญชี (มี STM)</th><th class="n">จากบัญชีรับบริจาค</th><th class="n">จากผู้ต้องหาที่ 1</th><th class="n">จากผู้ต้องหาที่ 2</th><th class="n">จากผู้ต้องหาอื่น</th><th class="n">โอนกลับ</th><th data-nos="1"></th></tr>
       ${gk.map((g) => { const t = D.agg(g), c = grpCol(g); return `<tr class="click${BRG === g ? " on" : ""}" data-grp="${g}" style="--c:${c}"><td>${gTag(c, GRPT[g])}</td><td class="n">${t.n} (${t.stm})</td><td class="n"><span class="amt-in">${M(t.in.t1 || 0)}</span></td><td class="n">${M(t.in.pan || 0)}</td><td class="n">${M(t.in.ath || 0)}</td><td class="n">${M(oS(t.in))}</td><td class="n"><b class="amt-out">${M(t.tout)}</b></td><td class="gchev">${IC("next", 16)}</td></tr>`; }).join("")}</table></div>
@@ -450,7 +482,14 @@ const BRF = {
 };
 const BRP = {
   grp: () => { const box = $(".br-body"); if (!box) return; drawLink(); drawGrp(); ONRS = () => TAB === "brief" && BRV === "grp" && drawLink();
-    box.addEventListener("click", (e) => { const mb = e.target.closest("[data-lkm]"); if (mb) { e.stopPropagation(); LKM = mb.dataset.lkm; return render(); }
+    box.addEventListener("change", (e) => { const t = e.target.closest("[data-lkt]"); if (t) { LKT = +t.value; return drawLink(); } const m = e.target.closest("[data-lkm2]"); if (m) { LKM = m.value; render(); } });
+    box.addEventListener("click", (e) => {
+      const v = e.target.closest("[data-lkv]"); if (v) { e.stopPropagation(); LKV = v.dataset.lkv; $$("[data-lkv]", box).forEach((b) => b.classList.toggle("on", b === v)); return drawLink(); }
+      const go_ = e.target.closest("[data-lkgo]"); if (go_) { e.stopPropagation(); return lkGo(go_.dataset.lkgo, go_.dataset.lkgo2 || ""); }
+      const fx = e.target.closest("[data-lkf]"); if (fx) { e.stopPropagation(); LKF = ""; return drawLink(); }
+      const su = e.target.closest("[data-lksus]"); if (su) { e.stopPropagation(); BRV = "sus"; BRS = su.dataset.lksus; SUSC = 1; return render(); }
+      if (e.target.closest("[data-lkt1]")) { e.stopPropagation(); BRV = "t1"; render(); return scrollTo(0, 0); }
+      const gg = e.target.closest("[data-lkgrp]"); if (gg) { e.stopPropagation(); BRG = gg.dataset.lkgrp; $$("tr[data-grp]", box).forEach((r) => r.classList.toggle("on", r.dataset.grp === BRG)); return drawGrp(true); }
       const tr = e.target.closest("tr[data-grp]"); if (tr) { e.stopPropagation(); BRG = BRG === tr.dataset.grp ? "" : tr.dataset.grp; $$("tr[data-grp]", box).forEach((r) => r.classList.toggle("on", r.dataset.grp === BRG)); return drawGrp(true); }
       if (e.target.closest("[data-grpx]")) { BRG = ""; $$("tr[data-grp]", box).forEach((r) => r.classList.remove("on")); drawGrp(); } }); },
   pend: ({ X }) => { const el = $(".br-body"); if (!el) return; el.addEventListener("click", (e) => { const b = e.target.closest(".tadd"); if (!b) return; e.stopPropagation();
@@ -776,52 +815,115 @@ function lkData(mode) {
   return (LKC[mode] = { M: M_, AC, lab, stm: (k) => aIdx.has(k), coreL: ["t1", ...SK], core, agg, sum });
 }
 const lkGroups = (D) => Object.keys(GRPT).filter((g) => { const t = D.agg(g); return t && t.tin + t.tout >= 1; });
-/* Link chart: กลาง = บัญชีรับบริจาค / วงใน = ผู้ต้องหา / วงนอก = กลุ่มที่เกี่ยวข้อง ; เส้นหนาตามยอด สีตามต้นทาง ; เส้นประแดง = โอนกลับเข้าตัวละครหลัก */
-function linkSvg(D, W) {
-  const S = DB.formal.suspects, SK = susKeys(), H = Math.round(W * 0.82), cx = W / 2, cy = H / 2, m = Math.min(W, H), r1 = m * 0.245, r2 = m * 0.405, N = {};
-  N.t1 = { x: cx, y: cy, r: m * 0.068, col: t1Col_(), a: 0 };
-  SK.forEach((k, i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / SK.length; N[k] = { x: cx + r1 * Math.cos(a), y: cy + r1 * Math.sin(a), r: m * 0.044, col: eCol(k), a }; });
-  const gk = lkGroups(D), AG = Object.fromEntries(gk.map((g) => [g, D.agg(g)]));
-  const pref = (g) => { let sx = 0, sy = 0; const t = AG[g]; SK.forEach((k) => { const w = (t.in[k] || 0) + (t.out[k] || 0); if (w > 0) { sx += w * Math.cos(N[k].a); sy += w * Math.sin(N[k].a); } }); return sx || sy ? Math.atan2(sy, sx) : Math.PI / 2; };
-  const gs = gk.map((g) => ({ g, p: pref(g) })).sort((a, b) => a.p - b.p), n = gs.length || 1, step = (2 * Math.PI) / n, ad = (a, b) => { let d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
-  let best = 0, bc = Infinity; for (let o = 0; o < 48; o++) { const base = -Math.PI + (o * step) / 48; let c = 0; gs.forEach((x, i) => { const a = base + i * step; c += ad(a, x.p) ** 2; SK.forEach((k) => { if (ad(a, N[k].a) < 0.12) c += 3; }); }); if (c < bc) { bc = c; best = base; } }
-  const gmax = Math.max(1, ...gk.map((g) => AG[g].tin + AG[g].tout));
-  gs.forEach((x, i) => { const a = best + i * step, t = AG[x.g]; N[x.g] = { x: cx + r2 * Math.cos(a), y: cy + r2 * Math.sin(a) * 0.94, r: m * (0.02 + 0.026 * Math.sqrt((t.tin + t.tout) / gmax)), col: grpCol(x.g), a, grp: 1 }; });
-  const E = []; D.M.forEach(([v], k) => { const [a, b] = k.split(">"); if (N[a] && N[b] && v >= LK_MIN) E.push({ a, b, v, back: !!N[a].grp }); });
-  E.sort((x, y) => y.v - x.v); const vmax = Math.max(1, ...E.map((e) => e.v)), wOf = (v) => 1.3 + m * 0.028 * Math.sqrt(v / vmax);
+/* แผนผังความเชื่อมโยงแบบคอลัมน์ (รุ่น 20 พ.ย. 69 แทนแบบวงกลมที่เส้นทับกัน): ซ้าย = บัญชีรับบริจาค / กลาง = ผู้ต้องหา / ขวา = กลุ่มที่เกี่ยวข้อง
+   เส้นวิ่งซ้าย → ขวาเท่านั้น (โหมดโอนกลับวิ่งขวา → ซ้าย) ; เส้นข้ามคอลัมน์กลางลอดช่องว่างระหว่างกล่อง ; ผู้ต้องหาโอนให้กันเอง = เส้นโค้งข้างขวาคอลัมน์กลาง
+   ลำดับกลุ่มขวาเรียงตามตำแหน่งผู้ต้องหาที่เชื่อมด้วย (ลดจุดตัด) ; กดกล่อง = โฟกัส (เส้นอื่นจาง + ยอดบนเส้น + ตารางใต้ชาร์ต) */
+let LKV = "out", LKT = 1e6, LKF = "";
+const LK_T = [[1e5, "≥ 1 แสน"], [1e6, "≥ 1 ล้าน"], [5e6, "≥ 5 ล้าน"]];
+const lkKind = (e) => (e === "t1" ? 0 : DB.formal.suspects[e] ? 1 : 2);
+const lkName = (e) => (e === "t1" ? "บัญชีรับบริจาค" : DB.formal.suspects[e] ? `ผู้ต้องหาที่ ${DB.formal.suspects[e].no} ${shortName(DB.formal.suspects[e].name).split(" ")[0]}` : GRPT[e] || e);
+function lkEdges(D, mode, thr) {
+  const gk = new Set(lkGroups(D)), ok = (e) => e === "t1" || !!DB.formal.suspects[e] || gk.has(e), E = [];
+  D.M.forEach(([v, n], k) => { const [a, b] = k.split(">"); if (!ok(a) || !ok(b) || v < thr) return; const back = lkKind(a) === 2 || b === "t1";
+    if ((mode === "out" && back) || (mode === "back" && !back)) return; E.push({ a, b, v, n, back }); });
+  return E.sort((x, y) => y.v - x.v);
+}
+function lkGo(a, b) {                                                   // เปิดหน้าวิเคราะห์เส้นเงินของโหนด / คู่โหนด (ทั้งกลุ่ม + กลุ่มคู่โอน ; นับทั้ง 2 ทิศทาง)
+  const gi = (c) => DB.groups.findIndex((g) => g[0] === c);
+  const ent = (e) => { if (!e) return null; const S = DB.formal.suspects[e], g = gi(/^rel/.test(e) ? "rel" : e); if (g >= 0) return { gs: [g] };
+    if (S) { const ac = (S.accounts || []).map((x) => dg(x.acc)).filter(Boolean); return { q: ac[0] || shortName(S.name).split(" ")[0] }; } return { q: "" }; };
+  const A = ent(a), B = ent(b); resetF();
+  if (A.gs) { F.gx = new Set(A.gs); if (B && B.gs) F.cpg = new Set(B.gs); else if (B) F.q = B.q; }
+  else if (B && B.gs) { F.gx = new Set(B.gs); F.q = A.q; } else F.q = A.q;
+  go("ana");
+}
+function linkSvg(D, W0, o) {
+  o = o || {}; const mode = o.mode || LKV, thr = o.thr != null ? o.thr : LKT, S = DB.formal.suspects, SK = susKeys(), gk = lkGroups(D), AG = Object.fromEntries(gk.map((g) => [g, D.agg(g)]));
+  const W = Math.max(760, Math.round(W0)), E = lkEdges(D, mode, thr);
+  const BW = 204, BH = 54, CW = 214, CH_ = 50, AW = 132, GB = 14, GC = 12, TOP = 30, HS = 7;
+  const xA = 8, xC = W - 8 - CW, xB = Math.round(xA + AW + (xC - xA - AW - BW) * 0.4);
+  const vmax = Math.max(1, ...E.map((e) => e.v)); E.forEach((e) => (e.w = Math.max(1.6, Math.min(16, 16 * Math.sqrt(e.v / vmax)))));
+  const bIdx = Object.fromEntries(SK.map((k, i) => [k, i]));
+  const gOrd = gk.map((g) => { let s = 0, w = 0; D.M.forEach(([v], k) => { const [a, b] = k.split(">"), ot = a === g ? b : b === g ? a : null; if (ot && bIdx[ot] != null) { s += v * bIdx[ot]; w += v; } });
+    return { g, bc: w ? s / w : (SK.length - 1) / 2, t: AG[g].tin + AG[g].tout }; }).sort((x, y) => x.bc - y.bc || y.t - x.t).map((x) => x.g);
+  const cIdx = Object.fromEntries(gOrd.map((g, i) => [g, i]));
+  const items = SK.map((k, i) => ({ k, key: i, h: BH }));
+  E.forEach((e) => { const ka = lkKind(e.a), kb = lkKind(e.b); if (ka !== kb && ka + kb === 2) { const g = ka === 2 ? e.a : e.b, f = gOrd.length > 1 ? cIdx[g] / (gOrd.length - 1) : 0.5;
+    items.push({ e, key: Math.min(SK.length - 0.5, Math.floor(f * (SK.length - 1)) + 0.5), sub: cIdx[g], h: e.w + 6 }); } });   // เส้นข้ามคอลัมน์กลาง = ช่องลอดระหว่างกล่อง
+  items.sort((x, y) => x.key - y.key || (x.sub || 0) - (y.sub || 0));
+  const gB = (p, q) => (p.e || q.e ? 4 : GB), hB = items.reduce((t, it, i) => t + it.h + (i ? gB(items[i - 1], it) : 0), 0), hC = gOrd.length * CH_ + Math.max(0, gOrd.length - 1) * GC;
+  const hA = Math.max(110, E.filter((e) => e.a === "t1" || e.b === "t1").reduce((t, e) => t + e.w + 3, 0) + 30);
+  const H = TOP + Math.max(hB, hC, hA) + 16, mid = TOP + (H - TOP - 16) / 2, N = {};
+  N.t1 = { x: xA, y: mid - hA / 2, w: AW, h: hA, col: t1Col_() };
+  let y = mid - hB / 2; items.forEach((it, i) => { if (i) y += gB(items[i - 1], it); if (it.e) it.e.dy = y + it.h / 2; else N[it.k] = { x: xB, y, w: BW, h: BH, col: eCol(it.k) }; y += it.h; });
+  y = mid - hC / 2; gOrd.forEach((g) => { N[g] = { x: xC, y, w: CW, h: CH_, col: grpCol(g) }; y += CH_ + GC; });
+  const cy = (n) => n.y + n.h / 2, SD = {}, add = (k, r) => (SD[k] = SD[k] || []).push(r);
+  E.forEach((e) => { const ca = lkKind(e.a), cb = lkKind(e.b); e.sa = ca <= cb ? "R" : "L"; e.sb = ca < cb ? "L" : "R";
+    add(e.a + "|" + e.sa, { e, end: "a", oy: e.dy != null ? e.dy : cy(N[e.b]) }); add(e.b + "|" + e.sb, { e, end: "b", oy: e.dy != null ? e.dy : cy(N[e.a]) }); });
+  Object.entries(SD).forEach(([k, L]) => { const n = N[k.split("|")[0]]; L.sort((p, q) => p.oy - q.oy); const tot = L.reduce((t, r) => t + r.e.w, 0) + 2 * (L.length - 1), f = tot > n.h - 8 ? (n.h - 8) / tot : 1;
+    let yy = cy(n) - (tot * f) / 2; L.forEach((r) => { r.e["y" + r.end] = yy + (r.e.w * f) / 2; yy += (r.e.w + 2) * f; }); });
+  const C2 = (x0, y0, x1, y1) => { const dx = (x1 - x0) / 2; return `C${(x0 + dx).toFixed(1)},${y0.toFixed(1)} ${(x1 - dx).toFixed(1)},${y1.toFixed(1)} ${x1.toFixed(1)},${y1.toFixed(1)}`; };
   let es = "";
-  E.forEach((e) => { const A = N[e.a], B = N[e.b], dx = B.x - A.x, dy = B.y - A.y, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L, w = wOf(e.v), bend = e.a === "t1" || e.b === "t1" ? 0.08 : 0.2;
-    const qx = (A.x + B.x) / 2 - uy * L * bend, qy = (A.y + B.y) / 2 + ux * L * bend, n0 = Math.hypot(qx - A.x, qy - A.y) || 1, n1 = Math.hypot(qx - B.x, qy - B.y) || 1, hs = Math.min(15, Math.max(6, w * 1.25));
-    const sx = A.x + ((qx - A.x) / n0) * (A.r + 2), sy = A.y + ((qy - A.y) / n0) * (A.r + 2), d1x = (qx - B.x) / n1, d1y = (qy - B.y) / n1, tx = B.x + d1x * (B.r + 2), ty = B.y + d1y * (B.r + 2), ex = tx + d1x * hs * 0.9, ey = ty + d1y * hs * 0.9;
-    const col = e.back ? "#B3261E" : N[e.a].col, tip = `${eLab(e.a)} → ${eLab(e.b)} : ${fmt(e.v)} บาท${e.back ? " (โอนกลับ)" : ""}`;
-    es += `<g class="lke${e.back ? " bk" : ""}" data-a="${e.a}" data-b="${e.b}"><path d="M${sx.toFixed(1)},${sy.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${ex.toFixed(1)},${ey.toFixed(1)}" stroke="${col}" stroke-width="${w.toFixed(1)}" fill="none"${e.back ? ' stroke-dasharray="7 5"' : ""}><title>${esc(tip)}</title></path>
-      <polygon points="${tx.toFixed(1)},${ty.toFixed(1)} ${(ex - d1y * hs * 0.55).toFixed(1)},${(ey + d1x * hs * 0.55).toFixed(1)} ${(ex + d1y * hs * 0.55).toFixed(1)},${(ey - d1x * hs * 0.55).toFixed(1)}" fill="${col}"/></g>`; });
-  const F1 = "600 12px Sarabun, sans-serif", inT1 = (k) => (D.M.get("t1>" + k) || [0])[0];
-  let ns = `<g class="lkn" data-lk="t1"><circle cx="${cx}" cy="${cy}" r="${N.t1.r.toFixed(1)}" fill="${N.t1.col}" stroke="#fff" stroke-width="3"/><text x="${cx}" y="${cy - 3}" text-anchor="middle" class="lkt w">บัญชี</text><text x="${cx}" y="${cy + 11}" text-anchor="middle" class="lkt w">รับบริจาค</text><title>บัญชีรับบริจาค 3 บัญชี</title></g>`, defs = "";
-  SK.forEach((k) => { const o = N[k], s = S[k], ph = photoOf(s.name), r = o.r;
-    defs += `<clipPath id="lkc-${k}"><circle cx="${o.x.toFixed(1)}" cy="${o.y.toFixed(1)}" r="${(r - 2).toFixed(1)}"/></clipPath>`;
-    ns += `<g class="lkn" data-lk="${k}"><circle cx="${o.x.toFixed(1)}" cy="${o.y.toFixed(1)}" r="${r.toFixed(1)}" fill="#fff" stroke="${o.col}" stroke-width="4"/>${ph ? `<image href="data:image/jpeg;base64,${ph.th}" x="${(o.x - r).toFixed(1)}" y="${(o.y - r).toFixed(1)}" width="${(2 * r).toFixed(1)}" height="${(2 * r).toFixed(1)}" preserveAspectRatio="xMidYMid slice" clip-path="url(#lkc-${k})"/>` : `<circle cx="${o.x.toFixed(1)}" cy="${(o.y - r * 0.18).toFixed(1)}" r="${(r * 0.3).toFixed(1)}" fill="${o.col}"/><path d="M${(o.x - r * 0.52).toFixed(1)},${(o.y + r * 0.62).toFixed(1)} a${(r * 0.52).toFixed(1)},${(r * 0.46).toFixed(1)} 0 0 1 ${(r * 1.04).toFixed(1)},0z" fill="${o.col}"/>`}
-      <circle cx="${(o.x - r * 0.72).toFixed(1)}" cy="${(o.y - r * 0.72).toFixed(1)}" r="9" fill="${o.col}" stroke="#fff" stroke-width="1.5"/><text x="${(o.x - r * 0.72).toFixed(1)}" y="${(o.y - r * 0.72 + 4).toFixed(1)}" text-anchor="middle" class="lkt w" style="font-size:10px;fill:${inkOn(o.col)}">${s.no}</text>
-      ${["F", "C", "M"].filter((q) => s.charges.includes(q)).map((q, i, a) => `<circle cx="${(o.x + (i - (a.length - 1) / 2) * 11).toFixed(1)}" cy="${(o.y + r + 1).toFixed(1)}" r="4.5" fill="${CHC[q][1]}" stroke="#fff" stroke-width="1.5"><title>${CHC[q][0]}</title></circle>`).join("")}
-      <text x="${o.x.toFixed(1)}" y="${(o.y + r + 19).toFixed(1)}" text-anchor="middle" class="fl1 flhalo">${esc(shortName(s.name).split(" ")[0])}</text>${inT1(k) >= 1 ? `<text x="${o.x.toFixed(1)}" y="${(o.y + r + 32).toFixed(1)}" text-anchor="middle" class="fl2 flhalo">${esc(M(inT1(k)))}</text>` : ""}<title>${esc(`ผู้ต้องหาที่ ${s.no} ${s.name}`)}</title></g>`; });
-  gs.forEach(({ g }) => { const o = N[g], t = AG[g], c = Math.cos(o.a), sn = Math.sin(o.a), anc = c > 0.35 ? "start" : c < -0.35 ? "end" : "middle", lx = o.x + (anc === "middle" ? 0 : c > 0 ? o.r + 7 : -o.r - 7), ly = anc === "middle" ? (sn > 0 ? o.y + o.r + 15 : o.y - o.r - 20) : o.y - 2;
-    const avail = anc === "start" ? W - lx - 6 : anc === "end" ? lx - 6 : Math.min(lx, W - lx) * 2 - 12;
-    ns += `<g class="lkn" data-lk="${g}"><circle cx="${o.x.toFixed(1)}" cy="${o.y.toFixed(1)}" r="${o.r.toFixed(1)}" fill="${o.col}" stroke="#fff" stroke-width="2.5"/><text x="${o.x.toFixed(1)}" y="${(o.y + 4).toFixed(1)}" text-anchor="middle" class="lkt w" style="fill:${inkOn(o.col)}">${t.n}</text>
-      <text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="${anc}" class="fl1 flhalo">${esc(fitT(GRPT[g], Math.max(70, avail), F1))}</text><text x="${lx.toFixed(1)}" y="${(ly + 14).toFixed(1)}" text-anchor="${anc}" class="fl2 flhalo">${esc(M(t.tin))}${t.tout >= 1 ? `<tspan fill="#B3261E"> ↩ ${esc(M(t.tout))}</tspan>` : ""}</text><title>${esc(`${GRPT[g]} · ${t.n} บัญชี · รับ ${fmt(t.tin)} บาท · โอนกลับ ${fmt(t.tout)} บาท`)}</title></g>`; });
-  return { W, H, svg: `<svg class="lk" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs>${es}${ns}</svg>` };
+  E.slice().reverse().forEach((e) => { const A = N[e.a], B = N[e.b], x0 = e.sa === "R" ? A.x + A.w : A.x, x1 = e.sb === "R" ? B.x + B.w : B.x, y0 = e.ya, y1 = e.yb, dir = e.sb === "L" ? 1 : -1, xe = x1 - dir * HS;
+    let d, la, lb;
+    if (lkKind(e.a) === lkKind(e.b)) { const off = 24 + 15 * Math.min(4, Math.abs(bIdx[e.a] - bIdx[e.b]) - 1) + (bIdx[e.a] > bIdx[e.b] ? 9 : 0), xr = x0 + off;
+      d = `M${x0},${y0.toFixed(1)} C${xr},${y0.toFixed(1)} ${xr},${y1.toFixed(1)} ${xe},${y1.toFixed(1)}`; la = [x0 + off * 0.75, y0]; lb = [x1 + off * 0.75, y1]; }
+    else if (e.dy != null) { const fw = x1 > x0, p = fw ? xB : xB + BW, q = fw ? xB + BW : xB; d = `M${x0},${y0.toFixed(1)} ${C2(x0, y0, p, e.dy)} L${q},${e.dy.toFixed(1)} ${C2(q, e.dy, xe, y1)}`;
+      la = [x0 + (fw ? 46 : -46), y0]; lb = [x1 - dir * 50, y1]; }
+    else { d = `M${x0},${y0.toFixed(1)} ${C2(x0, y0, xe, y1)}`; la = [x0 + (e.sa === "R" ? 46 : -46), y0]; lb = [x1 - dir * 50, y1]; }
+    const hw = Math.max(3.6, e.w * 0.8), col = e.back ? "#B3261E" : A.col, tip = `${lkName(e.a)} → ${lkName(e.b)} : ${fmt(e.v)} บาท (${fmt0(e.n)} ครั้ง)${e.back ? " · โอนกลับ" : ""} — กดเพื่อวิเคราะห์เส้นเงิน`;
+    es += `<g class="lke${e.back ? " bk" : ""}" data-a="${e.a}" data-b="${e.b}" data-v="${esc(M(e.v))}" data-la="${la[0].toFixed(1)},${la[1].toFixed(1)}" data-lb="${lb[0].toFixed(1)},${lb[1].toFixed(1)}"><path class="ln" d="${d}" stroke="${col}" stroke-width="${e.w.toFixed(1)}" fill="none"${e.back ? ' stroke-dasharray="8 5"' : ""}/>
+      <path class="hit" d="${d}" stroke="transparent" stroke-width="${Math.max(12, e.w + 8).toFixed(0)}" fill="none"/><polygon points="${x1},${y1.toFixed(1)} ${xe},${(y1 - hw).toFixed(1)} ${xe},${(y1 + hw).toFixed(1)}" fill="${col}"/><title>${esc(tip)}</title></g>`; });
+  const sumM = (f) => { let t = 0; D.M.forEach(([v], k) => { const [a, b] = k.split(">"); if (f(a, b)) t += v; }); return t; }, okE = (x) => x === "t1" || !!S[x] || !!AG[x];
+  const aOut = sumM((a, b) => a === "t1" && okE(b)), aBack = sumM((a, b) => b === "t1" && okE(a)), T = (x, y_, t, cls, extra) => `<text x="${x.toFixed(1)}" y="${y_.toFixed(1)}" class="${cls}"${extra || ""}>${esc(t)}</text>`;
+  const F1 = "700 12.5px Sarabun, sans-serif", F2 = "700 12px Sarabun, sans-serif";
+  const A0 = N.t1, ac = cy(A0);
+  let ns = `<g class="lkn" data-lk="t1"><rect x="${A0.x}" y="${A0.y.toFixed(1)}" width="${A0.w}" height="${A0.h.toFixed(1)}" rx="12" fill="${A0.col}"/>
+    ${T(A0.x + A0.w / 2, ac - 14, "บัญชีรับบริจาค", "lkt w", ' text-anchor="middle"')}${T(A0.x + A0.w / 2, ac + 2, "3 บัญชี", "lks w", ' text-anchor="middle"')}${T(A0.x + A0.w / 2, ac + 18, mode === "back" ? `รับกลับ ${M(aBack)}` : `จ่ายออก ${M(aOut)}`, "lks w", ' text-anchor="middle"')}<title>บัญชีรับบริจาค 3 บัญชี · จ่ายไปผู้ต้องหา/กลุ่มที่เกี่ยวข้อง ${fmt(aOut)} บาท · รับกลับ ${fmt(aBack)} บาท</title></g>`, defs = "";
+  SK.forEach((k) => { const n = N[k], s = S[k], ph = photoOf(s.name), r = 20, px = n.x + 27, py = cy(n), inT1 = (D.M.get("t1>" + k) || [0])[0], back = sumM((a, b) => b === k && !!AG[a]);
+    defs += `<clipPath id="lkc-${k}"><circle cx="${px}" cy="${py.toFixed(1)}" r="${r - 1.5}"/></clipPath>`;
+    ns += `<g class="lkn" data-lk="${k}"><rect x="${n.x}" y="${n.y.toFixed(1)}" width="${n.w}" height="${n.h}" rx="10" class="lkcard" style="stroke:${n.col}"/>
+      <circle cx="${px}" cy="${py.toFixed(1)}" r="${r}" fill="#fff" stroke="${n.col}" stroke-width="2.5"/>${ph ? `<image href="data:image/jpeg;base64,${ph.th}" x="${px - r}" y="${(py - r).toFixed(1)}" width="${2 * r}" height="${2 * r}" preserveAspectRatio="xMidYMid slice" clip-path="url(#lkc-${k})"/>` : `<circle cx="${px}" cy="${(py - 4).toFixed(1)}" r="6" fill="${n.col}"/><path d="M${px - 10},${(py + 12).toFixed(1)} a10,9 0 0 1 20,0z" fill="${n.col}"/>`}
+      <circle cx="${px - 15}" cy="${(py - 15).toFixed(1)}" r="8" fill="${n.col}" stroke="#fff" stroke-width="1.5"/>${T(px - 15, py - 11.5, String(s.no), "lkt", ` text-anchor="middle" style="font-size:10px;fill:${inkOn(n.col)}"`)}
+      ${T(n.x + 54, py - 4, fitT(shortName(s.name).split(" ")[0], BW - 62 - 12 * s.charges.length, F1), "lkn1")}${T(n.x + 54, py + 13, fitT(mode === "back" ? `รับโอนกลับ ${M(back)}` : `จากบัญชีรับบริจาค ${M(inT1)}`, BW - 60, "500 11px Sarabun, sans-serif"), "lkn2")}
+      ${["F", "C", "M"].filter((q) => s.charges.includes(q)).map((q, i) => `<circle cx="${n.x + BW - 10 - i * 11}" cy="${(n.y + 11).toFixed(1)}" r="4.2" fill="${CHC[q][1]}"><title>${CHC[q][0]}</title></circle>`).join("")}<title>${esc(`ผู้ต้องหาที่ ${s.no} ${s.name}`)}</title></g>`; });
+  gOrd.forEach((g) => { const n = N[g], t = AG[g], c = cy(n);
+    ns += `<g class="lkn" data-lk="${g}"><rect x="${n.x}" y="${n.y.toFixed(1)}" width="${n.w}" height="${n.h}" rx="10" class="lkcard" style="stroke:${n.col};fill:color-mix(in srgb,${n.col} 12%,var(--card))"/>
+      <circle cx="${n.x + 22}" cy="${c.toFixed(1)}" r="15" fill="${n.col}"/>${T(n.x + 22, c + 4, String(t.n), "lkt", ` text-anchor="middle" style="fill:${inkOn(n.col)}"`)}
+      ${T(n.x + 44, c - 4, fitT(GRPT[g], CW - 52, F2), "lkn1")}<text x="${n.x + 44}" y="${(c + 13).toFixed(1)}" class="lkn2">รับ ${esc(M(t.tin))}${t.tout >= 1 ? `<tspan fill="#B3261E"> · ↩ ${esc(M(t.tout))}</tspan>` : ""}</text>
+      <title>${esc(`${GRPT[g]} · ${t.n} บัญชี · รับ ${fmt(t.tin)} บาท · โอนกลับ ${fmt(t.tout)} บาท`)}</title></g>`; });
+  const hd = `${T(xA, 16, "ต้นทาง", "flh")}${T(xB, 16, `ผู้ต้องหา (${SK.length})`, "flh")}${T(xC, 16, `กลุ่มที่เกี่ยวข้อง (${gOrd.length})`, "flh")}`;
+  return { W, H, svg: `<svg class="lk lk2" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs>${defs}</defs><rect class="lkbg" x="0" y="0" width="${W}" height="${H}" fill="transparent"/>${hd}${es}${ns}<g class="lkl"></g></svg>` };
 }
 function drawLink() {
-  const el = $("#lkBox"); if (!el) return; const D = lkData(LKM), W = Math.max(700, el.clientWidth || 700), o = linkSvg(D, W);
+  const el = $("#lkBox"); if (!el) return; const D = lkData(LKM), o = linkSvg(D, el.clientWidth || 760);
   el.innerHTML = o.svg + `<button class="ibx sm lkz" type="button" title="ขยายดูเต็มจอ (ซูม / เลื่อนได้)" aria-label="ขยายดูเต็มจอ">${IC("zoom", 15)}</button>`;
-  if (el.scrollWidth > el.clientWidth) el.scrollLeft = (el.scrollWidth - el.clientWidth) / 2;
-  const svg = el.querySelector("svg"), hl = (id) => { svg.classList.toggle("hl", !!id); svg.querySelectorAll(".lke").forEach((g) => g.classList.toggle("on", !!id && (g.dataset.a === id || g.dataset.b === id))); };
-  svg.addEventListener("pointerover", (e) => { const n = e.target.closest(".lkn"); if (n && e.pointerType === "mouse") hl(n.dataset.lk); });
-  svg.addEventListener("pointerout", (e) => { if (e.target.closest(".lkn") && e.pointerType === "mouse") hl(""); });
+  const svg = el.querySelector("svg");
+  const show = (id) => {                                                 // ไฮไลต์เส้น/กล่องที่เชื่อมกับ id + ยอดบนเส้น (วางที่ปลายฝั่งตรงข้าม ไม่ให้ป้ายซ้อน)
+    svg.classList.toggle("hl", !!id); const nb = new Set(id ? [id] : []), lab = [];
+    svg.querySelectorAll(".lke").forEach((g) => { const on = !!id && (g.dataset.a === id || g.dataset.b === id); g.classList.toggle("on", on);
+      if (on) { const far = g.dataset.a === id ? "b" : "a"; nb.add(g.dataset[far]); const [x, y] = g.dataset["l" + far].split(",").map(Number); lab.push({ x, y: y - 5, t: g.dataset.v, bk: g.classList.contains("bk") }); } });
+    svg.querySelectorAll(".lkn").forEach((n) => n.classList.toggle("on", nb.has(n.dataset.lk)));
+    lab.sort((p, q) => p.y - q.y); const put = []; lab.forEach((l) => { put.forEach((p) => { if (Math.abs(p.x - l.x) < 70 && l.y - p.y < 14) l.y = p.y + 14; }); put.push(l); });
+    svg.querySelector(".lkl").innerHTML = put.map((l) => `<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="middle" class="lkv${l.bk ? " bk" : ""}">${esc(l.t)}</text>`).join(""); };
+  show(LKF); lkFocUI(D);
+  svg.addEventListener("pointerover", (e) => { const n = e.target.closest(".lkn"); if (n && e.pointerType === "mouse") show(n.dataset.lk); });
+  svg.addEventListener("pointerout", (e) => { if (e.target.closest(".lkn") && e.pointerType === "mouse") show(LKF); });
   el.onclick = (e) => { if (e.target.closest(".lkz")) { e.stopPropagation(); return openSvg("แผนผังความเชื่อมโยง", linkSvg(D, 1200).svg, 1200); }
-    const n = e.target.closest(".lkn"); if (!n) return; e.stopPropagation(); const id = n.dataset.lk;
-    if (id === "t1") { BRV = "t1"; render(); return scrollTo(0, 0); }
-    if (DB.formal.suspects[id]) { BRV = "sus"; BRS = id; SUSC = 1; render(); return; }
-    BRG = BRG === id ? "" : id; $$("tr[data-grp]").forEach((r) => r.classList.toggle("on", r.dataset.grp === BRG)); drawGrp(true); };
+    const ed = e.target.closest(".lke"); if (ed && (!LKF || ed.classList.contains("on"))) { e.stopPropagation(); return lkGo(ed.dataset.a, ed.dataset.b); }
+    const n = e.target.closest(".lkn"); e.stopPropagation();
+    LKF = n ? (LKF === n.dataset.lk ? "" : n.dataset.lk) : ""; show(LKF); lkFocUI(D); };
+}
+function lkFocUI(D) {                                                   // ปุ่มของโหนดที่โฟกัส (แถบบน) + ตารางเส้นเงินของโหนด (ใต้ชาร์ต)
+  const fb = $("#lkFb"), fp = $("#lkFoc"); if (!fb || !fp) return; const id = LKF;
+  if (!id) { fb.innerHTML = ""; fp.innerHTML = ""; return; }
+  const S = DB.formal.suspects, gk = new Set(lkGroups(D)), okE = (x) => x === "t1" || !!S[x] || gk.has(x), col = eCol(id), lab = lkName(id);
+  fb.innerHTML = `${gTag(col, lab)}${ibx("flow", "วิเคราะห์เส้นเงินทั้งหมดของ " + lab, `data-lkgo="${id}"`)}${S[id] ? ibx("user", "พฤติการณ์รายคน", `data-lksus="${id}"`) : id === "t1" ? ibx("bank", "บทบัญชีรับบริจาค", 'data-lkt1="1"') : ibx("list", "รายละเอียดกลุ่ม (รายบัญชี)", `data-lkgrp="${id}"`)}${ibx("x", "ยกเลิกไฮไลต์", 'data-lkf=""')}`;
+  const R = []; D.M.forEach(([v, n], k) => { const [a, b] = k.split(">"); if ((a === id || b === id) && okE(a) && okE(b) && v >= 1) R.push({ a, b, v, n, bk: lkKind(a) === 2 || b === "t1" }); });
+  R.sort((p, q) => q.v - p.v); const tin = R.filter((r) => r.b === id).reduce((t, r) => t + r.v, 0), tout = R.filter((r) => r.a === id).reduce((t, r) => t + r.v, 0);
+  fp.innerHTML = `<div class="lab">${IC("route", 15)} เส้นเงินของ ${esc(lab)} <small>${R.length} คู่ · รับ ${M(tin)} · จ่าย ${M(tout)}</small></div>
+    <div class="tblwrap"><table class="lkft"><tr><th>ผู้โอน</th><th>ผู้รับ</th><th class="n">ยอดเงิน (บาท)</th><th class="n">ครั้ง</th><th data-nos="1"></th></tr>
+    ${R.map((r) => `<tr class="click${r.bk ? " bk" : ""}" data-lkgo="${r.a}" data-lkgo2="${r.b}" title="วิเคราะห์เส้นเงินคู่นี้"><td>${gTag(eCol(r.a), lkName(r.a))}</td><td>${gTag(eCol(r.b), lkName(r.b))}${r.bk ? ' <small class="amt-out">โอนกลับ</small>' : ""}</td><td class="n"><b class="${r.bk ? "amt-out" : ""}">${fmt(r.v)}</b></td><td class="n">${fmt0(r.n)}</td><td class="gchev">${IC("flow", 15)}</td></tr>`).join("")}</table></div>`;
 }
 /* รายละเอียดกลุ่มที่เลือก: การ์ดสรุป + ชาร์ต 3 ชั้น (ต้นทาง → บุคคลในกลุ่ม → โอนกลับเข้าใคร) + กราฟ + ตารางรายบัญชี */
 function drawGrp(scroll) {

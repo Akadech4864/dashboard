@@ -789,3 +789,37 @@ h2>.ibx.fbk{font-size:.875rem}
 .xbar.fl{float:right;display:inline-flex;gap:6px;margin:0 0 4px 10px}
 .ahd h2.hasx{margin-bottom:6px}
 .ahd>h2.hasx{flex:1 1 100%}
+
+/* ตัวเลือกชาร์ตเส้นเงินอยู่บรรทัดหัวข้อ (20 พ.ย. 69) */
+.hx.fltools{margin:0 0 0 auto;font-weight:400}
+/* ปุ่มลอย "กลับ: หน้าเดิม" ทุกหน้า (20 พ.ย. 69) — ซ้อนเหนือปุ่มย้อนตัวกรองของหน้าวิเคราะห์เมื่อมีทั้งคู่ */
+#vback{max-width:min(72vw,360px)}
+#vback span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body:has(#flBack:not([hidden])) #vback{bottom:76px}
+@media (max-width:1099px){body:has(#flBack:not([hidden])) #vback{bottom:calc(140px + env(safe-area-inset-bottom))}}
+/* แผนผังความเชื่อมโยงแบบคอลัมน์ (20 พ.ย. 69) */
+.lkfb{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;margin-left:auto}
+svg.lk2 .lkcard{fill:var(--card);stroke-width:1.6}
+svg.lk2 .lkn1{font:700 12.5px Sarabun,sans-serif;fill:var(--ink)}
+svg.lk2 .lkn2{font:500 11px Sarabun,sans-serif;fill:var(--mut)}
+svg.lk2 .lks{font:600 11px Sarabun,sans-serif}
+svg.lk2 .lkt{font-size:12px;font-weight:700}
+svg.lk2 .lks.w,svg.lk2 .lkt.w{fill:#fff}
+svg.lk2 .lke .ln{opacity:.5;transition:opacity .12s}
+svg.lk2 .lke polygon{opacity:.75}
+svg.lk2 .lke.bk .ln{opacity:.7}
+svg.lk2 .lke .hit{cursor:pointer}
+svg.lk2 .lke:hover .ln{opacity:.85}
+svg.lk2.hl .lke .ln,svg.lk2.hl .lke polygon{opacity:.06}
+svg.lk2.hl .lke.on .ln{opacity:.9}svg.lk2.hl .lke.on polygon{opacity:1}
+svg.lk2.hl .lkn{opacity:.3;transition:opacity .12s}svg.lk2.hl .lkn.on{opacity:1}
+svg.lk2 .lkv{font:700 11.5px Sarabun,sans-serif;fill:var(--ink);paint-order:stroke;stroke:var(--card);stroke-width:4px;stroke-linejoin:round;pointer-events:none}
+svg.lk2 .lkv.bk{fill:#B3261E}
+svg.lk2 .flh{font:700 12px Sarabun,sans-serif;fill:var(--mut)}
+.lkleg i.ln{width:22px;height:4px;border-radius:2px;background:#1565C0}
+.lkft tr.bk td{background:color-mix(in srgb,#B3261E 5%,transparent)}
+/* ชาร์ตเส้นเงิน: ป้ายเลข "ลำดับ/ทั้งหมด" ของบัญชีที่ปรากฏหลายกล่อง (20 พ.ย. 69) */
+.ftg rect{fill:#fff;stroke:#00264D;stroke-width:1.2}
+.ftg text{font:700 10px Sarabun,sans-serif;fill:#00264D}
+.fn.akon rect:first-child{stroke:#FFD403;stroke-width:3}
+.fn.akon .ftg rect{fill:#FFD403;stroke:#00264D}
