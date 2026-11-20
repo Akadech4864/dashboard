@@ -1263,14 +1263,21 @@ function pAna() {
     tlRender();
     // ตาราง
     // คู่โอนรายใหญ่ (ผู้ใช้สั่ง 19 พ.ย. 69): ตารางรายการกลาง XT — เลือก 50 / 100 / 200 / ทุกรายการ + ค้นหาชื่อคู่โอน + ตัวกรองกลุ่ม/ธนาคาร + เรียง + กรองรายคอลัมน์ ; กดแถว = ใช้เป็นคำค้นของหน้า
-    const cpRows = [...byC.entries()].filter((x) => x[1][0] + x[1][1] > 0).map(([ci, v]) => { const c = DB.cps[ci]; return { ci, nm: c[1] || "", acc: c[0] || "", bank: c[2] || "", g: c[3], gl: DB.groups[c[3]][1].split(" (")[0], i: v[0], o: v[1], n: v[2], t: v[0] + v[1] }; });
-    xtMount($("#tCp"), { id: "anaCp", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", noBar: true, pre: FHIST.length ? `<button class="ibx fbk" data-fb="1" title="ย้อนกลับ (ตัวกรองก่อนหน้า)" aria-label="ย้อนกลับ">${IC("back", 16)}${FHIST.length > 1 ? `<small>${FHIST.length}</small>` : ""}</button>` : "", note: "ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบนของหน้า (มีผลทั้งชาร์ตและตาราง) · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้", rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)",
-      search: (r) => `${r.nm} ${r.acc} ${r.bank} ${r.gl}`, sort0: [[7, -1]], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
-      cols: [["#", () => 0, "n"], ["คู่โอน", (r) => r.nm, "t", (r) => `<span class="gbar" style="--c:${DB.groups[r.g][2]}">${r.nm ? `<b style="font-weight:600">${esc(r.nm)}</b>` : `<span class="muted">ไม่ระบุชื่อ</span>`}</span>`], ["บัญชี", (r) => `${r.bank} ${r.acc}`.trim(), "t"],
-        ["กลุ่ม", (r) => r.gl, "t", (r) => gTag(DB.groups[r.g][2], r.gl)],
-        ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? `<span class="amt-in">${fmt(r.i)}</span>` : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? `<span class="amt-out">${fmt(r.o)}</span>` : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
-      facets: [["g", "ทุกกลุ่มคู่โอน", (r) => r.gl, [...new Map(cpRows.map((r) => [r.gl, DB.groups[r.g][2]])).entries()].map(([l, c]) => [l, l, c])], ["bank", "ทุกธนาคาร", (r) => r.bank || "(ไม่ระบุ)"]],
-      rowAttr: () => 'class="click" title="ดูรายการของคู่โอนนี้"', onRow: (r) => { const s = fSnap(); s._y = scrollY; FHIST.push(s); F.q = r.acc || r.nm; $("#fQ").value = F.q; upd(); setTimeout(() => { const t = $("#txH"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); } });
+    // คู่โอนรายใหญ่ รุ่น 20 พ.ย. 69 (ผู้ใช้สั่ง "ควรมีคอลัมน์ผู้โอน กับรับโอน กรณีเลือกผู้โอนหลายบัญชี"): 1 แถว = 1 คู่ ผู้โอน → ผู้รับ (แยกทิศทาง) จาก pair ; กดแถว = ดูรายการของคู่นั้น
+    const accL = (ai) => { const a = DB.accounts[ai]; return `${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small>`; };
+    const cpL = (ci) => { const c = DB.cps[ci]; return `<span class="gbar" style="--c:${DB.groups[c[3]][2]}">${c[1] ? esc(c[1]) : `<span class="muted">ไม่ระบุชื่อ</span>`} <small class="muted">${esc(c[2] || "")} ${esc(c[0] || "")}</small></span>`; };
+    const cpT = (ci) => { const c = DB.cps[ci]; return `${c[1] || ""} ${c[2] || ""} ${c[0] || ""}`.trim(); }, acT = (ai) => { const a = DB.accounts[ai]; return `${a.name} ${a.bank} ${a.acc}`; };
+    const cpRows = []; for (const [key, v] of pair) { const ci = Math.floor(key / 64), ai = key % 64, c = DB.cps[ci], gl = DB.groups[c[3]][1].split(" (")[0];
+      if (v[0] > 0) cpRows.push({ ci, ai, inn: 1, g: c[3], gl, i: v[0], o: 0, n: v[2], v: v[0] });
+      if (v[1] > 0) cpRows.push({ ci, ai, inn: 0, g: c[3], gl, i: 0, o: v[1], n: v[3], v: v[1] }); }
+    cpRows.sort((x, y) => y.v - x.v);
+    xtMount($("#tCp"), { id: "anaCp2", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", noBar: true, pre: FHIST.length ? `<button class="ibx fbk" data-fb="1" title="ย้อนกลับ (ตัวกรองก่อนหน้า)" aria-label="ย้อนกลับ">${IC("back", 16)}${FHIST.length > 1 ? `<small>${FHIST.length}</small>` : ""}</button>` : "",
+      note: "1 แถว = 1 คู่ ผู้โอน → ผู้รับ (บัญชีที่มี statement = ป้ายสี ; คู่โอน = แถบสีกลุ่ม) · เงินเข้า = บัญชีที่มี statement รับ / เงินออก = บัญชีที่มี statement จ่าย · ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบน · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้ · กดแถว = ดูรายการของคู่นั้น",
+      rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)", sort0: [], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
+      cols: [["#", () => 0, "n"], ["ผู้โอน", (r) => (r.inn ? cpT(r.ci) : acT(r.ai)), "t", (r) => (r.inn ? cpL(r.ci) : accL(r.ai))], ["ผู้รับ", (r) => (r.inn ? acT(r.ai) : cpT(r.ci)), "t", (r) => (r.inn ? accL(r.ai) : cpL(r.ci))],
+        ["กลุ่มคู่โอน", (r) => r.gl, "t", (r) => gTag(DB.groups[r.g][2], r.gl)],
+        ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? `<span class="amt-in">${fmt(r.i)}</span>` : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? `<span class="amt-out">${fmt(r.o)}</span>` : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)]],
+      rowAttr: () => 'class="click" title="ดูรายการของคู่นี้"', onRow: (r) => { const s = fSnap(); s._y = scrollY; FHIST.push(s); const c = DB.cps[r.ci]; F.q = c[0] || c[1]; $("#fQ").value = F.q; F.accs = new Set([r.ai]); F.gx = new Set(); upd(); setTimeout(() => { const t = $("#txH"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); } });
     SORTED = txSort(IDX);
     const big = SORTED.slice(0, SHOWN);
     $("#txLab").textContent = `${fmt0(big.length)} / ${fmt0(IDX.length)} แถว · ${TXS.map(([k, d]) => `${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")}`;
@@ -1317,8 +1324,10 @@ function pAna() {
     if ("gcGa".includes(id[0])) FHIST.push(fSnap());
     if (id[0] === "g") tog(F.cpg, k);
     else if (id[0] === "c") { const cp = DB.cps[k]; F.q = cp[0] || cp[1]; $("#fQ").value = F.q; }
-    else if (id[0] === "G") { const ids = gAcc[k] || [], all = ids.every((i) => F.accs.has(i)); ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i))); }
-    else if (id[0] === "a") tog(F.accs, k);
+    else if (id[0] === "G" || id[0] === "a") { const ids = id[0] === "G" ? gAcc[k] || [] : [k], all = ids.every((i) => F.accs.has(i));
+      if (e.shiftKey || e.ctrlKey || e.metaKey) ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i)));
+      else { const same = all && F.accs.size === ids.length; F.accs.clear(); if (!same) ids.forEach((i) => F.accs.add(i)); }
+      toast(F.accs.size ? `ผู้โอน: ${id[0] === "G" ? DB.groups[k][1].split(" (")[0] : DB.accounts[k].name} — ตารางด้านล่างแสดงเฉพาะผู้โอนนี้` : "แสดงทุกผู้โอน"); }
     else return;
     tip.hidden = true; upd();
   };
@@ -1880,7 +1889,7 @@ function drawFlow(box, pair) {
   if (!L0.length) { box.innerHTML = '<p class="muted" style="padding:20px">ไม่มีรายการตามตัวกรอง</p>'; return; }
   const nc = C0.length, first = dn ? 0 : Math.max(C0[0] && C0[0].size ? 0 : 1, nc - Math.max(3, F.flc)), vis = [];
   for (let c = first; c < nc; c++) vis.push(c);
-  const cols = vis.map((c) => [...C0[c].values()].map((n) => ({ ...n, v: c === vis[0] && c === 0 ? n.out : Math.max(n.in, n.out), exp: !dn && c >= 2 && n.id !== "o" && srcAccs(n.id).length > 0, sel: !dn && c >= 2 && (chain[c - 2] || []).includes(n.id) }))
+  const cols = vis.map((c) => [...C0[c].values()].map((n) => ({ ...n, v: c === vis[0] && c === 0 ? n.out : Math.max(n.in, n.out), exp: !dn && c >= 2 && n.id !== "o" && srcAccs(n.id).length > 0, sel: !dn && ((c >= 2 && (chain[c - 2] || []).includes(n.id)) || (c === 1 && F.accs.size > 0 && /^[Ga]\d/.test(n.id) && (n.id[0] === "a" ? F.accs.has(+n.id.slice(1)) : DB.accounts.some((a, i) => a.g === +n.id.slice(1) && F.accs.has(i))))) }))
     .sort((a, b) => (a.id.length === 1) - (b.id.length === 1) || b.v - a.v));
   const links = L0.filter((l) => +l.a.split(":")[0] >= first);
   const W = Math.max(720, box.clientWidth, vis.length * 250), wide = W > 1000, bw = 14, pad = 7, minH = 20, top = 26;
