@@ -1238,17 +1238,20 @@ function pAna() {
   const tog = (s, v, on) => ((on ?? !s.has(v)) ? s.add(v) : s.delete(v));
   let IDX = [], SORTED = [];
   ANA_UPD = () => upd();
-  function txXlsx() {                                                  // ส่งออก Excel (.xlsx) ทุกแถวที่กรอง เรียงตามที่ตั้งไว้ (ผู้สั่งงาน 18 พ.ย. 69)
-    const H = ["วันที่", "เวลา", "ธนาคาร", "เลขบัญชี", "ชื่อบัญชี", "ประเภทรายการ", "ยอด (บาท)", "ครั้ง", "บัญชีคู่โอน", "ธนาคารคู่โอน", "ชื่อคู่โอน", "กลุ่มคู่โอน", "คู่ถอน-ฝาก"];
-    const rows = (SORTED.length ? SORTED : IDX).map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i);
-      return [iso.slice(0, 10), txT(i), a.bank, a.acc, a.name, DB.kinds[r[2]], r[3], r[5] || 1, c[0] || "", c[2] || "", c[1] || "", DB.groups[c[3]][1], q ? DB.pk[q] : ""]; });
-    download2(`รายการที่กรอง ${F.from} ถึง ${F.to}.xlsx`, xlsxBlob("รายการ", [H, ...rows], [12, 9, 8, 15, 32, 22, 15, 7, 18, 10, 32, 30, 34]));
+  // ส่งออกรูปแบบเดียวกับตารางในเว็บ (ผู้ใช้สั่ง 20 พ.ย. 69): ผู้โอนซ้าย ผู้รับขวา แยกช่องเงินเข้า / ออก ไม่มีคอลัมน์ประเภท
+  const txRow = (i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i), inn = IN_K.includes(r[2]);
+    const me = [a.name, a.bank, a.acc], cp = [c[1] || "", c[2] || "", c[0] || ""], [S, D] = inn ? [cp, me] : [me, cp];
+    const note = [(r[5] || 1) > 1 ? `ยอดรวม ${fmt0(r[5])} ครั้ง` : "", q && F.cpm !== "raw" && pqOn(q) ? `คู่ถอน-ฝาก: ${DB.pk[q]}${DB.txp && DB.txp[i] ? ` (ถอน ${fmt(DB.txp[i][0])} ฝาก ${fmt(DB.txp[i][1])})` : ""}` : ""].filter(Boolean).join(" · ");
+    return [iso.slice(0, 10), txT(i), ...S, ...D, r[3], DB.groups[c[3]][1].split(" (")[0], note]; };
+  const TXH = ["วันที่", "เวลา", "ผู้โอน", "ธนาคารผู้โอน", "บัญชีผู้โอน", "ผู้รับ", "ธนาคารผู้รับ", "บัญชีผู้รับ", "ยอดเงิน (บาท)", "กลุ่มคู่โอน", "หมายเหตุ"];
+  function txXlsx() {                                                  // ส่งออก Excel (.xlsx) ทุกแถวที่กรอง เรียงตามที่ตั้งไว้
+    const rows = (SORTED.length ? SORTED : IDX).map(txRow);
+    download2(`รายการที่กรอง ${F.from} ถึง ${F.to}.xlsx`, xlsxBlob("รายการ", [TXH, ...rows], [12, 9, 34, 8, 15, 34, 8, 15, 16, 26, 40]));
     toast(`ส่งออก ${fmt0(rows.length)} แถว`);
   }
   function csv() {
-    const L = ["วันเวลา,ธนาคาร,บัญชี,ชื่อบัญชี,ประเภทรายการ,ยอด,ครั้ง,บัญชีคู่โอน,ธนาคารคู่โอน,ชื่อคู่โอน,กลุ่มคู่โอน"];
     const q = (s) => `"${String(s ?? "").replace(/"/g, '""')}"`;
-    IDX.forEach((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)]; L.push([min2iso(r[1]).slice(0, 10) + " " + txT(i), a.bank, q("'" + a.acc), q(a.name), DB.kinds[r[2]], r[3], r[5] || 1, q(c[0] ? "'" + c[0] : ""), c[2], q(c[1]), q(DB.groups[c[3]][1])].join(",")); });
+    const L = [TXH.join(",")].concat((SORTED.length ? SORTED : IDX).map((i) => txRow(i).map((v, j) => (j === 4 || j === 7 ? q(v ? "'" + v : "") : typeof v === "number" ? v : q(v))).join(",")));
     download("รายการที่กรอง.csv", L.join("\r\n"), "text/csv");
   }
   function upd(tableOnly) {
@@ -1312,22 +1315,22 @@ function pAna() {
       if (v[1] > 0) cpRows.push({ ci, ai, inn: 0, g: c[3], gl, i: 0, o: v[1], n: v[3], v: v[1] }); }
     cpRows.sort((x, y) => y.v - x.v);
     xtMount($("#tCp"), { id: "anaCp2", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", noBar: true, pre: FHIST.length ? `<button class="ibx fbk" data-fb="1" title="ย้อนกลับ (ตัวกรองก่อนหน้า)" aria-label="ย้อนกลับ">${IC("back", 16)}${FHIST.length > 1 ? `<small>${FHIST.length}</small>` : ""}</button>` : "",
-      note: "1 แถว = 1 คู่ ผู้โอน → ผู้รับ (บัญชีที่มี statement = ป้ายสี ; คู่โอน = แถบสีกลุ่ม) · เงินเข้า = บัญชีที่มี statement รับ / เงินออก = บัญชีที่มี statement จ่าย · ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบน · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้ · กดแถว = ดูรายการของคู่นั้น",
-      rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)", sort0: [], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
+      note: "1 แถว = 1 คู่ ผู้โอน → ผู้รับ (บัญชีที่มี statement = ป้ายสี ; คู่โอน = แถบสีกลุ่ม) · ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบน · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้ · กดแถว = ดูรายการของคู่นั้น",
+      rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)", sort0: [], sum: (R) => `รวม ${M(R.reduce((t, r) => t + r.v, 0))}`,
       cols: [["#", () => 0, "n"], ["ผู้โอน", (r) => (r.inn ? cpT(r.ci) : acT(r.ai)), "t", (r) => (r.inn ? cpL(r.ci) : accL(r.ai))], ["ผู้รับ", (r) => (r.inn ? acT(r.ai) : cpT(r.ci)), "t", (r) => (r.inn ? accL(r.ai) : cpL(r.ci))],
         ["กลุ่มคู่โอน", (r) => r.gl, "t", (r) => gTag(DB.groups[r.g][2], r.gl)],
-        ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? `<span class="amt-in">${fmt(r.i)}</span>` : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? `<span class="amt-out">${fmt(r.o)}</span>` : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)]],
+        ["ยอดเงิน (บาท)", (r) => r.v, "a", (r) => `<b>${fmt(r.v)}</b>`], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)]],
       rowAttr: () => 'class="click" title="ดูรายการของคู่นี้"', onRow: (r) => { const s = fSnap(); s._y = scrollY; FHIST.push(s); const c = DB.cps[r.ci]; F.q = c[0] || c[1]; $("#fQ").value = F.q; F.accs = new Set([r.ai]); F.gx = new Set(); upd(); setTimeout(() => { const t = $("#txH"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); } });
     SORTED = txSort(IDX);
     const big = SORTED.slice(0, SHOWN);
     $("#txLab").textContent = `${fmt0(big.length)} / ${fmt0(IDX.length)} แถว · ${TXS.map(([k, d]) => `${TXC[k]} ${d > 0 ? "↑" : "↓"}`).join(" , ")}`;
     $("#more").hidden = big.length >= IDX.length;
     const th = (k, l, cls) => { const n = TXS.findIndex((x) => x[0] === k); return `<th class="srt ${cls || ""} ${n >= 0 ? "on" : ""}" data-ts="${k}">${l}${n >= 0 ? ` <small>${TXS[n][1] > 0 ? "▲" : "▼"}${TXS.length > 1 ? n + 1 : ""}</small>` : ""}</th>`; };
-    $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("s", "ผู้โอน")}${th("d", "ผู้รับ")}${th("i", "เงินเข้า", "n")}${th("o", "เงินออก", "n")}${th("g", "กลุ่มคู่โอน")}</tr>` +
+    $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("s", "ผู้โอน")}${th("d", "ผู้รับ")}${th("v", "ยอดเงิน (บาท)", "n")}${th("g", "กลุ่มคู่โอน")}</tr>` +
       big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i), inn = IN_K.includes(r[2]);
         const me = `${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small>`;   // บัญชีที่มี statement = ป้ายสี ; คู่โอน = แถบสีกลุ่ม
         const cp = `<span class="gbar" style="--c:${DB.groups[c[3]][2]}">${esc(c[1])} <small class="muted">${c[2]} ${c[0]}</small></span>${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}`;
-        return `<tr class="click" data-ti="${i}" title="ไล่เงินเป็นทอดจากรายการนี้"><td>${dTh(iso)} ${txT(i)}</td><td>${inn ? cp : me}</td><td>${inn ? me : cp}</td><td class="n amt-in">${inn ? fmt(r[3]) : ""}</td><td class="n amt-out">${inn ? "" : fmt(r[3])}</td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+        return `<tr class="click" data-ti="${i}" title="ไล่เงินเป็นทอดจากรายการนี้"><td>${dTh(iso)} ${txT(i)}</td><td>${inn ? cp : me}</td><td>${inn ? me : cp}</td><td class="n"><b>${fmt(r[3])}</b></td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
     $("#tTx").onclick = (e) => { const h = e.target.closest("th[data-ts]");
       if (!h) { const tr = e.target.closest("tr[data-ti]"); if (tr) { TLS.hist.push(TLS.seed); TLS.keep = true; TLS.seed = tlSeedTx(+tr.dataset.ti); TLS.v = "lst"; TLS.open = true; tlRender(); $("#tlBox").scrollIntoView({ behavior: "smooth", block: "start" }); } return; } const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
       if (n < 0) TXS.push([k, k === "v" ? -1 : 1]); else if (TXS[n][1] === (k === "v" ? -1 : 1)) TXS[n][1] *= -1; else TXS.splice(n, 1);
