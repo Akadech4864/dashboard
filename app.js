@@ -860,19 +860,36 @@ function ccTxClick(e) {
     return download2("รายการบัตรเครดิต (ตามตัวกรอง).xlsx", xlsxBlob("รายการบัตรเครดิต", rows, [12, 8, 36, 24, 30, 18, 12, 14])); }
 }
 // ชาร์ต "ค่าบัตรจ่ายโดยบัญชีใด" (ผู้สั่งงาน 18 พ.ย. 69): บัญชีต้นทาง -> บัตร + รายเดือน + รายการรายครั้ง ; กดแถวบัญชีต้นทางในตารางเพื่อดูเฉพาะบัญชีนั้น
-function miniFlow(el, L, R, links, hd) {                                    // L, R: [{id, lab, sub, v, col}] ; links: [{a, b, v}]
-  const W = Math.max(560, el.clientWidth || 760), LW = W > 900 ? 360 : 200, bw = 14, pad = 8, tot = L.reduce((t, x) => t + x.v, 0) || 1;
+/* ชาร์ตเส้นเงินย่อ ; จอแคบ (< 520px) วาดพอดีกว้าง ป้ายฝั่งซ้ายอยู่บนเส้น (มีขอบพื้นหลัง) + ปุ่มขยายเต็มจอ ซูม/เลื่อนได้ (ผู้ใช้แจ้ง 20 พ.ย. 69 "ชาร์ตในมือถือเลื่อนหุบขยายดูไม่ได้") */
+const _mfc = document.createElement("canvas").getContext("2d");
+const fitT = (t, w, f) => { t = String(t || ""); _mfc.font = f; if (_mfc.measureText(t).width <= w) return t; let s = t; while (s.length > 1 && _mfc.measureText(s + "…").width > w) s = s.slice(0, -1); return s + "…"; };
+function miniFlow(el, L, R, links, hd, wFix) {                              // L, R: [{id, lab, sub, v, col}] ; links: [{a, b, v}]
+  if (!wFix) el._mf = [L, R, links, hd];
+  if (!wFix) el.classList.toggle("mfnar", (el.clientWidth || 760) < 520);
+  const cw = el.clientWidth || 760, nar = !wFix && cw < 520;
+  const W = wFix || (nar ? Math.max(280, cw) : Math.max(560, cw)), LW = nar ? 6 : W > 900 ? 360 : 200, bw = 14, pad = 8, tot = L.reduce((t, x) => t + x.v, 0) || 1;
   const H0 = Math.max(180, Math.max(L.length, R.length) * 48), sc = (H0 - pad * (Math.max(L.length, R.length) - 1)) / tot;
-  const put = (A) => { let y = 22; A.forEach((n) => { n.h = Math.max(16, n.v * sc); n.y = y; n.o = y; y += n.h + pad; }); return y; };
-  const H = Math.max(put(L), put(R)), xL = LW, xR = W - (W > 900 ? 300 : 170) - bw, cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
+  const put = (A) => { let y = 22; A.forEach((n) => { n.h = Math.max(16, n.v * sc); n.y = y; n.o = y; y += Math.max(n.h, 26) + pad; }); return y; };   // ช่องป้าย 2 บรรทัดไม่ทับกัน
+  const RLW = nar ? Math.min(175, Math.round(W * 0.47)) : W > 900 ? 300 : 170;
+  const H = Math.max(put(L), put(R)), xL = LW, xR = W - RLW - bw, cut = (t, n) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
   const byL = Object.fromEntries(L.map((n) => [n.id, n])), byR = Object.fromEntries(R.map((n) => [n.id, n]));
-  let svg = `<text x="${xL + bw}" y="13" text-anchor="end" class="flh">${hd ? hd[0] : "บัญชีที่จ่าย"}</text><text x="${xR}" y="13" class="flh">${hd ? hd[1] : "บัตรเครดิต"}</text>`;
+  let svg = `<text x="${nar ? xL : xL + bw}" y="13" text-anchor="${nar ? "start" : "end"}" class="flh">${hd ? hd[0] : "บัญชีที่จ่าย"}</text><text x="${xR}" y="13" class="flh">${hd ? hd[1] : "บัตรเครดิต"}</text>`;
   links.forEach((l) => { const a = byL[l.a], b = byR[l.b]; if (!a || !b) return; const th = Math.max(1, l.v * sc), y0 = a.o + th / 2, y1 = b.o + th / 2, mx = (xL + bw + xR) / 2; a.o += th; b.o += th;
     svg += `<path class="fl" d="M${xL + bw},${y0.toFixed(1)} C${mx},${y0.toFixed(1)} ${mx},${y1.toFixed(1)} ${xR},${y1.toFixed(1)}" stroke="${a.col}" stroke-width="${th.toFixed(1)}" data-tip="${esc(a.lab)} → ${esc(b.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)"><title>${esc(a.lab)} → ${esc(b.lab)} : ${fmt(l.v)} บาท (${fmt0(l.n)} ครั้ง)</title></path>`; });
-  L.forEach((n) => { svg += `<g><rect x="${xL}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xL - 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" text-anchor="end" class="fl1">${esc(cut(n.lab, W > 900 ? 44 : 24))}</text><text x="${xL - 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" text-anchor="end" class="fl2">${M(n.v)} · ${esc(n.sub)}</text></g>`; });
-  R.forEach((n) => { svg += `<g><rect x="${xR}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" class="fl1">${esc(cut(n.lab, 34))}</text><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" class="fl2">${M(n.v)} · ${esc(n.sub)}</text></g>`; });
-  el.innerHTML = `<svg width="${W}" height="${Math.ceil(H + 6)}" viewBox="0 0 ${W} ${Math.ceil(H + 6)}">${svg}</svg>`;
+  const lx = nar ? xL + bw + 6 : xL - 6, la = nar ? "start" : "end", lc = nar ? " flhalo" : "", F1 = "600 12px Sarabun, sans-serif", F2 = "400 11px Sarabun, sans-serif";
+  const tL = (t, f) => (nar ? fitT(t, xR - xL - bw - 14, f) : f === F1 ? cut(t, W > 900 ? 44 : 24) : t), tR = (t, f) => (nar ? fitT(t, RLW - 8, f) : f === F1 ? cut(t, 34) : t);
+  L.forEach((n) => { svg += `<g><rect x="${xL}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${lx}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" text-anchor="${la}" class="fl1${lc}">${esc(tL(n.lab, F1))}</text><text x="${lx}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" text-anchor="${la}" class="fl2${lc}">${esc(tL(M(n.v) + " · " + n.sub, F2))}</text></g>`; });
+  R.forEach((n) => { svg += `<g><rect x="${xR}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"/><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 - 3).toFixed(1)}" class="fl1">${esc(tR(n.lab, F1))}</text><text x="${xR + bw + 6}" y="${(n.y + n.h / 2 + 12).toFixed(1)}" class="fl2">${esc(tR(M(n.v) + " · " + n.sub, F2))}</text></g>`; });
+  const sv = `<svg width="${W}" height="${Math.ceil(H + 6)}" viewBox="0 0 ${W} ${Math.ceil(H + 6)}">${svg}</svg>`;
+  if (wFix) return sv;
+  el.innerHTML = sv + `<button class="ibx sm mfz" type="button" title="ขยายดูเต็มจอ (ซูม / เลื่อนได้)" aria-label="ขยายดูเต็มจอ">${IC("zoom", 15)}</button>`;
 }
+function openSvg(title, html, w) {                                          // เปิดชาร์ต SVG ในตัวดูภาพเต็มจอ (ปุ่ม − / + / พอดีจอ / 100% + เลื่อนได้ 2 แกน)
+  const box = $("#viewerBox"); box.innerHTML = `<div class="svgv">${html}</div>`; VIM = { w, title }; $("#viewerCap").textContent = title; $("#viewer").hidden = false; vZoom(0);
+}
+document.addEventListener("click", (e) => { const b = e.target.closest(".mfz"); if (!b) return; const el = b.parentNode, a = el && el._mf; if (!a) return; e.stopPropagation();
+  const card = el.closest("div:not(.flowbox)"), sec = card && card.parentNode && card.parentNode.querySelector("h2, .sech, h3"), t = (sec && sec.textContent.trim()) || "ชาร์ตเส้นเงิน";
+  openSvg(t, miniFlow(el, ...a, 980), 980); });
 function ccPayView(C) {
   const box = $("#ccPay"); if (!box) return;
   const P = (C.pay && C.pay.list) || [];

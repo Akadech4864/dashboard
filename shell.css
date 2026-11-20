@@ -663,3 +663,13 @@ details.acc.gf>summary .ico.s,details.acc.gf>summary .ico.s svg{color:var(--c)}
   .fback{bottom:calc(88px + env(safe-area-inset-bottom));transition:transform .34s cubic-bezier(.2,.8,.2,1)}
   body.nav-hide .ai-fab,body.nav-hide .fback{transform:translateY(72px)}
 }
+
+/* ---------- ชาร์ตเส้นเงินย่อบนมือถือ (ผู้ใช้แจ้ง 20 พ.ย. 69 "เลื่อนหุบขยายดูชาร์ตไม่ได้") ----------
+   รายการในกริดต้อง min-width:0 (ไม่งั้นกล่องขยายตามชาร์ตจนล้นจอแล้วเลื่อนไม่ได้) ; ป้ายบนเส้นมีขอบสีพื้น ; ปุ่มขยายเต็มจอมุมขวาล่าง */
+.grid2>*,.grid3>*{min-width:0}
+.flowbox{position:relative;max-width:100%}
+.flhalo{paint-order:stroke;stroke:var(--card);stroke-width:4px;stroke-linejoin:round}
+.mfz{position:absolute;right:4px;bottom:4px;z-index:2;background:var(--card)}
+#viewerBox .svgv{background:var(--card);border-radius:12px;padding:8px}
+#viewerBox .svgv svg{display:block;width:100%;height:auto}
+.flowbox.mfnar{overflow:hidden}
