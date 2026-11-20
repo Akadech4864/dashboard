@@ -8,6 +8,9 @@ const nf = (v, d) => v.toLocaleString("en-US", { minimumFractionDigits: d, maxim
 const moneyS = (x) => { const v = Number(x || 0), a = Math.abs(v), m = PREF.money || "m";
   if (m === "full") return nf(v, 2);
   if (m === "auto") return a >= 1e6 ? nf(v / 1e6, 2) + " ล." : a >= 1e5 ? nf(v / 1e5, 2) + " แสน" : nf(v, 0);
+  if (!a) return "0";                                                   // ยอดน้อยไม่แสดงเป็น 0.00 ล. (ผู้ใช้สั่ง 20 พ.ย. 69): < 1,000 = บาท / < 1 แสน = k (พัน)
+  if (a < 1e3) return nf(v, 0);
+  if (a < 99950) return nf(v / 1e3, a < 1e4 ? 2 : 1) + "k";
   return nf(v / 1e6, 2) + " ล."; };
 const fmt = (x) => (PREF.tblShort ? moneyS(x) : nf(Number(x || 0), 2));
 const fmt0 = (x) => Number(x || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
