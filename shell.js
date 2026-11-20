@@ -1003,18 +1003,27 @@ function flow3(el, C3, links, hd) {
    ข้อมูลบทบาทจากหน้าบุคคล (people() ← แท็บข้อมูลทำผังของชีตชุดทำคดี) จับด้วยเลขบัญชีก่อน แล้วชื่อ (ตัดคำนำหน้า ; ชื่อบัญชีที่ต่อท้าย เช่น "เค พาร์ค" ใช้ชื่อบุคคลที่ขึ้นต้นตรงกัน)
    data-pt = ชื่อ / data-pa = เลขบัญชี / data-ptg = ดัชนีกลุ่ม (รายชื่อบุคคลในกลุ่มที่มีบทบาท) ; มือถือแตะรูปบนหัวกล่องกลุ่มได้ */
 let PTI = null;
+const ptNorm = (s) => String(s || "").replace(/(นางสาว|นาวสาว|นาย|นาง|น\.ส\.|ด\.ญ\.|ด\.ช\.|ว่าที่\s*ร\.[ตอ]\.(หญิง)?|ว่าที่ร้อยตรีหญิง|mr\.?|mrs\.?|miss)\s*/gi, "").replace(/\s+/g, "");   // ตัดคำนำหน้าทุกตำแหน่ง + ช่องว่าง
+const ptRole = (p) => !!(p && p.note && !/^[A-Z]{2,6}\s*[\d-]+$/.test(p.note.trim()));                  // มีบทบาทจริง (ไม่ใช่แค่เลขบัญชี เช่นบัญชีรับบริจาค)
 function ptIdx() {
   if (PTI && PTI.src === PPL) return PTI; const P = typeof people === "function" ? people() : [], byA = new Map(), byN = [];
-  P.forEach((p) => { (p.accs || []).forEach((a) => { const k = dg(a.acc); if (k && !byA.has(k)) byA.set(k, p); }); const k = nk(p.name); if (k) byN.push([k, p]); });
-  byN.sort((a, b) => b[0].length - a[0].length); return (PTI = { src: PPL, byA, byN });
+  P.forEach((p) => { (p.accs || []).forEach((a) => { const k = dg(a.acc); if (k && !byA.has(k)) byA.set(k, p); }); const k = ptNorm(p.name); if (k) byN.push([k, p]); });
+  byN.sort((a, b) => b[0].length - a[0].length); return (PTI = { src: PPL, byA, byN, C: new Map() });
 }
-function ptFind(name, acc) { const I = ptIdx(), a = dg(acc || ""); if (a && I.byA.has(a)) { const p = I.byA.get(a); if (p.note || p.img) return p; } const k = nk(name || ""); if (!k) return null;
+function ptCell(el) {                                                   // ชื่อ / เลขบัญชีในช่องตาราง -> บุคคลที่มีบทบาท (แคชตามข้อความ)
+  const t = el.textContent || ""; if (t.length < 4 || t.length > 200) return null; const I = ptIdx(); if (I.C.has(t)) return I.C.get(t); let p = null;
+  for (const d of (t.match(/\d[\d-]{8,}\d/g) || []).map(dg)) { const q = I.byA.get(d); if (q) { p = ptRole(q) ? q : 0; break; } }   // เลขบัญชีตรงก่อน (บัญชีที่ไม่ใช่บุคคล = ไม่แสดง)
+  if (p === null) { const n = ptNorm(t), h = I.byN.find(([k]) => k.length >= 6 && n.includes(k)); p = h && ptRole(h[1]) ? h[1] : null; }
+  p = p || null; I.C.set(t, p); return p;
+}
+function ptFind(name, acc) { const I = ptIdx(), a = dg(acc || ""); if (a && I.byA.has(a)) { const p = I.byA.get(a); if (p.note || p.img) return p; } const k = ptNorm(name || ""); if (!k) return null;
   const h = I.byN.find(([n]) => n === k) || I.byN.find(([n]) => n.length >= 6 && (k.startsWith(n) || n.startsWith(k))); return h ? h[1] : null; }
 function ptCard(p, nm) { const cat = (DB.pcats || []).find((c) => c[0] === p.cat);
   return `<div class="pth">${p.img ? `<img alt="" src="data:image/jpeg;base64,${p.img.th}">` : `<span class="ph">${IC(p.org ? "build" : "user", 22)}</span>`}<div><b>${esc(p.name || nm)}</b>${cat ? `<small><i style="background:${cat[2]}"></i>${esc(cat[1])}</small>` : ""}</div></div>${p.note ? `<div class="ptn">${esc(p.note)}</div>` : '<div class="ptn muted">ไม่มีบันทึกบทบาทในชีตชุดทำคดี</div>'}${(p.accs || []).length ? `<div class="pta">${IC("bank", 12)} ${p.accs.length} บัญชี</div>` : ""}`; }
-function ptShow(el) {
+function ptShow(el, pp) {
   let html = "";
-  if (el.dataset.ptg != null) { const g = +el.dataset.ptg, seen = new Set(), L = [];
+  if (pp) html = ptCard(pp, pp.name);
+  else if (el.dataset.ptg != null) { const g = +el.dataset.ptg, seen = new Set(), L = [];
     (ACC_ROWS ? ACC_ROWS.rows : []).filter((r) => r.g === g).forEach((r) => { const p = ptFind(r.name, r.acc); if (p && p.note && !seen.has(p.name)) { seen.add(p.name); L.push(p); } });
     if (!L.length) return ptHide(); html = `<div class="ptl">${L.slice(0, 12).map((p) => `<div><b>${esc(p.name)}</b><span>${esc(p.note.split("\n")[0])}</span></div>`).join("")}${L.length > 12 ? `<div class="muted">+ อีก ${L.length - 12} คน</div>` : ""}</div>`; }
   else { const p = ptFind(el.dataset.pt, el.dataset.pa); if (!p) return ptHide(); html = ptCard(p, el.dataset.pt); }
@@ -1023,7 +1032,11 @@ function ptShow(el) {
   d.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left)) + "px"; const below = r.bottom + 8 + d.offsetHeight < innerHeight; d.style.top = (below ? r.bottom + 8 : r.top - d.offsetHeight - 8) + scrollY + "px"; d._el = el;
 }
 function ptHide() { const d = document.getElementById("ptip"); if (d) d.hidden = true; }
-document.addEventListener("pointerover", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg]"); if (el) ptShow(el); });
-document.addEventListener("pointerout", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg]"); if (el && !el.contains(e.relatedTarget)) ptHide(); });
+/* ทุกตาราง (ผู้ใช้สั่ง 20 พ.ย. 69 "ทำการ์ดบทบาทแบบนี้ชื่อบุคคลกับทุกตาราง"): ชี้ช่องตารางที่มีชื่อ / เลขบัญชีของบุคคลที่มีบทบาท = การ์ดเดียวกัน (ไม่ต้องใส่ data-pt ทีละตาราง) */
+const PT_TD = "#main td, #modal td, .chdet td";
+document.addEventListener("pointerover", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg]"); if (el) return ptShow(el);
+  const td = e.target.closest(PT_TD); if (!td || td.closest("#ptip") || !DB || !DB.formal) return; const d = document.getElementById("ptip"); if (d && !d.hidden && d._el === td) return;
+  const p = ptCell(td); if (p) { td.classList.add("ptok"); ptShow(td, p); } });
+document.addEventListener("pointerout", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg],td.ptok"); if (el && !el.contains(e.relatedTarget)) ptHide(); });
 document.addEventListener("click", (e) => { const el = e.target.closest(".ghd [data-pt], .ghd [data-ptg]"); if (el && matchMedia("(hover:none)").matches) { e.stopPropagation(); const d = document.getElementById("ptip"); if (d && !d.hidden && d._el === el) return ptHide(); return ptShow(el); } if (!e.target.closest("#ptip")) ptHide(); }, true);
 addEventListener("scroll", () => ptHide(), { passive: true });
