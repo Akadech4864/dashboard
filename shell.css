@@ -673,3 +673,13 @@ details.acc.gf>summary .ico.s,details.acc.gf>summary .ico.s svg{color:var(--c)}
 #viewerBox .svgv{background:var(--card);border-radius:12px;padding:8px}
 #viewerBox .svgv svg{display:block;width:100%;height:auto}
 .flowbox.mfnar{overflow:hidden}
+
+/* ---------- สรุปทางการ › บัญชีที่ควรขอ statement: สีกลุ่ม + สถานะขอ + ปุ่มเพิ่มเข้าแท็บคุมบัญชี (20 พ.ย. 69) ---------- */
+.gnum{display:inline-grid;place-items:center;min-width:26px;height:26px;padding:0 6px;border-radius:999px;background:var(--c);color:var(--ci,#fff);font-weight:700;font-size:.78rem}
+.gacc{display:block;padding-left:9px;border-left:4px solid var(--c);border-radius:2px}
+.tadw{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.tadd{border-color:color-mix(in srgb,#B3261E 45%,var(--line))}
+.gacc{white-space:normal;min-width:190px}
+.gacc .pst{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px}
+.gacc .pst br{display:none}
+@media (min-width:1100px){.gacc .pst{display:none!important}}

@@ -421,11 +421,25 @@ const BRF = {
     return `<p class="muted">ข้อเท็จจริงทางการเงินเพื่อประกอบการสอบปากคำพยาน / ขยายผล — ไม่ใช่การสรุปความรับผิด</p>` +
       tbl(["กลุ่ม", "บัญชี (มี STM)", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับเข้าผู้ต้องหา / บัญชีรับบริจาค"], ks.map((k) => { const t = G[k].tot; return [gTag(gc(k), T[k]), `${G[k].n_acc} (${G[k].n_stm})`, M(t.t1), M(t.pan), M(t.ath), `<b style="color:${t.back > 0 ? "var(--red)" : "inherit"}">${M(t.back)}</b>`]; }), [2, 3, 4, 5]) +
       ks.map((k) => accd(`${T[k]}`, `${G[k].top.length} บัญชี`, tbl(["บัญชี", "STM", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับ"], G[k].top.map((x) => [labAcc(x.acc), x.stm ? "มี" : "–", M(x.t1), M(x.pan), M(x.ath), M(x.back)]), [2, 3, 4, 5]), false, "", gc(k))).join(""); },
-  pend: ({ X }) => `<p class="muted">บัญชีที่ยังไม่มี statement ซึ่งรับเงินจากบัญชีรับบริจาคหรือบัญชีผู้ต้องหาตั้งแต่ 500,000 บาท</p>` +
-    tbl(["ที่", "บัญชี", "กลุ่ม", "จากบัญชีรับบริจาค", "จากบัญชีผู้ต้องหา", "รวม", "ล่าสุด"], X.pending.map((x, i) => [i + 1, labAcc(x.acc), gTag(ENTC[x.ent] || "#90A4AE", X.suspects[x.ent] ? `ผู้ต้องหาที่ ${X.suspects[x.ent].no}` : (X.ent[x.ent] || x.ent)),M(x.t1), M(x.sus), `<b>${M(x.t1 + x.sus)}</b>`, dTh(x.last)]), [3, 4, 5]),
+  pend: ({ X }) => {                                                       // สีตามกลุ่ม + สถานะขอ (แท็บคุมบัญชี) + ปุ่มเพิ่มเข้าชีต (ผู้ใช้สั่ง 20 พ.ย. 69)
+    const AR2 = new Map(accRows().rows.map((r) => [r.k, r])), AD = LS.get("cib_teamadd") || {}, gc = (e) => ENTC[e] || "#90A4AE";
+    const rows = X.pending.map((x, i) => { const m = String(x.acc).match(/^(\S+) (\S+) (.+)$/) || [0, "", x.acc, ""], bank = m[1], acc = m[2], name = m[3], k = dg(acc), r = AR2.get(k), sh = r && r.sheet, mask = /x/i.test(acc), c = gc(x.ent);
+      const st = r && r.ai >= 0 ? `<span class="badge g">${IC("check", 12)} มี statement</span>` : r && /ได้แล้ว/.test(r.st) ? `<span class="badge g">ได้แล้ว รอนำเข้า</span>`
+        : sh && sh.data ? `${stBadge(sh.data)}${sh.ref ? `<br><small class="muted">${esc(sh.ref)}</small>` : ""}` : sh ? `<span class="badge">อยู่ในชีต · ยังไม่ขอ</span>`
+        : AD[k] ? `<span class="badge y">${AD[k].m === "copy" ? "คัดลอกไปวางในชีตแล้ว" : "เพิ่มในชีตแล้ว"}</span>`
+        : mask ? `<span class="badge" title="statement แสดงเลขบัญชีไม่ครบ ต้องหาเลขเต็มก่อน">เลขไม่ครบ</span>`
+        : `<span class="tadw"><span class="badge r">ยังไม่ขอ</span><button class="ibx sm tadd" type="button" data-tadd="${i}" title="เพิ่มบัญชีนี้ในแท็บคุมบัญชี (Google Sheet)" aria-label="เพิ่มในแท็บคุมบัญชี">${IC("plus", 15)}</button></span>`;
+      return [`<span class="gnum" style="--c:${c};--ci:${inkOn(c)}">${i + 1}</span>`, `<span class="gacc" style="--c:${c}">${labAcc(x.acc)}<span class="pst only-m">${st}</span></span>`, st,
+        gTag(c, X.suspects[x.ent] ? `ผู้ต้องหาที่ ${X.suspects[x.ent].no}` : (X.ent[x.ent] || x.ent)), M(x.t1), M(x.sus), `<b>${M(x.t1 + x.sus)}</b>`, dTh(x.last)]; });
+    const nNo = X.pending.filter((x) => { const k = dg(String(x.acc).split(" ")[1] || ""), r = AR2.get(k); return !(r && (r.ai >= 0 || r.sheet)) && !AD[k]; }).length;
+    return `<p class="muted">บัญชีที่ยังไม่มี statement ซึ่งรับเงินจากบัญชีรับบริจาคหรือบัญชีผู้ต้องหาตั้งแต่ 500,000 บาท · ยังไม่อยู่ในแท็บคุมบัญชี ${nNo} บัญชี ${infoI("สถานะขออ่านจากแท็บคุมบัญชีของชีตชุดทำคดี (อัปเดตเมื่อสร้างข้อมูลเว็บใหม่) · ปุ่ม + = เพิ่มบัญชีในแท็บคุมบัญชี: ถ้าตั้งค่าเชื่อม Apps Script แล้ว (ตั้งค่า › ฐานข้อมูล Sheet) จะเพิ่มแถวให้ทันที ถ้ายังไม่ตั้ง จะคัดลอก เลขบัญชี / ชื่อ / ธนาคาร แล้วเปิดแท็บคุมบัญชีให้วางที่คอลัมน์เลขบัญชีของแถวว่างถัดไป")}</p>` +
+      tbl(["ที่", "บัญชี", "สถานะขอ", "กลุ่ม", "จากบัญชีรับบริจาค", "จากบัญชีผู้ต้องหา", "รวม", "ล่าสุด"], rows, [4, 5, 6]);
+  },
 };
 const BRP = {
   chg: () => { const el = $("#chgBox"); if (el) pCharges(el); },
+  pend: ({ X }) => { const el = $(".br-body"); if (!el) return; el.addEventListener("click", (e) => { const b = e.target.closest(".tadd"); if (!b) return; e.stopPropagation();
+    const x = X.pending[+b.dataset.tadd], m = String(x.acc).match(/^(\S+) (\S+) (.+)$/); if (m) teamAdd({ bank: m[1], acc: m[2], name: m[3] }); }); },
   sum: ({ X, K }) => { const L = Object.entries(X.t1_out).filter(([, v]) => v[0] > 0).sort((a, b) => b[1][0] - a[1][0]).slice(0, 16);
     CH.bOut = new Chart($("#bOut"), { type: "bar", data: { labels: L.map(([k]) => entLab(k)), datasets: [{ data: L.map(([, v]) => v[0] / 1e6), backgroundColor: L.map(([k]) => ENTC[k] || "#90A4AE") }] },
       options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${M(c.raw * 1e6)} (${pc(c.raw * 1e6, K.t1_out)})` } } } } }); },
@@ -662,3 +676,49 @@ new MutationObserver(thfQ).observe(document.getElementById("main") || document.b
     });
   }, { passive: true });
 })();
+
+
+/* ---------- เพิ่มบัญชีเข้าแท็บคุมบัญชี (ชีตชุดทำคดี) ผู้ใช้สั่ง 20 พ.ย. 69 ----------
+   มี Apps Script ที่ผู้ใช้ติดตั้งเองในชีต (ตั้งค่า › ฐานข้อมูล Sheet › เชื่อมแท็บคุมบัญชี) = เพิ่มแถวทันที ; ยังไม่ตั้ง = คัดลอก เลขบัญชี / ชื่อ / ธนาคาร + เปิดแท็บคุมบัญชี */
+const teamWs = () => { const o = LS.get("cib_teamws") || {}, d = DB.team_ws || {}; return { url: o.url || d.url || "", token: o.token || d.token || "" }; };
+function teamMark(acc, m) { const A = LS.get("cib_teamadd") || {}; A[dg(acc)] = { m, t: Date.now() }; LS.set("cib_teamadd", A); }
+async function teamAdd(o) {
+  const cfg = teamWs(), note = `เพิ่มจากเว็บแอพ (บัญชีที่ควรขอ statement) ${dTh(new Date().toISOString().slice(0, 10))}`;
+  if (cfg.url) {
+    try { toast("กำลังเพิ่มในแท็บคุมบัญชี…");
+      const r = await fetch(cfg.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ token: cfg.token, action: "addAcc", acc: o.acc, name: o.name, bank: o.bank, note }), redirect: "follow" });
+      const j = await r.json(); if (!j.ok) throw new Error(j.error || "ชีตตอบกลับผิดพลาด");
+      teamMark(o.acc, j.dup ? "dup" : "ok"); toast(j.dup ? `มีบัญชีนี้ในแท็บคุมบัญชีแล้ว (แถว ${j.row})` : `เพิ่มในแท็บคุมบัญชีแล้ว (แถว ${j.row})`); render(); return;
+    } catch (e) { toast("เพิ่มเข้าชีตไม่ได้: " + e.message); return; }
+  }
+  const tsv = [o.acc, o.name, o.bank].join("\t");
+  if (navigator.clipboard) navigator.clipboard.writeText(tsv).catch(() => { });
+  const id = TEAM().id; if (id) window.open(`https://docs.google.com/spreadsheets/d/${id}/edit#gid=0`, "_blank", "noopener");
+  teamMark(o.acc, "copy"); toast("คัดลอก เลขบัญชี / ชื่อ / ธนาคาร แล้ว — วางที่คอลัมน์เลขบัญชีของแถวว่างถัดไปในแท็บคุมบัญชี"); render();
+}
+const TEAM_GS = `/* วางในชีตชุดทำคดี: ส่วนขยาย › Apps Script › ตั้ง TOKEN › ทำให้ใช้งานได้ › การทำให้ใช้งานได้รายการใหม่ › เว็บแอป
+   (เรียกใช้ในฐานะ: ฉัน / ผู้มีสิทธิ์เข้าถึง: ทุกคน) แล้วนำ URL + TOKEN ไปใส่ในเว็บแอป ตั้งค่า › ฐานข้อมูล Sheet › เชื่อมแท็บคุมบัญชี
+   ทำได้อย่างเดียว: เพิ่มแถวบัญชีในแท็บคุมบัญชี (gid 0) ต่อท้ายแถวบัญชีสุดท้าย — ถ้ามีเลขบัญชีนี้อยู่แล้วจะไม่เพิ่มซ้ำ */
+const TOKEN = "ตั้งรหัสเอง";
+const GID = 0;
+function doPost(e) {
+  const b = JSON.parse((e.postData && e.postData.contents) || "{}");
+  if (!TOKEN || b.token !== TOKEN) return out({ ok: false, error: "token ไม่ถูกต้อง" });
+  if (b.action !== "addAcc") return out({ ok: false, error: "action ไม่รู้จัก" });
+  const sh = SpreadsheetApp.getActive().getSheets().filter(function (s) { return s.getSheetId() === GID; })[0];
+  const norm = function (s) { return String(s || "").replace(/\D/g, "").replace(/^0+/, ""); };
+  const acc = norm(b.acc); if (!acc) return out({ ok: false, error: "ไม่มีเลขบัญชี" });
+  const lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    const n = Math.max(1, sh.getLastRow()), v = sh.getRange(1, 1, n, 2).getValues(); let last = 0, no = 0;
+    for (let i = 0; i < v.length; i++) { if (norm(v[i][1]) === acc) return out({ ok: true, dup: true, row: i + 1 });
+      if (String(v[i][1]).trim() && /\d{6,}/.test(String(v[i][1]).replace(/\D/g, ""))) { last = i + 1; const k = parseInt(v[i][0], 10); if (!isNaN(k)) no = Math.max(no, k); } }
+    sh.insertRowAfter(last); const row = last + 1;
+    sh.getRange(row, 1, 1, 4).setValues([[no + 1, "'" + String(b.acc), b.name || "", b.bank || ""]]);
+    if (b.note) sh.getRange(row, 12).setValue(b.note);
+    return out({ ok: true, row: row });
+  } finally { lock.releaseLock(); }
+}
+function out(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+`;
+if (typeof ICP !== "undefined" && !ICP.plus) ICP.plus = '<path d="M12 5v14M5 12h14"/>';

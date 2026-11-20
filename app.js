@@ -13,7 +13,7 @@ const fmt = (x) => (PREF.tblShort ? moneyS(x) : nf(Number(x || 0), 2));
 const fmt0 = (x) => Number(x || 0).toLocaleString("en-US", { maximumFractionDigits: 0 });
 const M = (x) => moneyS(x);
 const MTH = ["", "ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
-const dTh = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); return y ? `${d} ${MTH[m]} ${String(y + 543).slice(2)}` : String(iso); };
+const dTh = (iso) => { if (!iso) return ""; const [y, m, d] = String(iso).slice(0, 10).split("-").map(Number); if (!y) return String(iso); if (!m) return `ปี ${y + 543}`; if (!d) return `${MTH[m]} ${String(y + 543).slice(2)}`; return `${d} ${MTH[m]} ${String(y + 543).slice(2)}`; };   // รองรับวันที่ไม่ครบ (ปี / ปี-เดือน)
 const toast = (t) => { const e = $("#toast"); e.textContent = t; e.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (e.hidden = true), 3200); };
 
 let KEY = null, DB = null, C = null, CH = {};
@@ -80,9 +80,13 @@ async function sheetCall(body) {
 }
 const rowsToContent = (rows) => { const o = {}; Object.keys(SEC).forEach((k) => (o[k] = [])); rows.filter((r) => SEC[r.section]).sort((a, b) => (a.order || 0) - (b.order || 0)).forEach((r) => o[r.section].push(r)); return o; };
 const contentToRows = (c) => Object.keys(SEC).flatMap((s) => (c[s] || []).map((it, i) => ({ section: s, id: it.id, order: i + 1, title: it.title || "", detail: it.detail || "", extra1: it.extra1 || "", extra2: it.extra2 || "", status: it.status || "", date: it.date || "" })));
+/* หมวดที่ผู้ดูแลเขียนใหม่ทั้งชุด (DB.content._ver) แทนค่าที่ค้างในเครื่องผู้ใช้ — เช่น ลำดับเหตุการณ์รุ่น 20 พ.ย. 69 (ผู้ใช้สั่ง "ใส่เฉพาะสาระสำคัญของคดี") */
+function verSync() { const V = DB.content._ver || {}; C._ver = C._ver || {}; let ch = 0;
+  Object.keys(V).forEach((k) => { if (C._ver[k] !== V[k]) { C[k] = JSON.parse(JSON.stringify(DB.content[k] || [])); C._ver[k] = V[k]; ch = 1; } }); if (ch) LS.set("cib_content", C); }
 async function loadContent() {
   C = LS.get("cib_content") || JSON.parse(JSON.stringify(DB.content));
   Object.keys(SEC).forEach((k) => (C[k] = C[k] || (DB.content[k] ? JSON.parse(JSON.stringify(DB.content[k])) : [])));   // หมวดใหม่ (เช่น ข้อเสนอแนะ) ใช้ค่าตั้งต้นจากข้อมูลคดี
+  verSync();
   if (sheetCfg().url) {
     try { const j = await sheetCall({ action: "list" }); if (j && j.rows && j.rows.length) { C = rowsToContent(j.rows);
       Object.keys(SEC).forEach((k) => { if (!j.rows.some((r) => r.section === k) && (DB.content[k] || []).length) C[k] = JSON.parse(JSON.stringify(DB.content[k])); });   // หมวดที่ยังไม่มีในชีต
@@ -118,8 +122,13 @@ function SETDB() {                                                     // ตั
     <p class="muted" style="margin:0;font-size:.88rem">วาง URL ของ Apps Script Web App (ดูวิธีตั้งค่าใน README) — ถ้าเว้นว่าง การแก้ไขจะเก็บในเครื่องนี้เท่านั้น</p>
     <label>URL Web App</label><input id="sUrl" value="${esc(c.url)}" placeholder="https://script.google.com/macros/s/…/exec">
     <label>โทเคน</label><input id="sTok" value="${esc(c.token)}">
+    <h4 style="margin:14px 0 2px">เชื่อมแท็บคุมบัญชี (ชีตชุดทำคดี) ${infoI("ใช้กับปุ่ม + ในสรุปทางการ › บัญชีที่ควรขอ statement เพื่อเพิ่มบัญชีลงแท็บคุมบัญชีโดยตรง — ผู้มีสิทธิ์แก้ชีตติดตั้ง Apps Script เอง: กดคัดลอกโค้ด › เปิดชีต › ส่วนขยาย › Apps Script › วางโค้ด ตั้ง TOKEN › ทำให้ใช้งานได้เป็นเว็บแอป (เรียกใช้ในฐานะ: ฉัน / ผู้มีสิทธิ์: ทุกคน) › นำ URL และ TOKEN มาใส่ที่นี่ ; สคริปต์เพิ่มแถวได้อย่างเดียว ไม่ลบ/แก้แถวเดิม ; ยังไม่ตั้งค่า = ปุ่ม + จะคัดลอกข้อมูลแล้วเปิดแท็บคุมบัญชีให้วางเอง")}</h4>
+    <label>URL Web App (แท็บคุมบัญชี)</label><input id="tUrl" value="${esc(teamWs().url)}" placeholder="https://script.google.com/macros/s/…/exec">
+    <label>โทเคน</label><input id="tTok" value="${esc(teamWs().token)}">
+    <div class="frow" style="margin-top:6px"><button class="btn o" id="tCode" type="button">คัดลอกโค้ด Apps Script</button></div>
     <div class="modal-foot"><button class="btn o" id="sPull">ดึงจาก Sheet</button><button class="btn o" id="sPush">ส่งข้อมูลทั้งหมดขึ้น Sheet</button><button class="btn o" id="sExp">ส่งออก JSON</button><button class="btn o" id="sReset">คืนค่าตั้งต้น</button><button class="btn" id="sSave">บันทึก</button></div>`);
-  const keep = () => LS.set("cib_sheet", { url: $("#sUrl").value.trim(), token: $("#sTok").value.trim() });
+  const keep = () => { LS.set("cib_sheet", { url: $("#sUrl").value.trim(), token: $("#sTok").value.trim() }); LS.set("cib_teamws", { url: $("#tUrl").value.trim(), token: $("#tTok").value.trim() }); };
+  $("#tCode").onclick = () => { if (navigator.clipboard) navigator.clipboard.writeText(TEAM_GS).then(() => toast("คัดลอกโค้ด Apps Script แล้ว"), () => download("team_append.gs", TEAM_GS, "text/plain")); else download("team_append.gs", TEAM_GS, "text/plain"); };
   $("#sSave").onclick = () => { keep(); closeModal(); toast("บันทึกการตั้งค่าแล้ว"); };
   $("#sPull").onclick = async () => { keep(); closeModal(); await loadContent(); render(); };
   $("#sPush").onclick = async () => { keep(); try { const r = await sheetCall({ action: "replaceAll", rows: contentToRows(C) }); toast(r ? `ส่งขึ้น Sheet แล้ว ${r.n || ""} แถว` : "ยังไม่ได้ใส่ URL"); } catch (e) { toast("ส่งไม่สำเร็จ: " + e.message); } };
@@ -241,6 +250,7 @@ function start() {
   prep();
   C = LS.get("cib_content") || JSON.parse(JSON.stringify(DB.content));
   Object.keys(SEC).forEach((k) => (C[k] = C[k] || (DB.content[k] ? JSON.parse(JSON.stringify(DB.content[k])) : [])));
+  verSync();
   shellInit();
   const h0 = (location.hash || "#home").slice(1);
   history.replaceState({ t: h0 }, "", "#" + h0);
@@ -297,8 +307,8 @@ const CHG3 = [["F", "ฉ้อโกงประชาชน", /ฉ้อโก�
 function pCase() {
   const ev = [...C.events].sort((a, b) => String(a.date).localeCompare(String(b.date))), find = (rx, from) => (ev.find((e) => rx.test(e.title) && (!from || e.date >= from)) || {}).date;
   const d2 = find(/จดทะเบียนมูลนิธิ/) || DB.cut || "2022-06-25", d4 = find(/หมายจับ|จับกุม|แจ้งข้อ/, d2) || "9999", d3 = find(/ชี้แจง|รับเรื่อง|แถลง|ร้องเรียน|ข่าว/, d2) || d4;
-  const PH = [["เริ่มรับบริจาค", "ก่อนจดทะเบียนมูลนิธิ — รับเงินผ่านบัญชีส่วนตัว", "#00264D", "coin", "", d2], ["จดทะเบียน / ดำเนินงานมูลนิธิ", "รับบริจาค ก่อสร้าง และเส้นเงินสำคัญ", "#1E6FD9", "home", d2, d3 < d4 ? d3 : d4],
-    ["ตรวจสอบ", "ข่าว ชี้แจง และหน่วยงานรับเรื่อง", "#C98A00", "search", d3 < d4 ? d3 : d4, d4], ["ดำเนินคดี", "หมายจับ จับกุม อายัด และแจ้งข้อกล่าวหา", "#B3261E", "scale", d4, "9999"]]
+  const PH = [["เริ่มรับบริจาค", "ก่อนจดทะเบียนมูลนิธิ — รับเงินผ่านบัญชีส่วนตัว", "#00264D", "coin", "", d2], ["จดทะเบียน / ดำเนินงานมูลนิธิ", "จดทะเบียนและรับบริจาคในนามมูลนิธิ", "#1E6FD9", "home", d2, d3 < d4 ? d3 : d4],
+    ["ตรวจสอบ", "ข้อสงสัยในสื่อ ร้องเรียน สืบสวน", "#C98A00", "search", d3 < d4 ? d3 : d4, d4], ["ดำเนินคดี", "หมายจับ จับกุม ตรวจค้น สอบพยาน แจ้งข้อกล่าวหา สรุปสำนวน", "#B3261E", "scale", d4, "9999"]]
     .map(([t, s, c, ic, a, b]) => ({ t, s, c, ic, ev: ev.filter((e) => (!a || e.date >= a) && e.date < b) })).filter((p) => p.ev.length);
   const SUS = tsSus(), sheet = (t) => { const k = nk(String(t).split("(")[0]).slice(0, 6); return SUS.find((r) => nk(r.name).replace(/^สาว/, "").slice(0, 6) === k || nk(r.name).includes(k)); };
   const heads = (s) => String(s.detail || "").split(" / ").map((x) => x.split(" — ")[0]).join(" | ");   // อ่านเฉพาะหัวข้อหา ไม่อ่านหมายเหตุหลัง " — "
