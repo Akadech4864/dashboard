@@ -757,3 +757,7 @@ svg.lk .lkt.w{fill:#fff}
 .yrb b{text-align:right;font-variant-numeric:tabular-nums}
 .yrb.intra{opacity:.6}
 @media (max-width:640px){.yrb{grid-template-columns:1fr 84px;gap:2px 8px}.yrb .yt{grid-column:1/-1;order:3}.yrb small{grid-column:1/-1;order:4}}
+
+.yrt .yrgo{width:36px;text-align:center}
+.yrb.click{cursor:pointer;border-radius:8px;padding:2px 4px;margin:0 -4px}
+.yrb.click:hover{background:color-mix(in srgb,var(--line) 45%,transparent)}
