@@ -1198,7 +1198,7 @@ function prep() {
 }
 let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
 const fSnap = () => ({ ...F, accs: new Set(F.accs), gx: new Set(F.gx || []), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])) });
-function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), gx: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: "fifo", chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
+function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), gx: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: "fifo", chain: [], flc: innerWidth > 1100 ? 5 : 4, dn: false }; SHOWN = 200; }
 /* ตัวกรองรายการ รุ่น 20 พ.ย. 69 (ผู้ใช้ถาม "สลับตำแหน่งตัวกรอง บัญชี ↔ กลุ่มคู่โอน ทำไมตัวเลขไม่เท่ากัน"):
    บัญชี / ทั้งกลุ่ม = ฝั่ง X ; กลุ่มคู่โอน = ฝั่ง Y → นับรายการระหว่าง X กับ Y ไม่ว่าจะมาจาก statement ฝั่งใด
    แถวจาก statement ของ X : คู่โอนต้องอยู่ใน Y ; แถวจาก statement ฝั่งอื่นที่คู่โอนอยู่ในกลุ่ม X (ทั้งกลุ่ม) : เจ้าของ statement ต้องอยู่ใน Y
@@ -1304,7 +1304,10 @@ function pAna() {
     else if (b.dataset.pq != null) { FHIST.push(fSnap()); const q = +b.dataset.pq; if (!q) F.pq.clear(); else { tog(F.pq, q); if (F.cpm === "raw") F.cpm = "all"; } }
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
     else if (b.dataset.fc) F.flc = +b.dataset.fc;
-    else if (b.id === "flClr" || b.dataset.flall) { FHIST.push(fSnap()); F.chain = []; F.noAuto = true; }
+    else if (b.id === "flClr") { FHIST.push(fSnap()); F.chain = []; F.noAuto = true; F.chAll = false; }
+    else if (b.dataset.flall) { FHIST.push(fSnap()); F.chAll = true; }            // แสดงกล่องทอด 1 ทั้งหมด โดยคงกล่องที่คลี่ไว้ -> กดเลือกคลี่เพิ่มได้ (ผู้ใช้ถาม 20 พ.ย. 69 "กดได้ทีละ 1 บช")
+    else if (b.dataset.flonly) { FHIST.push(fSnap()); F.chAll = false; }
+    else if (b.dataset.fcmore) { const want = F.flc + +b.dataset.fcmore; F.flc = [3, 4, 5, 6, 8].find((x) => x >= want) || 8; }
     else if (b.id === "flBack" || b.closest("#flBack") || b.dataset.fb) { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; const y = F._y; delete F._y; if (y != null) { upd(); setTimeout(() => scrollTo({ top: y }), 30); return; } }
     else if (b.id === "dnGo") return donorSearch($("#dnQ").value);
     else if (b.dataset.dn != null) return donorDetail(+b.dataset.dn);
@@ -1453,7 +1456,8 @@ function pAna() {
       const C = (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])), S = C[at] || [];
       if (S.includes(id)) { const S2 = S.filter((x) => x !== id); F.chain = S2.length ? C.slice(0, at).concat([S2], C.slice(at + 1)) : C.slice(0, at); }
       else { C[at] = S.concat([id]); F.chain = C.slice(0, at + 1).concat(C.slice(at + 1)); }
-      F.noAuto = !(F.chain && F.chain.length); if (at === 0) F.chAuto = false;   // เลือกกล่องทอด 1 เอง = แสดงเฉพาะเส้นที่ไล่
+      F.noAuto = !(F.chain && F.chain.length); if (at === 0) F.chAuto = false;   // เลือกกล่องทอด 1 เอง = แสดงเฉพาะเส้นที่ไล่ (เว้นแต่กดแสดงกล่องทอด 1 ทั้งหมด F.chAll)
+      if (F.noAuto) F.chAll = false;                                        // ยุบหมดแล้ว = กลับโหมดปกติ
       tip.hidden = true; return upd(); }
     if (col >= 3) { toast("บัญชีนี้ยังไม่มี statement จึงไล่ทอดต่อไม่ได้"); return; }
     if ("gcGa".includes(id[0])) FHIST.push(fSnap());
@@ -1944,7 +1948,7 @@ function flowBuild(pair) {
   const lk = (a, b, v, n) => { const k = a + ">" + b; let o = links.get(k); if (!o) links.set(k, (o = { a, b, v: 0, n: 0 })); o.v += v; o.n += n; };
   const CH = (F.chain || []).filter((a) => a && a.length), time = F.flt !== false, chain = [];
   if (time && CH.length) {
-    const s0 = new Set(CH[0]), seeds = [], srcA = new Map(), col2 = new Map(), showAll = !!F.chAuto, rest = new Map(), srcR = new Map();
+    const s0 = new Set(CH[0]), seeds = [], srcA = new Map(), col2 = new Map(), showAll = !!(F.chAuto || F.chAll), rest = new Map(), srcR = new Map();
     for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i), d = lid(ci);
       if (!s0.has(d)) { if (showAll) { const e = rest.get(r[0] + "|" + d) || [0, 0]; e[0] += r[3]; e[1]++; rest.set(r[0] + "|" + d, e); add(srcR, r[0], r[3]); } continue; }
       seeds.push({ i, amt: r[3] }); add(srcA, r[0], r[3]); const e = col2.get(r[0] + "|" + d) || [0, 0]; e[0] += r[3]; e[1]++; col2.set(r[0] + "|" + d, e); }
@@ -2134,9 +2138,11 @@ function drawFlow(box, pair) {
   const sk0 = C0[0] && C0[0].size ? 0 : 1;
   let hid = "";
   if (!dn && F.flt !== false && chain.length && C0[2]) { let all = 0; for (const [, v] of pair) all += v[1]; const shown = [...C0[2].values()].reduce((t, n) => t + n.in, 0), h = all - shown;
-    if (h >= 1) hid = `<div class="flnote">${IC("info", 14)} แสดงเฉพาะเส้นที่ไล่จากกล่องที่คลี่ ▼ · เงินออกอื่นตามตัวกรอง <b>${M(h)}</b> ไม่แสดง <button class="ibx sm" data-flall="1" title="แสดงทุกกล่อง (ยุบที่คลี่)" aria-label="แสดงทุกกล่อง">${IC("shrink", 14)}</button></div>`; }
-  box.innerHTML = ban + hid + (first > sk0 ? `<div class="muted" style="font-size:.78rem;padding:2px 8px">◀ ${first - sk0}</div>` : "") +
+    if (h >= 1) hid = `<div class="flnote">${IC("info", 14)} แสดงเฉพาะเส้นที่ไล่จากกล่องที่คลี่ ▼ · เงินออกอื่นตามตัวกรอง <b>${M(h)}</b> ไม่แสดง <button class="ibx sm" data-flall="1" title="แสดงกล่องทอด 1 ทั้งหมด (คงที่คลี่ไว้ · กดกล่อง ▶ เพื่อคลี่เพิ่ม)" aria-label="แสดงกล่องทอด 1 ทั้งหมด">${IC("more", 14)}</button></div>`;
+    else if (F.chAll) hid = `<div class="flnote">${IC("info", 14)} แสดงกล่องทอด 1 ทั้งหมด · คลี่แล้ว ${(chain[0] || []).length} กล่อง ▼ ${infoI("กดกล่อง ▶ เพื่อคลี่เพิ่ม · กดกล่อง ▼ อีกครั้งเพื่อยุบ")} <button class="ibx sm" data-flonly="1" title="แสดงเฉพาะเส้นที่ไล่" aria-label="แสดงเฉพาะเส้นที่ไล่">${IC("less", 14)}</button></div>`; }
+  box.innerHTML = ban + hid + (first > sk0 ? `<div class="flhid"><button class="chip sm" data-fcmore="${first - sk0}" title="แสดงคอลัมน์ที่ซ่อน ${first - sk0} คอลัมน์">◀ ${first - sk0} คอลัมน์</button></div>` : "") +
     `<svg width="${W}" height="${Math.ceil(H + 8)}" viewBox="0 0 ${W} ${Math.ceil(H + 8)}">${hd}${svg}</svg>`;
+  { const nc_ = chain.length; if (nc_ > (drawFlow._nc || 0) && box.scrollWidth > box.clientWidth + 8) setTimeout(() => (box.scrollLeft = box.scrollWidth), 40); drawFlow._nc = nc_; }   // มีคอลัมน์ใหม่ = เลื่อนไปขวาสุด ; คลี่เพิ่มในคอลัมน์เดิมไม่เลื่อน
   const sv_ = box.querySelector("svg");                                  // ชี้กล่องที่มีป้ายเลข = ไฮไลต์กล่องอื่นของบัญชีเดียวกัน
   if (sv_) { sv_.addEventListener("pointerover", (e) => { const g = e.target.closest("[data-ak]"); sv_.querySelectorAll(".akon").forEach((x) => x.classList.remove("akon")); if (g) sv_.querySelectorAll(`[data-ak="${g.dataset.ak}"]`).forEach((x) => x.classList.add("akon")); });
     sv_.addEventListener("pointerleave", () => sv_.querySelectorAll(".akon").forEach((x) => x.classList.remove("akon"))); }
