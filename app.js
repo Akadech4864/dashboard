@@ -178,6 +178,8 @@ function cellKey(t) {                                                   // ข�
   t = String(t || "").trim();
   const d = t.match(/^(\d{1,2}) (ม\.ค\.|ก\.พ\.|มี\.ค\.|เม\.ย\.|พ\.ค\.|มิ\.ย\.|ก\.ค\.|ส\.ค\.|ก\.ย\.|ต\.ค\.|พ\.ย\.|ธ\.ค\.) (\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
   if (d) { let y = +d[3]; if (y < 100) y += 2500; return ((y * 100 + TMON[d[2]]) * 100 + +d[1]) * 1e6 + (+(d[4] || 0)) * 1e4 + (+(d[5] || 0)) * 100 + (+(d[6] || 0)); }
+  const mu = t.match(/^(-?[\d,]+(?:\.\d+)?)\s*(ล\.|k|แสน)$/);         // ยอดย่อ ล. / k / แสน -> บาท (เรียงและส่งออกถูกเมื่อปนหน่วย)
+  if (mu) return parseFloat(mu[1].replace(/,/g, "")) * (mu[2] === "k" ? 1e3 : mu[2] === "แสน" ? 1e5 : 1e6);
   const n = t.replace(/[,\s]|บาท|ล\.|ครั้ง|%/g, "");
   if (/^-?\d+(\.\d+)?$/.test(n)) return parseFloat(n);
   return t;
@@ -362,12 +364,14 @@ function pCharges(el) {
   const tick = (on, col) => (on ? `<span class="ck" style="background:${col}">${IC("check", 15)}</span>` : `<span class="ck no">–</span>`);
   const stat = (p) => { const st = p.s.status || ""; const sh = p.sh; return `${st ? badge(st) : ""}${sh ? ` <span class="badge y">${IC("cal", 12)} ${esc(sh.issue.replace(/\s+/g, " ").replace(/^แจ้งข้อกล่าวหา\s*/, "นัดแจ้งข้อกล่าวหา "))} ${esc(sh.date)}${sh.time ? " " + esc(sh.time) : ""}${sh.st ? " · " + esc(sh.st) : ""}</span>` : ""}`; };
   const m = el || $("#main");
+  const T1IN = new Map();                                              // รับเงินบริจาคโดยตรง (จากสรุปทางการ) รวมไว้ในตารางนี้แทนตารางซ้ำ (ผู้ใช้สั่ง 20 พ.ย. 69)
+  if (DB.formal && DB.formal.suspects && typeof chgOf === "function") Object.values(DB.formal.suspects).forEach((fs) => { const c = chgOf(fs.name); if (c) T1IN.set(c.id, fs.in_t1 || 0); });
   const ab = addBtn("charges");                                         // ฝังในสรุปทางการ (el) = ไม่ซ้ำหัวข้อกับหัวบท (ผู้ใช้แจ้ง 20 พ.ย. 69 "หัวข้อหลักและย่อยดูซ้ำกัน")
   m.innerHTML = `${el ? (ab ? `<div class="frow" style="justify-content:flex-end;margin:-4px 0 6px">${ab}</div>` : "") : `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย</small> ${ab}</h2>`}
   <div class="tiles"><button class="tile ${!sel ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ผู้ต้องหาทั้งหมด</span></button>${COMBO.map(tile).join("")}</div>
   <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย${sel ? " · " + esc(cLab(sel)) : ""}</small></h2>
-  <div class="tblwrap"><table class="cmx"><tr><th class="ptc" data-nos="1"></th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
-    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="ptc">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
+  <div class="tblwrap"><table class="cmx"><tr><th class="ptc" data-nos="1"></th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}${T1IN.size ? `<th class="n">รับเงินบริจาคโดยตรง</th>` : ""}<th>สถานะ</th></tr>
+    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="ptc">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}${T1IN.size ? `<td class="n"><b>${T1IN.has(p.s.id) ? M(T1IN.get(p.s.id)) : "–"}</b></td>` : ""}<td>${stat(p)}</td></tr>`).join("")}
   </table></div>
 `;
   m.onclick = (e) => {

@@ -340,7 +340,7 @@ function pBrief() {
   $("#main").innerHTML = nav + head + `<div class="br-body">${(BRF[ch[0]] || (() => ""))(N_)}</div>` + pn;
   { const n = $(".br-nav"), o = n && n.querySelector(".on"); if (o) n.scrollLeft = o.offsetLeft - (n.clientWidth - o.offsetWidth) / 2; }   // บทที่เลือก (เหลือง) เลื่อนมาอยู่กลางแถบบนมือถือ
   (BRP[ch[0]] || (() => { }))(N_);
-  wireGo();
+  wireGo(); sideSubs();                                               // ไฮไลท์บทในเมนูข้างตามบทที่เปิด (กดปุ่มบทถัดไป/ก่อนหน้า ; ผู้ใช้แจ้ง 20 พ.ย. 69)
   const m = $("#main"), prev = m.onclick;
   m.onclick = (e) => { const p = e.target.closest("[data-sp]"); if (p) { BRS = p.dataset.sp; render(); subPanel(); return; } prev(e); };
   const cur = $(".br-nav .on"); if (cur) cur.scrollIntoView({ inline: "center", block: "nearest" });
@@ -360,9 +360,8 @@ const BRF = {
     return `<div class="facts">${L.map(([ic, t, s, c]) => `<div class="fact" style="--c:${c}">${IC(ic, 22)}<div><b>${t}</b><p>${s}</p></div></div>`).join("")}</div>
       ${secH("pie", "เงินออกจากบัญชีรับบริจาค แยกผู้รับ")}<div class="card"><div class="chartbox tall"><canvas id="bOut"></canvas></div></div>`;
   },
-  chg: ({ X, S }) => `<div id="chgBox"></div>${secH("coin", "ข้อหา กับเงินที่รับจากบัญชีรับบริจาคโดยตรง")}<p class="muted">✓ = ข้อหาที่แจ้ง / มีมติ ; สถานะตามข้อมูลชุดสืบสวน (บางรายการตามข่าว ต้องตรวจทานกับสำนวน)</p>` + tbl(["ที่", "ผู้ต้องหา", "ฉ้อโกงประชาชน", "พ.ร.บ.คอมพิวเตอร์", "ฟอกเงิน", "รับเงินบริจาคโดยตรง", "สถานะ"],
-    susKeys().map((k) => { const s = S[k], c = chgOf(s.name) || {}; return [s.no, `<a href="#" data-sus="${k}"><b>${esc(s.name)}</b></a><br><small class="muted">${esc(s.role.split(" ; ")[0])}</small>`, ...["F", "C", "M"].map((q) => (s.charges.includes(q) ? `<b style="color:${CHC[q][1]}">✓</b>` : "–")), M(s.in_t1), esc(c.status || "")]; }), [5]) +
-    `<div class="note">ฉ้อโกงประชาชน ป.อ. ม.341 ประกอบ ม.343 · นำเข้าข้อมูลเท็จ พ.ร.บ.คอมพิวเตอร์ ม.14 (1) · ฟอกเงิน พ.ร.บ.ป้องกันและปราบปรามการฟอกเงิน ม.5 ประกอบ ม.60 — เลขมาตราต้องตรวจทานกับตัวบทฉบับปัจจุบัน</div>`,
+  chg: () => `<div id="chgBox"></div>
+    <div class="note">✓ = ข้อหาที่แจ้ง / มีมติ ; สถานะตามข้อมูลชุดสืบสวน (บางรายการตามข่าว ต้องตรวจทานกับสำนวน) · ฉ้อโกงประชาชน ป.อ. ม.341 ประกอบ ม.343 · นำเข้าข้อมูลเท็จ พ.ร.บ.คอมพิวเตอร์ ม.14 (1) · ฟอกเงิน พ.ร.บ.ป้องกันและปราบปรามการฟอกเงิน ม.5 ประกอบ ม.60 — เลขมาตราต้องตรวจทานกับตัวบทฉบับปัจจุบัน</div>`,   // ตารางข้อหา + เงินรับตรง รวมในตารางบน (ผู้ใช้สั่ง 20 พ.ย. 69 "ซ้ำซ้อน")
   t1: ({ X }) => {
     const MO = X.monthly || {}, top = Object.entries(MO).sort((a, b) => (b[1].don || 0) - (a[1].don || 0)).slice(0, 6).sort((a, b) => a[0].localeCompare(b[0]));
     const susM = (v) => ["pan", "ath", "tre", "con", "bld", "oth_sus"].reduce((a, k) => a + (v[k] || 0), 0);
@@ -451,7 +450,7 @@ const BRP = {
     const P = [["don", "เงินบริจาคเข้า", "#E0A800", "line"], ["pan", "ผู้ต้องหาที่ 1", SCOL.pan], ["ath", "ผู้ต้องหาที่ 2", SCOL.ath], ["con", "ผู้ต้องหาที่ 7", SCOL.con], ["tre", "ผู้ต้องหาที่ 3", SCOL.tre], ["bld", "ผู้ต้องหาที่ 8", SCOL.bld], ["cash", "ถอนเงินสด", "#616161"], ["pub", "สาธารณประโยชน์", "#F9A825"]];
     CH.bMon = new Chart($("#bMon"), { data: { labels: ks.map((k) => `${MTH[+k.slice(5, 7)]} ${(+k.slice(0, 4) + 543) % 100}`), datasets: P.map(([k, l, c, t]) => ({ type: t || "bar", label: l, data: ks.map((m) => (MO[m][k] || 0) / 1e6), backgroundColor: c, borderColor: c, stack: t ? undefined : "o", pointRadius: 0, borderWidth: t ? 2 : 0, order: t ? 0 : 1 })) },
       options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { stacked: true, ticks: { maxTicksLimit: 14 } }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${M(c.raw * 1e6)}` } } } } });
-    const yl = (DB.over.yearly || []);
+    const yl = (DB.over.yearly || []).filter((r) => r[0]);   // ตัดแถวผลรวมช่วงเวลา (ทุกช่วง / ก่อน / หลังตั้งมูลนิธิ) ออกจากกราฟรายปี
     CH.bYear = new Chart($("#bYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อน" : " หลัง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] }, options: { maintainAspectRatio: false } }); },
   don: ({ X }) => { const D = X.donors; if (!D) return; const B = D.bands.filter((b) => b[2] > 0), labs = ["< 1,000", "1,000–9,999", "10,000–99,999", "100,000–999,999", "≥ 1 ล้าน"];
     CH.bBand = new Chart($("#bBand"), { type: "bar", data: { labels: B.map((b) => labs[D.bands.indexOf(b)]), datasets: [{ label: "ผู้บริจาค (ราย)", data: B.map((b) => b[2]), backgroundColor: "#E0A800" }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาค แยกตามยอดสะสมต่อราย" } } } });
