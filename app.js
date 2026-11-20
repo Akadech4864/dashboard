@@ -1080,19 +1080,20 @@ function prep() {
   resetF();
 }
 let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
-const fSnap = () => ({ ...F, accs: new Set(F.accs), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])) });
-function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: "fifo", chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
+const fSnap = () => ({ ...F, accs: new Set(F.accs), gx: new Set(F.gx || []), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])) });
+function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), gx: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: "fifo", chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
 function filterTx() {
-  const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase();
+  const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase(), gx = !!(F.gx && F.gx.size);
   const out = [];
   for (let i = 0; i < DB.tx.length; i++) {
     const r = DB.tx[i];
     if (r[1] < a || r[1] >= b) continue;
-    if (F.accs.size && !F.accs.has(r[0])) continue;
     if (F.kinds.size && !F.kinds.has(r[2])) continue;
     if (r[3] < F.min) continue;
     if (F.cpm === "pair" && !(txQ(i) && pqOn(txQ(i)))) continue;
     const cp = DB.cps[cpOf(i)];
+    // บัญชี: ที่เลือกรายบัญชี หรือ "ทั้งกลุ่ม" = บัญชีของกลุ่มที่มี statement + รายการของบัญชีอื่นที่คู่โอนอยู่ในกลุ่มนั้น (เห็นบัญชีของกลุ่มที่ยังไม่มี statement ; ผู้ใช้สั่ง 20 พ.ย. 69)
+    if ((F.accs.size || gx) && !(F.accs.has(r[0]) || (gx && (F.gx.has(DB.accounts[r[0]].g) || F.gx.has(cp[3]))))) continue;
     if (F.cpg.size && !F.cpg.has(cp[3])) continue;
     if (q && !(cp[1].toLowerCase().includes(q) || cp[0].includes(q))) continue;
     out.push(i);
@@ -1102,6 +1103,7 @@ function filterTx() {
 function pAna() {
   const gAcc = {}; DB.accounts.forEach((a, i) => (gAcc[a.g] = gAcc[a.g] || []).push(i));
   const usedCpg = [...new Set(DB.cps.map((c) => c[3]))].sort((x, y) => x - y);
+  const GXG = DB.groups.map((g, i) => (["t1", "pan", "pco", "ath", "rel", "tre", "con", "bld", "ctr", "lnd", "nom", "kpk", "sst", "sus"].includes(g[0]) && (gAcc[i] || usedCpg.includes(i)) ? i : -1)).filter((i) => i >= 0);   // กลุ่มบุคคลที่เลือก "ทั้งกลุ่ม" ได้
   const yrs = []; for (let y = +DB.lo.slice(0, 4); y <= +DB.hi.slice(0, 4); y++) yrs.push(y);
   const PKS = (DB.pk || []).map(() => [0, 0]); (DB.txq || []).forEach((q, i) => { if (q) { PKS[q][0]++; PKS[q][1] += DB.tx[i][3]; } });
   const CPM_BTNS = [["raw", "ยอดโอนตรง (ค่าเริ่มต้น)"], ["all", "รวมคู่ถอน-ฝากเงินสด"], ["pair", "เฉพาะคู่ถอน-ฝากเงินสด"]].map(([k, l]) => `<button class="chip" data-cm="${k}">${l}</button>`).join("");
@@ -1123,7 +1125,7 @@ function pAna() {
    <div class="ddp" data-ddp="per" hidden><div class="frow"><input type="date" id="fFrom" value="${F.from}"> – <input type="date" id="fTo" value="${F.to}">
       <button class="chip" data-p="all">ทั้งหมด</button><button class="chip" data-p="before">ก่อนตั้งมูลนิธิ</button><button class="chip" data-p="after">หลังตั้งมูลนิธิ</button>
       <select id="fYr"><option value="">รายปี…</option>${yrs.slice().reverse().map((y) => `<option value="${y}">ปี ${y + 543}</option>`).join("")}</select></div></div>
-   <div class="ddp" data-ddp="acc" hidden><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]};--ci:${inkOn(DB.groups[g][2])}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
+   <div class="ddp" data-ddp="acc" hidden><div class="frow gxrow"><span class="gxl">${IC("users", 15)} ทั้งกลุ่ม</span>${GXG.map((g) => `<button class="chip gchip" data-gx="${g}" style="--c:${DB.groups[g][2]}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}${infoI("ทั้งกลุ่ม = รายการของบัญชีในกลุ่มที่มี statement รวมกับรายการของบัญชีอื่นที่โอนเข้า-ออกกับบัญชีของกลุ่มนี้ จึงเห็นบัญชีของกลุ่มที่ยังไม่มี statement ด้วย (เห็นเฉพาะรายการที่ทำกับบัญชีที่มี statement) · การ์ดยอดเงินเข้า / ออกด้านบนนับจากมุมของบัญชีที่มี statement · ด้านล่าง = เลือกรายบัญชีที่มี statement")}</div><div class="accgroups">${Object.keys(gAcc).map((g) => `<div class="accg" style="--c:${DB.groups[g][2]};--ci:${inkOn(DB.groups[g][2])}"><button class="ghead" data-g="${g}" title="กดเพื่อเลือก / ยกเลิกทั้งกลุ่ม"><span class="dot" style="background:${DB.groups[g][2]}"></span><b>${esc(DB.groups[g][1].split(" (")[0])}</b><span class="n" data-gn="${g}"></span></button>
         ${gAcc[g].map((i) => { const a = DB.accounts[i]; return `<label title="${a.bank} ${a.acc}"><input type="checkbox" data-a="${i}"><span>${esc(a.name)}</span><small>${a.bank} ${a.acc}</small></label>`; }).join("")}</div>`).join("")}</div></div>
    <div class="ddp" data-ddp="kind" hidden><div class="frow">${DB.kinds.map((k, i) => `<button class="chip" data-k="${i}"><span class="dot" style="background:${KCOL[i]}"></span>${k}</button>`).join("")}</div></div>
    <div class="ddp" data-ddp="cpg" hidden><div class="frow">${usedCpg.map((g) => `<button class="chip gchip" data-c="${g}" style="--c:${DB.groups[g][2]}"><span class="dot" style="background:${DB.groups[g][2]}"></span>${esc(DB.groups[g][1].split(" (")[0])}</button>`).join("")}</div></div>
@@ -1161,6 +1163,7 @@ function pAna() {
     if (b.dataset.dd) { const p = $(`[data-ddp="${b.dataset.dd}"]`, m), was = p.hidden; ddClose(); p.hidden = !was; b.classList.toggle("open", was); return; }
     if (b.dataset.p) { const p = b.dataset.p; F.from = p === "after" ? DB.cut : /^\d+$/.test(p) ? p + "-01-01" : DB.lo; F.to = p === "before" ? "2022-06-24" : /^\d+$/.test(p) ? p + "-12-31" : DB.hi; $("#fFrom").value = F.from; $("#fTo").value = F.to; }
     else if (b.dataset.g) { const ids = gAcc[b.dataset.g]; const all = ids.every((i) => F.accs.has(i)); ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i))); }
+    else if (b.dataset.gx != null) tog(F.gx || (F.gx = new Set()), +b.dataset.gx);
     else if (b.dataset.k) tog(F.kinds, +b.dataset.k);
     else if (b.dataset.c) tog(F.cpg, +b.dataset.c);
     else if (b.id === "fClear") { resetF(); return pAna(); }
@@ -1229,7 +1232,7 @@ function pAna() {
       const pk_ = F.from <= DB.lo && F.to >= DB.hi ? "all" : F.from <= DB.lo && F.to === "2022-06-24" ? "before" : F.from === DB.cut && F.to >= DB.hi ? "after" : "";
       const gl = (g) => DB.groups[g][1].split(" (")[0];
       const L = { per: [pk_ === "all" ? "ทุกช่วงเวลา" : pk_ === "before" ? "ก่อนตั้งมูลนิธิ" : pk_ === "after" ? "หลังตั้งมูลนิธิ" : yr ? "ปี " + (+yr + 543) : `${dTh(F.from)} – ${dTh(F.to)}`, pk_ !== "all"],
-        acc: [F.accs.size === 1 ? DB.accounts[[...F.accs][0]].name : F.accs.size ? `บัญชี ${F.accs.size}` : "ทุกบัญชี", F.accs.size > 0],
+        acc: [[F.gx && F.gx.size ? (F.gx.size === 1 ? "ทั้งกลุ่ม " + DB.groups[[...F.gx][0]][1].split(" (")[0] : `ทั้งกลุ่ม ${F.gx.size}`) : "", F.accs.size === 1 ? DB.accounts[[...F.accs][0]].name : F.accs.size ? `บัญชี ${F.accs.size}` : ""].filter(Boolean).join(" + ") || "ทุกบัญชี", F.accs.size > 0 || !!(F.gx && F.gx.size)],
         kind: [F.kinds.size === 1 ? DB.kinds[[...F.kinds][0]].split(" (")[0] : F.kinds.size ? `ประเภทรายการ ${F.kinds.size}` : "ทุกประเภทรายการ", F.kinds.size > 0],
         cpg: [F.cpg.size === 1 ? "คู่โอน: " + gl([...F.cpg][0]) : F.cpg.size ? `กลุ่มคู่โอน ${F.cpg.size}` : "ทุกกลุ่มคู่โอน", F.cpg.size > 0],
         cash: [F.cpm === "raw" ? "ยอดโอนตรง" : (F.cpm === "pair" ? "เฉพาะคู่ถอน-ฝาก" : "รวมคู่ถอน-ฝาก") + (F.pq.size ? ` · ${F.pq.size} ประเภท` : ""), F.cpm !== "raw"] };
@@ -1238,12 +1241,13 @@ function pAna() {
       $("#fYr").value = yr && !pk_ ? yr : "";
       $("#pqRow").hidden = F.cpm === "raw";
       $("#fMin").classList.toggle("on", F.min > 0);
-      $("#fClear").hidden = !(pk_ !== "all" || F.accs.size || F.kinds.size || F.cpg.size || F.min || F.q || F.cpm !== "raw" || F.pq.size || F.dn);
+      $("#fClear").hidden = !(pk_ !== "all" || F.accs.size || (F.gx && F.gx.size) || F.kinds.size || F.cpg.size || F.min || F.q || F.cpm !== "raw" || F.pq.size || F.dn);
       $("#flM").value = F.flm; $("#flN").value = F.fln; $("#flC").value = F.flc; $("#flT").value = F.flt === false ? "all" : F.flt === "pro" ? "pro" : "fifo"; }
     $$("[data-k]", m).forEach((b) => b.classList.toggle("on", F.kinds.has(+b.dataset.k)));
     $$("[data-c]", m).forEach((b) => b.classList.toggle("on", F.cpg.has(+b.dataset.c)));
     $$("[data-g]", m).forEach((b) => b.classList.toggle("on", gAcc[b.dataset.g].every((i) => F.accs.has(i))));
     $$("[data-a]", m).forEach((b) => (b.checked = F.accs.has(+b.dataset.a)));
+    $$("[data-gx]", m).forEach((b) => b.classList.toggle("on", !!(F.gx && F.gx.has(+b.dataset.gx))));
     $$("[data-gn]", m).forEach((e) => { const ids = gAcc[e.dataset.gn]; e.textContent = `${ids.filter((i) => F.accs.has(i)).length}/${ids.length}`; });
     $$("button[data-cs]", m).forEach((b) => b.classList.toggle("on", F.cps === b.dataset.cs));
     $$("[data-fm]", m).forEach((b) => b.classList.toggle("on", F.flm === b.dataset.fm));
