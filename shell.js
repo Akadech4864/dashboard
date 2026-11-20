@@ -647,3 +647,18 @@ addEventListener("scroll", thfQ, { passive: true, capture: true });
 addEventListener("resize", thfQ);
 if (THF_MQ.addEventListener) THF_MQ.addEventListener("change", thfQ);
 new MutationObserver(thfQ).observe(document.getElementById("main") || document.body, { childList: true, subtree: true });
+
+/* เมนูล่างมือถือแบบลอย: ซ่อนเมื่อเลื่อนลง แสดงเมื่อเลื่อนขึ้น / ใกล้บนสุด / ล่างสุดของหน้า (ผู้ใช้สั่ง 20 พ.ย. 69) */
+(() => {
+  let y0 = window.scrollY || 0, acc = 0, tk = false;
+  const set = (h) => document.body.classList.toggle("nav-hide", h);
+  addEventListener("scroll", () => {
+    if (tk) return; tk = true;
+    requestAnimationFrame(() => {
+      tk = false; const y = window.scrollY || 0, dy = y - y0; y0 = y;
+      if (y < 40 || innerHeight + y >= document.documentElement.scrollHeight - 6) { acc = 0; return set(false); }
+      if ((dy > 0) !== (acc > 0)) acc = 0; acc += dy;
+      if (acc > 28) set(true); else if (acc < -14) set(false);
+    });
+  }, { passive: true });
+})();
