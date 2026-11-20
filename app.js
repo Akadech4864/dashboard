@@ -212,6 +212,19 @@ function svgPng(svg, name) {                                            // SVG �
 }
 function canvasPng(cv, name) { const o = document.createElement("canvas"); o.width = cv.width; o.height = cv.height; const g = o.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, o.width, o.height); g.drawImage(cv, 0, 0); o.toBlob((b) => download2(name + ".png", b)); }
 const titleNear = (el) => { let e = el; for (let k = 0; k < 6 && e; k++) { let p = e.previousElementSibling; while (p) { if (/^H[23]$/.test(p.tagName) || p.classList.contains("lab")) return p.textContent.replace(/\s+/g, " ").trim().slice(0, 60); p = p.previousElementSibling; } e = e.parentElement; } return TABS.find((t) => t[0] === TAB)?.[1] || "ข้อมูล"; };
+/* หัวข้อของตาราง: พี่น้องก่อนหน้า (ข้ามหมายเหตุสั้น 1 ชิ้น) เป็น h2/h3/h4/.lab / หัวการ์ดกลุ่ม .ghd (วางใน .ga) / ตารางอยู่บนสุดในการ์ด → หัวข้อเหนือการ์ด / บนสุดในกล่องยุบ-ขยาย → แถบหัว summary */
+function headOf(host) {                                                 // ข้ามหมายเหตุ / รายการสั้น / การ์ดตัวเลข ได้ไม่เกิน 3 ชิ้น ; ไม่พบหัวข้อ = วางลอยขวาในบรรทัดหมายเหตุที่อยู่เหนือตาราง
+  const isH = (e) => e && (/^H[234]$/.test(e.tagName) || e.classList.contains("lab"));
+  const skip = (e) => e && !isH(e) && (/^(P|UL|OL)$/.test(e.tagName) || /\b(note|hero-k|muted)\b/.test(e.className)) && !e.querySelector("table,canvas,svg");
+  let p = host.previousElementSibling; while (p && p.classList.contains("xbar")) p = p.previousElementSibling;
+  if (p && p.classList.contains("ghd")) return p.querySelector(".ga") || p;
+  let q = p, k = 0; while (skip(q) && k < 3) { q = q.previousElementSibling; k++; }
+  if (isH(q)) return q;
+  if (!q) { const par = host.parentElement;
+    if (par && par.classList.contains("card") && !par.classList.contains("fcard") && !p) { const h = par.previousElementSibling; if (/^H[23]$/.test(h && h.tagName)) return h; }
+    if (par && par.classList.contains("body") && par.parentElement && par.parentElement.tagName === "DETAILS") { const sm = par.parentElement.querySelector(":scope > summary"); if (sm) return sm.querySelector(".a") || sm; } }
+  return p && p.tagName === "P" ? p : null;
+}
 function enhance(root) {
   if (window.cfrEnhance) cfrEnhance(root);
   for (const tbl of root.querySelectorAll("table")) {
@@ -225,10 +238,14 @@ function enhance(root) {
     const host = tbl.closest(".tblwrap") || tbl;
     const bar = document.createElement("div"); bar.className = "xbar";
     bar.innerHTML = `${hr && !custom ? `<button class="ibx" data-xr="1" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 15)}</button>` : ""}<button class="ibx" data-xl="1" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 15)}</button>`;
-    bar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; e.stopPropagation();
+    bar.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; e.stopPropagation(); e.preventDefault();
       if (b.dataset.xl) exportTable(tbl, titleNear(host)); else { tbl._sort = []; sortTable(tbl); } };
     while (host.previousElementSibling && host.previousElementSibling.classList.contains("xbar")) host.previousElementSibling.remove();   // ตารางที่ถูกวาดใหม่ในกล่องเดิม: เอาแถบปุ่มเก่าออก (กันปุ่ม Excel ซ้อนเป็นแถวยาว ; ผู้ใช้แจ้ง 19 พ.ย. 69)
-    host.parentNode.insertBefore(bar, host);
+    const hd = headOf(host);                                            // มีหัวข้อติดตาราง = วางปุ่มในบรรทัดหัวข้อ ฝั่งขวาสุด (ไม่เปลืองบรรทัด ; ผู้ใช้สั่ง 20 พ.ย. 69)
+    if (hd && hd.tagName === "P") { hd.querySelectorAll(":scope > .xbar").forEach((x) => x.remove()); bar.classList.add("fl"); hd.prepend(bar); }
+    else if (hd) { hd.querySelectorAll(":scope > .xbar, :scope > .hx > .xbar").forEach((x) => x.remove()); bar.classList.add("hx"); hd.classList.add("hasx");
+      const ex = hd.querySelector(":scope > .ibxs.hx"); if (ex) { bar.classList.remove("hx"); bar.classList.add("in"); ex.appendChild(bar); } else hd.appendChild(bar); }
+    else host.parentNode.insertBefore(bar, host);
   }
   for (const cv of root.querySelectorAll(".chartbox canvas")) {
     const box = cv.closest(".chartbox"); if (box.dataset.enh) continue; box.dataset.enh = "1";
@@ -285,13 +302,14 @@ function pOver() {
   $("#main").innerHTML = `
   ${overExtra(o, ntx)}
   <div class="grid g2w"><div><h2 id="yrUseH">${IC("route")} เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small id="yrUseS"></small></h2>
-  <div class="card yruse"><div id="yrUse"></div></div></div>
+  <div class="card yruse"><div id="yrUse" class="chartbox tall"></div></div></div>
   <div><h2>${IC("chart")} เงินบริจาคเข้า – ออก <span id="yrChT">รายปี</span> <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
   <div class="card"><div class="chartbox tall"><canvas id="cYear"></canvas></div></div></div></div>
   <div id="yrBox"></div>`;
   CH.year = new Chart($("#cYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] },
     options: { maintainAspectRatio: false, onClick: (ev, els) => { if (els.length && YRCR[els[0].index]) yrPick(yrKey(YRCR[els[0].index]), true); }, onHover: (ev, els) => { ev.native.target.style.cursor = els.length ? "pointer" : ""; },
-      plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)} บาท` } } } } });
+      plugins: { legend: { labels: { generateLabels: (ch) => ch.data.datasets.map((d, i) => ({ text: d.label, fillStyle: ["#FFD403", "#00264D"][i], strokeStyle: ["#FFD403", "#00264D"][i], lineWidth: 0, hidden: !ch.isDatasetVisible(i), datasetIndex: i, fontColor: Chart.defaults.color })) } },
+        tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)} บาท` } } } } });
   $("#main").onclick = (e) => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); };
   yrTable();
 }
@@ -332,7 +350,7 @@ function yrSync() {                                                    // ซ้
   if (CH.year) { const yl = YRV === "p" ? Y.filter((r) => !r[0] && /ก่อน|หลัง/.test(r[1])) : Y.filter((r) => r[0]), on = (r) => yrIn(k, yrKey(r)), D = CH.year.data, re = YRCR.length !== yl.length || YRCR.some((r, i) => r !== yl[i]);
     YRCR = yl; D.labels = yl.map(yrLab); D.datasets[0].data = yl.map((r) => r[2] / 1e6); D.datasets[1].data = yl.map((r) => r[4] / 1e6);
     D.datasets[0].backgroundColor = yl.map((r) => (on(r) ? "#FFD403" : "rgba(255,212,3,.22)"));
-    D.datasets[1].backgroundColor = yl.map((r) => (on(r) ? "#00264D" : "rgba(0,38,77,.18)")); CH.year.update(re ? undefined : "none");
+    D.datasets[1].backgroundColor = yl.map((r) => (on(r) ? "#00264D" : "rgba(0,38,77,.18)")); CH.year.stop(); CH.year.update("none"); void re;
     const ct = $("#yrChT"); if (ct) ct.textContent = YRV === "p" ? "ก่อน / หลังตั้งมูลนิธิ" : "รายปี"; }
 }
 function yrTable() {
@@ -341,8 +359,7 @@ function yrTable() {
   const rows = YRV === "y" ? Y.filter((r) => !r[0] && !/ก่อน|หลัง/.test(r[1])).concat(Y.filter((r) => r[0])) : Y.filter((r) => !r[0]);
   const tr = (r) => { const k = yrKey(r), on = YRS === k, tot = !r[0];
     return `<tr class="click${on ? " on" : ""}${tot ? " yrtot" : ""}" data-yr="${k}"><td><b>${yrLab(r)}</b></td><td class="n">${fmt0(r[3])}</td><td class="n amt-in">${M(r[2])}</td><td class="n">${fmt0(r[5])}</td><td class="n amt-out">${M(r[4])}</td><td class="n">${M(r[2] - r[4])}</td><td class="n"><b>${M(r[6])}</b></td><td class="yrgo"><button class="ibx sm" data-yrgo="${k}" title="ดูเส้นเงินของปี / ช่วงนี้ (หน้าเส้นเงิน)" aria-label="ดูเส้นเงิน">${IC("route", 15)}</button></td></tr>`; };
-  el.innerHTML = `<h2>${IC("chart")} สรุปรายปี 3 บัญชีรับบริจาค <small>เงินเข้า – ออก – คงเหลือ</small> ${infoI("ตัวเลข = ไฟล์สรุปรายปี 3 บัญชีรับบริจาค (รวมเงินโอนระหว่าง 3 บัญชี) · คงเหลือสิ้นงวด = ผลรวมยอดคงเหลือของบัญชีที่มีรายการแล้ว · ปี 2565 แยกที่ 25 มิ.ย. 2565 · กดแถวหรือแท่งกราฟ = ด้านบนซ้ายแสดงเงินออกของปี / ช่วงนั้นไปกลุ่มใด และกราฟขวาไฮไลต์ตาม · กดแถวเดิมซ้ำ / แถวรวมทุกช่วง / ปุ่มกลับค่าเริ่มต้น = รวมทุกช่วง · ปุ่มเส้นทาง = เปิดหน้าเส้นเงินของปี / ช่วงนั้น")}</h2>
-    <div class="seg" style="margin:-4px 0 8px">${[["y", "รายปี"], ["p", "ก่อน / หลังตั้งมูลนิธิ"]].map(([k, l]) => `<button data-yrv="${k}" class="${YRV === k ? "on" : ""}">${l}</button>`).join("")}</div>
+  el.innerHTML = `<h2>${IC("chart")} สรุปรายปี 3 บัญชีรับบริจาค <small>เงินเข้า – ออก – คงเหลือ</small> ${infoI("ตัวเลข = ไฟล์สรุปรายปี 3 บัญชีรับบริจาค (รวมเงินโอนระหว่าง 3 บัญชี) · คงเหลือสิ้นงวด = ผลรวมยอดคงเหลือของบัญชีที่มีรายการแล้ว · ปี 2565 แยกที่ 25 มิ.ย. 2565 · กดแถวหรือแท่งกราฟ = ด้านบนซ้ายแสดงเงินออกของปี / ช่วงนั้นไปกลุ่มใด และกราฟขวาไฮไลต์ตาม · กดแถวเดิมซ้ำ / แถวรวมทุกช่วง / ปุ่มกลับค่าเริ่มต้น = รวมทุกช่วง · ปุ่มเส้นทาง = เปิดหน้าเส้นเงินของปี / ช่วงนั้น")}<span class="ibxs hx"><span class="seg">${[["y", "รายปี"], ["p", "ก่อน / หลังตั้งมูลนิธิ"]].map(([k, l]) => `<button data-yrv="${k}" class="${YRV === k ? "on" : ""}">${l}</button>`).join("")}</span></span></h2>
     <div class="tblwrap" data-noxbar="1"><table class="yrt"><tr><th>ปี / ช่วง</th><th class="n">ครั้งเข้า</th><th class="n">เงินเข้า</th><th class="n">ครั้งออก</th><th class="n">เงินออก</th><th class="n">สุทธิ</th><th class="n">คงเหลือสิ้นงวด</th><th></th></tr>${rows.map(tr).join("")}</table></div>`;
   el.onclick = (e) => { const gb = e.target.closest("[data-yrgo]"); if (gb) { e.stopPropagation(); return yrGo(gb.dataset.yrgo, gb.dataset.yrg); }
     const v = e.target.closest("[data-yrv]"); if (v) { e.stopPropagation(); YRV = v.dataset.yrv; if (YRV === "p" && !["all", "pb", "pa"].includes(YRS)) YRS = "all"; return yrTable(); }
@@ -678,8 +695,7 @@ function asShow() {
 function pAsset() {
   const m = $("#main"); AR = assetRows();
   const view = PREF.assetView || "card", owners = [...new Set(AR.map((r) => r.own))], cnt = (f) => AR.filter(f).length;
-  m.innerHTML = `<div class="ahd"><h2>${IC("coin")} ทรัพย์สินส่วนตัว <small>${tsStamp()}</small> ${syncBtn()}</h2>
-    <div class="seg aview"><button data-av2="card" class="${view === "card" ? "on" : ""}">${IC("grid", 15)} การ์ด</button><button data-av2="3d" class="${view === "3d" ? "on" : ""}">${IC("cube", 15)} แผนที่ 3 มิติ</button></div></div>
+  m.innerHTML = `<div class="ahd"><h2 class="hasx">${IC("coin")} ทรัพย์สินส่วนตัว <small>${tsStamp()}</small> ${syncBtn()}<span class="ibxs hx"><span class="seg aview"><button data-av2="card" class="${view === "card" ? "on" : ""}">${IC("grid", 15)} การ์ด</button><button data-av2="3d" class="${view === "3d" ? "on" : ""}">${IC("cube", 15)} แผนที่ 3 มิติ</button></span></span></h2></div>
   <div id="asTop"></div>
   <div class="card fcard" id="asF">
    <div class="fline"><label class="sbox" style="flex:1 1 320px">${IC("search", 16)}<input type="search" id="asQ" value="${esc(ASF.q)}" placeholder="ค้นหาทรัพย์สิน / ที่ตั้ง / ยี่ห้อ / หมายเหตุ"></label></div>
@@ -690,8 +706,7 @@ function pAsset() {
    <div class="ddp" data-asp="st" hidden><div class="frow">${Object.entries(AST).filter(([k]) => AR.some((r) => r.st === k)).map(([k, v]) => `<button class="chip" data-ass="${k}"><span class="dot" style="background:${v[2]}"></span>${v[0]} <small class="muted">${cnt((r) => r.st === k)}</small></button>`).join("")}</div></div>
    <div class="ddp" data-asp="own" hidden><div class="frow">${owners.map((o) => `<button class="chip" data-aso="${esc(o)}">${esc(o)} <small class="muted">${cnt((r) => r.own === o)}</small></button>`).join("")}</div></div>
   </div>
-  <h2>${IC("list")} รายการทรัพย์สิน <small id="asCnt"></small> ${infoI('สถานะ: "ยึดแล้ว" = ของกลางจากการตรวจค้น 11 พ.ย. 69 (มูลค่า = ค่ากลางราคาประเมินมือสอง) · "อายัดแล้ว" = เงินในบัญชีตามแท็บข้อมูลอายัด · "อยู่ระหว่างดำเนินการ" = คอลัมน์การดำเนินการของแท็บทรัพย์สินที่ดิน · ที่เหลือชีตยังไม่ระบุการยึด/อายัด ; เงินในบัญชีมูลนิธิแสดงในรายการแต่ไม่นับเป็นทรัพย์สินส่วนตัว ; ข้อมูลจากชีตชุดทำคดี (อ่านอย่างเดียว)')}</h2>
-  <div class="frow" style="margin:-4px 0 8px"><button class="ibx" id="asXl" title="ส่งออก Excel (ตามตัวกรอง)" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="asSr" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="asCfx" title="ล้างช่องกรองคอลัมน์" aria-label="ล้างช่องกรองคอลัมน์">${IC("fx", 16)}</button></div>
+  <h2>${IC("list")} รายการทรัพย์สิน <small id="asCnt"></small> ${infoI('สถานะ: "ยึดแล้ว" = ของกลางจากการตรวจค้น 11 พ.ย. 69 (มูลค่า = ค่ากลางราคาประเมินมือสอง) · "อายัดแล้ว" = เงินในบัญชีตามแท็บข้อมูลอายัด · "อยู่ระหว่างดำเนินการ" = คอลัมน์การดำเนินการของแท็บทรัพย์สินที่ดิน · ที่เหลือชีตยังไม่ระบุการยึด/อายัด ; เงินในบัญชีมูลนิธิแสดงในรายการแต่ไม่นับเป็นทรัพย์สินส่วนตัว ; ข้อมูลจากชีตชุดทำคดี (อ่านอย่างเดียว)')}<span class="ibxs hx"><button class="ibx" id="asXl" title="ส่งออก Excel (ตามตัวกรอง)" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="asSr" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="asCfx" title="ล้างช่องกรองคอลัมน์" aria-label="ล้างช่องกรองคอลัมน์">${IC("fx", 16)}</button></span></h2>
   <div class="tblwrap tall" data-noxbar="1"><table id="asT" class="xt"><thead><tr>${ACOLS.map(([l, , t], c) => `<th data-cs="${c}" class="srt${t !== "t" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${ACOLS.map(([, , t], c) => (c === 0 ? "<th></th>" : `<th><input data-acf="${c}" value="${esc(ASF.cf[c] || "")}" placeholder="${t === "a" ? "≥ / ช่วง" : "กรอง…"}"></th>`)).join("")}</tr></thead><tbody></tbody></table></div>
   ${DB.cc ? `<p style="margin-top:10px"><button class="chip" data-gocc="1">${IC("card", 14)} ดูการใช้บัตรเครดิต (เมนูบัตรเครดิต) ${M(DB.cc.total)}</button></p>` : ""}`;
@@ -852,8 +867,7 @@ function ccTxShell() {
   <div class="grid g2" style="margin-top:12px"><div class="card"><div class="lab" style="margin-top:0">ตามประเภท</div><div class="chartbox tall"><canvas id="cCcT2"></canvas></div></div>
     <div class="card"><div class="lab" style="margin-top:0">รายเดือน แยกตามบัตร (ล้านบาท)</div><div class="chartbox tall"><canvas id="cCcM"></canvas></div></div></div>
   <div id="ccMer"></div>
-  <h2>${IC("list")} รายการ <small id="ccCnt"></small></h2>
-  <div class="frow" style="margin:-4px 0 8px"><button class="ibx" id="ccXl" title="ส่งออก Excel (ทุกแถวตามตัวกรอง)" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="ccSr" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="ccCfx" title="ล้างช่องกรองคอลัมน์" aria-label="ล้างช่องกรองคอลัมน์">${IC("fx", 16)}</button></div>
+  <h2>${IC("list")} รายการ <small id="ccCnt"></small><span class="ibxs hx"><button class="ibx" id="ccXl" title="ส่งออก Excel (ทุกแถวตามตัวกรอง)" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="ccSr" title="กลับลำดับเดิม" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="ccCfx" title="ล้างช่องกรองคอลัมน์" aria-label="ล้างช่องกรองคอลัมน์">${IC("fx", 16)}</button></span></h2>
   <div class="tblwrap tall" data-noxbar="1"><table id="ccT"><thead><tr>${CCOLS.map(([l, , k], c) => `<th data-cs="${c}" class="srt${k === "a" ? " n" : ""}">${l} <span class="si"></span></th>`).join("")}</tr>
     <tr class="cfr">${CCOLS.map(([, , k], c) => `<th><input data-cf="${c}" value="${esc(CCF.cf[c] || "")}" placeholder="${k === "a" ? "≥ / ช่วง" : k === "d" ? "2567 / 2024-05" : "กรอง…"}"></th>`).join("")}</tr></thead><tbody></tbody></table></div>
   <div id="ccMore" style="text-align:center;margin:8px 0"></div>`;
@@ -1208,7 +1222,7 @@ function pAna() {
   <div id="tlBox"></div>
   <div class="grid g4 kp8" id="aKpi"></div>   <!-- การ์ดยอดรวมอยู่เหนือตาราง (ผู้ใช้สั่ง 20 พ.ย. 69 "จะได้เห็นยอดรวมง่าย ๆ") -->
   <div id="tCp"></div>
-  <h2 id="txH">${IC("list")} รายการ <small id="txLab"></small> <span class="ibxs"><span id="txFb"></span><button class="ibx" id="txReset" title="กลับลำดับเดิม (วันที่-เวลา)" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="txXlsx" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="fCsv" title="ส่งออก CSV" aria-label="ส่งออก CSV">${IC("csv", 16)}</button></span></h2>
+  <h2 id="txH">${IC("list")} รายการ <small id="txLab"></small> <span class="ibxs hx"><span id="txFb"></span><button class="ibx" id="txReset" title="กลับลำดับเดิม (วันที่-เวลา)" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="txXlsx" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="fCsv" title="ส่งออก CSV" aria-label="ส่งออก CSV">${IC("csv", 16)}</button></span></h2>
   <div class="tblwrap tbl1" id="tTx"></div>
   <p style="text-align:center"><button class="chip" id="more" title="แสดงเพิ่ม" aria-label="แสดงเพิ่ม">${IC("more", 16)}</button></p>
   <h2>ตามเวลา <small id="granLab"></small> <button class="ibx" id="gBtn" title="สลับ รายเดือน / รายปี" aria-label="สลับ รายเดือน / รายปี">${IC("swap", 16)}</button></h2>

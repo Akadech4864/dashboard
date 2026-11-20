@@ -771,5 +771,21 @@ svg.lk .lkt.w{fill:#fff}
 #aKpi .kpi.on{outline:3px solid #FFD403;outline-offset:-2px;background:color-mix(in srgb,#FFD403 12%,var(--card))}
 
 /* ภาพรวม: กล่องซ้ายบน = เงินออกไปกลุ่มใดตามปี/ช่วงที่เลือก (20 พ.ย. 69) */
-.yruse{padding:12px 14px;min-height:360px}
+.yruse{min-height:0}
 #yrUseS .ibx{vertical-align:middle;margin-left:4px}
+
+/* ปุ่มของตาราง (Excel / ลำดับเดิม / ล้างกรอง / จำนวนแถว / สวิตช์มุมมอง) อยู่บรรทัดเดียวกับหัวข้อ ชิดขวาสุด ทุกตาราง (ผู้ใช้สั่ง 20 พ.ย. 69) */
+.hasx{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.hx{margin-left:auto!important;display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;font-size:.875rem;font-weight:400;line-height:1.2}
+.xbar.hx,.xbar.in{margin:0;display:inline-flex;gap:6px}
+.ghd .ga .xbar{margin:0;display:inline-flex;gap:6px}
+summary .a .xbar{margin:0 0 0 6px;display:inline-flex;gap:6px;vertical-align:middle}
+h2>.ibx.fbk{font-size:.875rem}
+.hx .seg{margin:0}
+.hx select.pill{font-weight:400}
+/* ภาพรวม: กล่องเงินออกไปกลุ่มใด สูงเท่ากราฟขวา เลื่อนดูในกล่อง */
+.yruse{min-height:0}
+#yrUse.chartbox{overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+.xbar.fl{float:right;display:inline-flex;gap:6px;margin:0 0 4px 10px}
+.ahd h2.hasx{margin-bottom:6px}
+.ahd>h2.hasx{flex:1 1 100%}
