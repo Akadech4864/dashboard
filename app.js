@@ -216,7 +216,7 @@ function enhance(root) {
     if (tbl.dataset.enh) continue; tbl.dataset.enh = "1";
     const hr = [...tbl.rows].find((tr) => tr.querySelector("th"));
     const custom = hr && hr.querySelector("[data-ts],[data-cs],[data-xs]");
-    if (hr && !custom) [...hr.cells].forEach((th, c) => { th.classList.add("srt"); th.title = "เรียง";
+    if (hr && !custom) [...hr.cells].forEach((th, c) => { if (th.hasAttribute("data-nos")) return; th.classList.add("srt"); th.title = "เรียง";   // data-nos = คอลัมน์ไม่เรียง/ไม่กรอง (เช่น คอลัมน์รูป)
       th.addEventListener("click", (e) => { e.stopPropagation(); const k = tbl._sort = tbl._sort || [], n = k.findIndex((x) => x[0] === c);
         if (n < 0) k.push([c, 1]); else if (k[n][1] === 1) k[n][1] = -1; else k.splice(n, 1); sortTable(tbl); }); });
     if (tbl.closest("#tTx,[data-noxbar]")) continue;                                 // ตารางรายการมีปุ่มส่งออกทุกแถวของตัวเอง
@@ -366,8 +366,8 @@ function pCharges(el) {
   m.innerHTML = `${el ? (ab ? `<div class="frow" style="justify-content:flex-end;margin:-4px 0 6px">${ab}</div>` : "") : `<h2>${IC("scale")} ผู้ต้องหาและข้อหา <small>${P.length} ราย</small> ${ab}</h2>`}
   <div class="tiles"><button class="tile ${!sel ? "on" : ""}" data-cf=""><span class="ico">${IC("users")}</span><span class="v">${P.length}<small> ราย</small></span><span class="l">ผู้ต้องหาทั้งหมด</span></button>${COMBO.map(tile).join("")}</div>
   <h2>${IC("list")} ใครถูกแจ้ง / ถูกเสนอข้อหาใด <small>${show.length} ราย${sel ? " · " + esc(cLab(sel)) : ""}</small></h2>
-  <div class="tblwrap"><table class="cmx"><tr><th class="pt">รูป</th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
-    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="pt">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
+  <div class="tblwrap"><table class="cmx"><tr><th class="ptc" data-nos="1"></th><th>ผู้ต้องหา</th><th>บทบาท</th>${CATS.map(([, l]) => `<th class="c">${esc(l)}</th>`).join("")}<th>สถานะ</th></tr>
+    ${show.map((p) => `<tr class="click" data-c="${p.i}"><td class="ptc">${p.img ? thumbEl(p.img, "tph") : `<span class="tph">${IC("user", 22)}</span>`}</td><td><b>${esc(p.s.title)}</b></td><td>${esc(p.s.extra1)}</td>${CATS.map(([k, , , , col]) => `<td class="c">${tick(p.cats.has(k), col)}</td>`).join("")}<td>${stat(p)}</td></tr>`).join("")}
   </table></div>
 `;
   m.onclick = (e) => {
