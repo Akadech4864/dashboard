@@ -304,6 +304,7 @@ function pOver() {
   <div class="card yruse"><div id="yrUse" class="chartbox tall"></div></div></div>
   <div><h2>${IC("chart")} เงินบริจาคเข้า – ออก <span id="yrChT">รายปี</span> <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
   <div class="card"><div class="chartbox tall"><canvas id="cYear"></canvas></div></div></div></div>
+  <div id="yrDet"></div>
   <div id="yrBox"></div>`;
   CH.year = new Chart($("#cYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] },
     options: { maintainAspectRatio: false, onClick: (ev, els) => { if (els.length && YRCR[els[0].index]) yrPick(yrKey(YRCR[els[0].index]), true); }, onHover: (ev, els) => { ev.native.target.style.cursor = els.length ? "pointer" : ""; },
@@ -325,12 +326,41 @@ function yrUse() {
   return (YRC = U);
 }
 /* ตารางสรุปรายปี -> หน้าเส้นเงิน: ช่วงวันที่ของปี/ช่วง + 3 บัญชีรับบริจาค (+ กลุ่มคู่โอน ถ้ากดแถบกลุ่ม) (ผู้ใช้สั่ง 20 พ.ย. 69) */
-function yrGo(k, g) {
-  const cut = DB.cut || "2022-06-25", prev = (d) => new Date(Date.parse(d + "T00:00:00Z") - 864e5).toISOString().slice(0, 10), ti = DB.groups.findIndex((x) => x[0] === "t1");
+function yrRange(k) {                                                  // ช่วงวันที่ (ISO) ของปี / ช่วง ; 2565 แยกที่วันตั้งมูลนิธิ
+  const cut = DB.cut || "2022-06-25", prev = (d) => new Date(Date.parse(d + "T00:00:00Z") - 864e5).toISOString().slice(0, 10);
   let a = DB.lo, b = DB.hi; const y = +String(k).slice(0, 4) - 543;
   if (k === "pb") b = prev(cut); else if (k === "pa") a = cut; else if (k !== "all") { a = `${y}-01-01`; b = `${y}-12-31`; if (/b$/.test(k)) b = prev(cut); if (/a$/.test(k)) a = cut; }
-  resetF(); F.from = a < DB.lo ? DB.lo : a; F.to = b > DB.hi ? DB.hi : b; DB.accounts.forEach((x, i) => { if (x.g === ti) F.accs.add(i); }); if (g != null && g !== "") F.cpg.add(+g);
+  return [a < DB.lo ? DB.lo : a, b > DB.hi ? DB.hi : b];
+}
+function yrGo(k, g) {
+  const ti = DB.groups.findIndex((x) => x[0] === "t1"), [a, b] = yrRange(k);
+  resetF(); F.from = a; F.to = b; DB.accounts.forEach((x, i) => { if (x.g === ti) F.accs.add(i); }); if (g != null && g !== "") F.cpg.add(+g);
   go("ana");
+}
+function yrGoPair(k, ai, ci) {                                          // แถวรายการย่อย -> หน้าวิเคราะห์ : บัญชีรับบริจาคบัญชีนั้น + ค้นหาคู่โอน
+  const [a, b] = yrRange(k), c = DB.cps[ci] || [];
+  resetF(); F.from = a; F.to = b; F.accs.add(ai); F.q = c[0] && String(c[0]).trim() ? String(c[0]).trim() : c[1] || ""; go("ana");
+}
+/* กดแถบกลุ่มในกล่องซ้ายบน = ตารางรายการย่อยใต้กล่อง (ผู้โอน → ผู้รับ รายคู่ ของปี/ช่วงที่เลือก) ; กดแถว / ปุ่มเส้นทาง = หน้าวิเคราะห์เส้นเงิน (ผู้ใช้สั่ง 20 พ.ย. 69) */
+let YRG = "";
+function yrDet(scroll) {
+  const host = $("#yrDet"); if (!host) return; if (YRG === "" || !DB.groups[+YRG]) { host.innerHTML = ""; return; }
+  const k = YRS || "all", g = +YRG, ti = DB.groups.findIndex((x) => x[0] === "t1"), A = new Set(DB.accounts.map((a, i) => (a.g === ti ? i : -1)).filter((i) => i >= 0)), [d0, d1] = yrRange(k), P = new Map();
+  DB.tx.forEach((r, i) => { if (!A.has(r[0]) || IN_K.includes(r[2])) return; const ci = DB.txq && DB.txq[i] && DB.txo[i] >= 0 ? DB.txo[i] : r[4]; if (DB.cps[ci][3] !== g) return;
+    const iso = min2iso(r[1]).slice(0, 10); if (iso < d0 || iso > d1) return; const key = r[0] + ":" + ci; let e = P.get(key);
+    if (!e) P.set(key, (e = { ai: r[0], ci, v: 0, n: 0, a: iso, b: iso })); e.v += r[3]; e.n += r[5] || 1; if (iso < e.a) e.a = iso; if (iso > e.b) e.b = iso; });
+  const rows = [...P.values()], Y = DB.over.yearly || [], row = Y.find((r) => yrKey(r) === k), pl = row ? yrLab(row) : "รวมทุกช่วง", gn = DB.groups[g][1].split(" (")[0];
+  const aL = (r) => { const a = DB.accounts[r.ai]; return `${a.bank} ${a.acc} ${a.name}`; }, cL = (r) => { const c = DB.cps[r.ci]; return c[0] ? `${c[2] || ""} ${c[0]} ${c[1] || ""}`.trim() : c[1] || gn; };
+  xtMount(host, { id: "yrDet", title: `รายการย่อย · ${gn} · ${pl}`, rows, noBar: true, lims: [50, 0], xl: `รายการย่อย ${gn} ${pl}`, sort0: [[3, -1]],
+    note: "เงินออกจาก 3 บัญชีรับบริจาคไปกลุ่มนี้ ตาม statement ของบัญชีรับบริจาค (ยอดโอนตรง ; คู่ถอน-ฝากเงินสดที่จับคู่ได้นับเป็นผู้ฝาก) · 1 แถว = 1 คู่ ผู้โอน → ผู้รับ · กดแถว = หน้าวิเคราะห์เส้นเงินของคู่นั้นในช่วงเดียวกัน · ปุ่มเส้นทางบนหัวตาราง = ทั้งกลุ่ม",
+    cols: [["#", () => 0, "n"], ["ผู้โอน", aL, "t", (r) => labAcc(aL(r))], ["ผู้รับ", cL, "t", (r) => labAcc(cL(r))], ["ยอดเงิน (บาท)", (r) => r.v, "a", (r) => `<b class="amt-out">${fmt(r.v)}</b>`], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)],
+      ["ช่วงวันที่", (r) => r.a, "d", (r) => (r.a === r.b ? dTh(r.a) : `${dTh(r.a)} – ${dTh(r.b)}`)], ["", () => "", "x", () => `<span class="gchev">${IC("route", 15)}</span>`]],
+    sum: (R) => `รวม ${M(R.reduce((t, r) => t + r.v, 0))}`,
+    post: ibx("route", `วิเคราะห์เส้นเงินทั้งกลุ่ม ${gn} (${pl})`, `data-yrgo="${k}" data-yrg="${g}"`) + ibx("x", "ปิดรายการย่อย", 'data-yrgx="1"'),
+    rowAttr: () => 'class="click" title="วิเคราะห์เส้นเงินคู่นี้"', onRow: (r) => yrGoPair(k, r.ai, r.ci) });
+  if (!host._yl) { host._yl = 1; host.addEventListener("click", (e) => { const gb = e.target.closest("[data-yrgo]"); if (gb) { e.stopPropagation(); return yrGo(gb.dataset.yrgo, gb.dataset.yrg); }
+    if (e.target.closest("[data-yrgx]")) { e.stopPropagation(); YRG = ""; yrSync(); } }); }
+  if (scroll) { const t = host.getBoundingClientRect().top; if (t > innerHeight - 160 || t < 60) setTimeout(() => window.scrollTo({ top: host.getBoundingClientRect().top + scrollY - 76, behavior: "smooth" }), 30); }
 }
 const yrKey = (r) => (r[0] ? String(r[0]) + (r[1] ? (r[1].includes("ก่อน") ? "b" : "a") : "") : /ก่อน/.test(r[1]) ? "pb" : /หลัง/.test(r[1]) ? "pa" : "all");
 const yrLab = (r) => (r[0] ? `${r[0]}${r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : ""}` : /ก่อน/.test(r[1]) ? "ก่อนตั้งมูลนิธิ" : /หลัง/.test(r[1]) ? "หลังตั้งมูลนิธิ" : "รวมทุกช่วง");
@@ -341,8 +371,9 @@ function yrSync() {                                                    // ซ้
   const el = $("#yrUse"); if (el) { const U = yrUse()[k], ti = DB.groups.findIndex((g) => g[0] === "t1");
     if (!U) el.innerHTML = `<p class="muted" style="padding:14px">ไม่มีรายการเงินออก</p>`;
     else { const L = Object.entries(U.g).map(([g, v]) => [+g, v[0], v[1]]).sort((a, b) => (a[0] === ti) - (b[0] === ti) || b[1] - a[1]), ext = L.filter((x) => x[0] !== ti).reduce((t, x) => t + x[1], 0) || 1;
-      el.innerHTML = `<div class="yrd">${L.map(([g, v, n]) => { const c = DB.groups[g][2], intra = g === ti; return `<div class="yrb click${intra ? " intra" : ""}" data-yrgo="${k}" data-yrg="${g}" title="ดูเส้นเงินไปกลุ่มนี้ในหน้าเส้นเงิน"><span class="yl">${gTag(c, intra ? "โอนระหว่าง 3 บัญชี" : DB.groups[g][1].split(" (")[0])}</span><span class="yt"><i style="width:${intra ? 0 : Math.max(0.6, (v / ext) * 100).toFixed(1)}%;background:${c}"></i></span><b class="amt-out">${M(v)}</b><small class="muted">${intra ? "ไม่นับ" : ((v / ext) * 100).toFixed(1) + "%"} · ${fmt0(n)} ครั้ง</small></div>`; }).join("")}</div>`;
-      el.onclick = (e) => { const gb = e.target.closest("[data-yrgo]"); if (gb) yrGo(gb.dataset.yrgo, gb.dataset.yrg); }; }
+      el.innerHTML = `<div class="yrd">${L.map(([g, v, n]) => { const c = DB.groups[g][2], intra = g === ti; return `<div class="yrb click${intra ? " intra" : ""}${String(g) === YRG ? " on" : ""}" data-yrsel="${g}" title="ดูรายการย่อยของกลุ่มนี้ (ตารางใต้กล่อง)" style="--c:${c}"><span class="yl">${gTag(c, intra ? "โอนระหว่าง 3 บัญชี" : DB.groups[g][1].split(" (")[0])}</span><span class="yt"><i style="width:${intra ? 0 : Math.max(0.6, (v / ext) * 100).toFixed(1)}%;background:${c}"></i></span><b class="amt-out">${M(v)}</b><small class="muted">${intra ? "ไม่นับ" : ((v / ext) * 100).toFixed(1) + "%"} · ${fmt0(n)} ครั้ง</small><button class="ibx sm" data-yrgo="${k}" data-yrg="${g}" title="วิเคราะห์เส้นเงินไปกลุ่มนี้" aria-label="วิเคราะห์เส้นเงิน">${IC("route", 14)}</button></div>`; }).join("")}</div>`;
+      el.onclick = (e) => { const gb = e.target.closest("[data-yrgo]"); if (gb) { e.stopPropagation(); return yrGo(gb.dataset.yrgo, gb.dataset.yrg); }
+        const sb = e.target.closest("[data-yrsel]"); if (sb) { YRG = YRG === sb.dataset.yrsel ? "" : sb.dataset.yrsel; el.querySelectorAll("[data-yrsel]").forEach((x) => x.classList.toggle("on", x.dataset.yrsel === YRG)); yrDet(true); } }; }
     const sub = $("#yrUseS"), ex = U ? Object.entries(U.g).filter(([g]) => +g !== ti).reduce((t, [, v]) => t + v[0], 0) : 0;
     if (sub) sub.innerHTML = `${row ? yrLab(row) : "รวมทุกช่วง"} · ${M(ex)}${k !== "all" ? ` <button class="ibx sm" data-yrall="1" title="กลับค่าเริ่มต้น (รวมทุกช่วง)" aria-label="รวมทุกช่วง">${IC("reset", 14)}</button>` : ""}`;
     const hb = $("#yrUseH"); if (hb) hb.onclick = (e) => { if (e.target.closest("[data-yrall]")) yrPick("all"); }; }
@@ -351,6 +382,7 @@ function yrSync() {                                                    // ซ้
     D.datasets[0].backgroundColor = yl.map((r) => (on(r) ? "#FFD403" : "rgba(255,212,3,.22)"));
     D.datasets[1].backgroundColor = yl.map((r) => (on(r) ? "#00264D" : "rgba(0,38,77,.18)")); CH.year.stop(); CH.year.update("none"); void re;
     const ct = $("#yrChT"); if (ct) ct.textContent = YRV === "p" ? "ก่อน / หลังตั้งมูลนิธิ" : "รายปี"; }
+  yrDet();
 }
 function yrTable() {
   const el = $("#yrBox"); if (!el) return; const Y = DB.over.yearly || []; if (!Y.length) { el.innerHTML = ""; return; }

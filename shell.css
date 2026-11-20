@@ -823,3 +823,9 @@ svg.lk2 .flh{font:700 12px Sarabun,sans-serif;fill:var(--mut)}
 .ftg text{font:700 10px Sarabun,sans-serif;fill:#00264D}
 .fn.akon rect:first-child{stroke:#FFD403;stroke-width:3}
 .fn.akon .ftg rect{fill:#FFD403;stroke:#00264D}
+/* ภาพรวม: แถบกลุ่มในกล่องซ้าย กด = รายการย่อย ; ปุ่มเส้นทางท้ายแถบ = หน้าวิเคราะห์ (20 พ.ย. 69) */
+.yrb{grid-template-columns:minmax(150px,240px) 1fr 92px 120px 30px}
+.yrb.on{background:color-mix(in srgb,var(--c) 14%,transparent);box-shadow:inset 0 0 0 1.5px var(--c)}
+.yrb .ibx.sm{width:26px;height:26px;border-radius:8px}
+@media (max-width:640px){.yrb{grid-template-columns:1fr 84px 28px}.yrb .ibx.sm{grid-row:1;grid-column:3}}
+#yrDet:not(:empty){margin-top:10px}
