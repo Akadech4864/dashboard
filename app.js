@@ -1150,7 +1150,6 @@ function pAna() {
   const PQ_BTNS = (DB.pk || []).map((l, q) => (q && PKS[q][0] ? `<button class="chip" data-pq="${q}" title="${fmt(PKS[q][1])} บาท"><span class="dot" style="background:${PKC[q]}"></span>${esc(l)} <small>${fmt0(PKS[q][0])} · ${M(PKS[q][1])}</small></button>` : "")).join("") + (DB.pk ? `<button class="chip" data-pq="0">ทุกประเภท</button>` : "");
   // ลำดับหน้า (ผู้สั่งงาน 17 พ.ย. 69): ตัวเลขในกล่องบนสุด → แถบตัวกรอง → ชาร์ตเส้นเงิน → ตารางคู่โอนรายใหญ่ → ตารางรายการ (เต็มความกว้าง ไม่วางคู่กัน) → ชาร์ตอื่น
   $("#main").innerHTML = `
-  <div class="grid g4 kp8" id="aKpi"></div>
   <div class="card fcard" id="fCard">
    <div class="fline">
     <label class="sbox">${IC("search", 16)}<input type="search" id="fQ" value="${esc(F.q)}" placeholder="ค้นหาคู่โอน (ชื่อ / เลขบัญชี)"></label>
@@ -1184,6 +1183,7 @@ function pAna() {
     <button class="ibx" id="flClr" hidden title="ยุบทอดที่คลี่ทั้งหมด" aria-label="ยุบทอด">${IC("shrink", 16)}</button></div>
   <div class="card flowcard"><div id="flow" class="flow"></div><div id="flTip" class="fltip" hidden></div></div>
   <div id="tlBox"></div>
+  <div class="grid g4 kp8" id="aKpi"></div>   <!-- การ์ดยอดรวมอยู่เหนือตาราง (ผู้ใช้สั่ง 20 พ.ย. 69 "จะได้เห็นยอดรวมง่าย ๆ") -->
   <div id="tCp"></div>
   <h2 id="txH">${IC("list")} รายการ <small id="txLab"></small> <span class="ibxs"><span id="txFb"></span><button class="ibx" id="txReset" title="กลับลำดับเดิม (วันที่-เวลา)" aria-label="กลับลำดับเดิม">${IC("reset", 16)}</button><button class="ibx" id="txXlsx" title="ส่งออก Excel" aria-label="ส่งออก Excel">${IC("xls", 16)}</button><button class="ibx" id="fCsv" title="ส่งออก CSV" aria-label="ส่งออก CSV">${IC("csv", 16)}</button></span></h2>
   <div class="tblwrap tbl1" id="tTx"></div>

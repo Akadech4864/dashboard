@@ -761,3 +761,6 @@ svg.lk .lkt.w{fill:#fff}
 .yrt .yrgo{width:36px;text-align:center}
 .yrb.click{cursor:pointer;border-radius:8px;padding:2px 4px;margin:0 -4px}
 .yrb.click:hover{background:color-mix(in srgb,var(--line) 45%,transparent)}
+
+/* หน้าวิเคราะห์: การ์ดยอดรวมอยู่เหนือตารางคู่โอน (20 พ.ย. 69) */
+#aKpi{margin:14px 0 6px}
