@@ -45,6 +45,10 @@ async function unlock(pass, rawKey) {
   DB = await gunzipJSON(await decrypt(KEY, f));
   if (!rawKey) { try { sessionStorage.setItem("cib_k", btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.exportKey("raw", KEY))))); } catch (e) { } }
 }
+/* หน้าล็อกอินแสดงชื่อเรื่องคดี (ผู้ใช้สั่ง 20 พ.ย. 69) — หน้าก่อนใส่รหัสเป็นไฟล์สาธารณะ ห้ามมีชื่อคดีในไฟล์ (deploy_site.sh)
+   จึงจำชื่อเรื่องจากการเข้าระบบสำเร็จครั้งก่อนในเครื่องนั้น (localStorage cib_title) ; เครื่องที่ยังไม่เคยเข้า = หัวข้อกลาง "ระบบข้อมูลคดี" */
+function loginTitle(t) { t = String(t || "").trim(); if (!t) return; $("#loginTitle").textContent = t; $("#loginSub").hidden = false; document.title = t + " · CIB"; }
+try { loginTitle(localStorage.getItem("cib_title")); } catch (e) { }
 $("#loginForm").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const btn = $("#loginBtn"), msg = $("#loginMsg");
@@ -268,6 +272,7 @@ let TAB = "home";
 function start() {
   $("#login").hidden = true; $("#app").hidden = false;
   $("#caseTitle").textContent = DB.case || "ข้อมูลคดี";
+  if (DB.case) { try { localStorage.setItem("cib_title", DB.case); } catch (e) { } loginTitle(DB.case); }
   $("#madeAt").textContent = "ข้อมูล ณ " + dTh(DB.made) + " " + DB.made.slice(11);
   prep();
   C = LS.get("cib_content") || JSON.parse(JSON.stringify(DB.content));

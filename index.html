@@ -9,14 +9,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=30">
-<link rel="stylesheet" href="shell.css?v=48">
+<link rel="stylesheet" href="shell.css?v=49">
 </head>
 <body>
 <!-- หน้าล็อกอิน -->
 <section id="login">
   <div class="login-card">
     <img src="logo.jpg" alt="CIB" class="login-logo">
-    <h1>ระบบข้อมูลคดี</h1>
+    <p id="loginSub" class="login-sub" hidden>ระบบข้อมูลคดี</p>
+    <h1 id="loginTitle">ระบบข้อมูลคดี</h1>
     <p class="muted">เอกสารลับ — เฉพาะผู้ได้รับอนุญาต</p>
     <form id="loginForm" autocomplete="off">
       <input id="pw" type="password" inputmode="numeric" placeholder="รหัสผ่าน" aria-label="รหัสผ่าน" autofocus>
@@ -51,7 +52,7 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<script src="app.js?v=94"></script>
+<script src="app.js?v=95"></script>
 <script src="shell.js?v=44"></script>
 <script src="estate3d.js?v=4"></script>
 <script src="ai.js?v=17"></script>

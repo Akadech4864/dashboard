@@ -855,3 +855,7 @@ td.ptok:hover{box-shadow:inset 0 -2px 0 #FFD403}
   td.ptok{-webkit-touch-callout:none}
   #ptip{pointer-events:auto;max-width:calc(100vw - 24px)}
 }
+
+/* หน้าล็อกอิน: บรรทัดเล็กเหนือชื่อเรื่องคดี (20 พ.ย. 69) */
+.login-card .login-sub{margin:.7em 0 0;color:#B9C7D8;font-size:.85rem;letter-spacing:.06em}
+.login-card .login-sub:not([hidden])+h1{margin-top:.1em;line-height:1.3}
