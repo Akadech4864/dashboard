@@ -1122,8 +1122,16 @@ function prep() {
 let FHIST = [];                                                        // ประวัติตัวกรองก่อนกดชาร์ต/ตาราง (ปุ่มย้อนกลับ ; ผู้สั่งงาน 18 พ.ย. 69)
 const fSnap = () => ({ ...F, accs: new Set(F.accs), gx: new Set(F.gx || []), kinds: new Set(F.kinds), cpg: new Set(F.cpg), pq: new Set(F.pq), chain: (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])) });
 function resetF() { FHIST = []; F = { from: DB.lo, to: DB.hi, accs: new Set(), gx: new Set(), kinds: new Set(), cpg: new Set(), min: 0, q: "", gran: "auto", cps: "t", flm: "g", fln: innerWidth > 1100 ? 14 : 8, cpm: "raw", pq: new Set(), flt: "fifo", chain: [], flc: innerWidth > 1100 ? 5 : 3, dn: false }; SHOWN = 200; }
+/* ตัวกรองรายการ รุ่น 20 พ.ย. 69 (ผู้ใช้ถาม "สลับตำแหน่งตัวกรอง บัญชี ↔ กลุ่มคู่โอน ทำไมตัวเลขไม่เท่ากัน"):
+   บัญชี / ทั้งกลุ่ม = ฝั่ง X ; กลุ่มคู่โอน = ฝั่ง Y → นับรายการระหว่าง X กับ Y ไม่ว่าจะมาจาก statement ฝั่งใด
+   แถวจาก statement ของ X : คู่โอนต้องอยู่ใน Y ; แถวจาก statement ฝั่งอื่นที่คู่โอนอยู่ในกลุ่ม X (ทั้งกลุ่ม) : เจ้าของ statement ต้องอยู่ใน Y
+   รายการระหว่าง 2 บัญชีที่มี statement ทั้งคู่ และทั้งสองแถวผ่านตัวกรอง = เก็บแถวเดียว (แถวเงินออก) กันนับซ้ำ */
+let CPAI = null;                                                       // ดัชนีคู่โอน -> ดัชนีบัญชีที่มี statement (เลขบัญชีเดียวกัน)
 function filterTx() {
-  const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase(), gx = !!(F.gx && F.gx.size);
+  const a = day2min(F.from), b = day2min(F.to) + 1440, q = F.q.trim().toLowerCase(), gx = !!(F.gx && F.gx.size), side = F.accs.size || gx;
+  if (!CPAI) { const am = new Map(DB.accounts.map((x, i) => [dg(x.acc), i])); CPAI = new Map(); DB.cps.forEach((c, ci) => { const k = dg(c[0]); if (k && !/x/i.test(c[0]) && am.has(k)) CPAI.set(ci, am.get(k)); }); }
+  const yOK = (g) => !F.cpg.size || F.cpg.has(g), inX = (ai) => F.accs.has(ai) || (gx && F.gx.has(DB.accounts[ai].g));
+  const pass = (ai, ag, cg) => (inX(ai) && yOK(cg)) || (gx && F.gx.has(cg) && !F.accs.has(ai) && yOK(ag));
   const out = [];
   for (let i = 0; i < DB.tx.length; i++) {
     const r = DB.tx[i];
@@ -1131,10 +1139,10 @@ function filterTx() {
     if (F.kinds.size && !F.kinds.has(r[2])) continue;
     if (r[3] < F.min) continue;
     if (F.cpm === "pair" && !(txQ(i) && pqOn(txQ(i)))) continue;
-    const cp = DB.cps[cpOf(i)];
-    // บัญชี: ที่เลือกรายบัญชี หรือ "ทั้งกลุ่ม" = บัญชีของกลุ่มที่มี statement + รายการของบัญชีอื่นที่คู่โอนอยู่ในกลุ่มนั้น (เห็นบัญชีของกลุ่มที่ยังไม่มี statement ; ผู้ใช้สั่ง 20 พ.ย. 69)
-    if ((F.accs.size || gx) && !(F.accs.has(r[0]) || (gx && (F.gx.has(DB.accounts[r[0]].g) || F.gx.has(cp[3]))))) continue;
-    if (F.cpg.size && !F.cpg.has(cp[3])) continue;
+    const ci = cpOf(i), cp = DB.cps[ci];
+    if (side) { const ag = DB.accounts[r[0]].g; if (!pass(r[0], ag, cp[3])) continue;
+      const cai = CPAI.get(ci); if (cai != null && cai !== r[0] && IN_K.includes(r[2]) && pass(cai, DB.accounts[cai].g, ag)) continue; }   // แถวคู่ (statement อีกฝั่ง) ผ่านตัวกรองด้วย = ใช้แถวเงินออกแถวเดียว
+    else if (F.cpg.size && !F.cpg.has(cp[3])) continue;
     if (q && !(cp[1].toLowerCase().includes(q) || cp[0].includes(q))) continue;
     out.push(i);
   }
