@@ -769,3 +769,7 @@ svg.lk .lkt.w{fill:#fff}
 #aKpi .kpi.click{cursor:pointer;transition:transform .12s,box-shadow .12s}
 #aKpi .kpi.click:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,38,77,.14)}
 #aKpi .kpi.on{outline:3px solid #FFD403;outline-offset:-2px;background:color-mix(in srgb,#FFD403 12%,var(--card))}
+
+/* ภาพรวม: กล่องซ้ายบน = เงินออกไปกลุ่มใดตามปี/ช่วงที่เลือก (20 พ.ย. 69) */
+.yruse{padding:12px 14px;min-height:360px}
+#yrUseS .ibx{vertical-align:middle;margin-left:4px}

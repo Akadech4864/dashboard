@@ -284,22 +284,20 @@ function pOver() {
   const yl = (o.yearly || []).filter((r) => r[0]);                    // ตัดแถวผลรวมช่วงเวลา (ทุกช่วง / ก่อน / หลัง) ออกจากกราฟรายปี
   $("#main").innerHTML = `
   ${overExtra(o, ntx)}
-  <div class="grid g2w"><div><h2>${IC("route")} เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small>แถว 1 → แถว 2 (ทุกช่วงเวลา)</small></h2>
-  <div class="card"><div class="chartbox tall"><canvas id="cHop"></canvas></div></div></div>
-  <div><h2>${IC("chart")} เงินบริจาคเข้า – ออก รายปี <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
+  <div class="grid g2w"><div><h2 id="yrUseH">${IC("route")} เงินออกจากบัญชีรับบริจาค ไปกลุ่มใด <small id="yrUseS"></small></h2>
+  <div class="card yruse"><div id="yrUse"></div></div></div>
+  <div><h2>${IC("chart")} เงินบริจาคเข้า – ออก <span id="yrChT">รายปี</span> <small>รวม 3 บัญชี (ล้านบาท)</small></h2>
   <div class="card"><div class="chartbox tall"><canvas id="cYear"></canvas></div></div></div></div>
   <div id="yrBox"></div>`;
-  const h = (o.hop1 || []).slice(0, 14);
-  CH.hop = new Chart($("#cHop"), { type: "bar", data: { labels: h.map((r) => r[0].split(" (")[0]), datasets: [{ data: h.map((r) => r[1] / 1e6), backgroundColor: h.map((r) => r[3]) }] },
-    options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.raw * 1e6)} บาท (${fmt0(h[c.dataIndex][2])} ครั้ง)` } } }, scales: { x: { title: { display: true, text: "ล้านบาท" } } } } });
   CH.year = new Chart($("#cYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] },
-    options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)} บาท` } } } } });
+    options: { maintainAspectRatio: false, onClick: (ev, els) => { if (els.length && YRCR[els[0].index]) yrPick(yrKey(YRCR[els[0].index]), true); }, onHover: (ev, els) => { ev.native.target.style.cursor = els.length ? "pointer" : ""; },
+      plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)} บาท` } } } } });
   $("#main").onclick = (e) => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); };
   yrTable();
 }
 /* ---------- สรุปรายปี 3 บัญชีรับบริจาค (เงินเข้า-ออก-คงเหลือ) + เงินออกไปที่ใด แยกประเภท ; สลับ รายปี / ก่อน-หลังตั้งมูลนิธิ ; กดแถว = ดูแยกประเภท (ผู้ใช้สั่ง 20 พ.ย. 69) ----------
    ตาราง = ไฟล์ "สรุปรายปี 3 บัญชีรับบริจาค (เงินเข้า-ออก-คงเหลือ).xlsx" (DB.over.yearly) ; แยกประเภท = รายการเงินออกของ 3 บัญชีตาม statement (ยอดโอนตรง) จัดกลุ่มคู่โอนชุดเดียวกับชาร์ต */
-let YRV = "y", YRS = "";
+let YRV = "y", YRS = "", YRCR = [];                                    // YRCR = แถวที่กราฟขวาแสดงอยู่ (รายปี หรือ ก่อน/หลังตั้งมูลนิธิ)
 let YRC = null;
 function yrUse() {
   if (YRC) return YRC;
@@ -317,23 +315,40 @@ function yrGo(k, g) {
   resetF(); F.from = a < DB.lo ? DB.lo : a; F.to = b > DB.hi ? DB.hi : b; DB.accounts.forEach((x, i) => { if (x.g === ti) F.accs.add(i); }); if (g != null && g !== "") F.cpg.add(+g);
   go("ana");
 }
+const yrKey = (r) => (r[0] ? String(r[0]) + (r[1] ? (r[1].includes("ก่อน") ? "b" : "a") : "") : /ก่อน/.test(r[1]) ? "pb" : /หลัง/.test(r[1]) ? "pa" : "all");
+const yrLab = (r) => (r[0] ? `${r[0]}${r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : ""}` : /ก่อน/.test(r[1]) ? "ก่อนตั้งมูลนิธิ" : /หลัง/.test(r[1]) ? "หลังตั้งมูลนิธิ" : "รวมทุกช่วง");
+const yrIn = (k, rk) => k === "all" || k === rk || (k === "pb" && (rk === "2565b" || (/^\d{4}$/.test(rk) && +rk < 2565))) || (k === "pa" && (rk === "2565a" || (/^\d{4}$/.test(rk) && +rk > 2565)));
+function yrPick(k, fromChart) { YRS = YRS === k && k !== "all" ? "all" : k; if (fromChart && YRV !== "y" && !["all", "pb", "pa"].includes(YRS)) YRV = "y"; yrTable(); }
+function yrSync() {                                                    // ซ้ายบน = เงินออกไปกลุ่มใดของปี/ช่วงที่เลือก ; กราฟขวา = ไฮไลต์ปีในช่วงที่เลือก
+  const k = YRS || "all", Y = DB.over.yearly || [], row = Y.find((r) => yrKey(r) === k) || Y.find((r) => yrKey(r) === "all");
+  const el = $("#yrUse"); if (el) { const U = yrUse()[k], ti = DB.groups.findIndex((g) => g[0] === "t1");
+    if (!U) el.innerHTML = `<p class="muted" style="padding:14px">ไม่มีรายการเงินออก</p>`;
+    else { const L = Object.entries(U.g).map(([g, v]) => [+g, v[0], v[1]]).sort((a, b) => (a[0] === ti) - (b[0] === ti) || b[1] - a[1]), ext = L.filter((x) => x[0] !== ti).reduce((t, x) => t + x[1], 0) || 1;
+      el.innerHTML = `<div class="yrd">${L.map(([g, v, n]) => { const c = DB.groups[g][2], intra = g === ti; return `<div class="yrb click${intra ? " intra" : ""}" data-yrgo="${k}" data-yrg="${g}" title="ดูเส้นเงินไปกลุ่มนี้ในหน้าเส้นเงิน"><span class="yl">${gTag(c, intra ? "โอนระหว่าง 3 บัญชี" : DB.groups[g][1].split(" (")[0])}</span><span class="yt"><i style="width:${intra ? 0 : Math.max(0.6, (v / ext) * 100).toFixed(1)}%;background:${c}"></i></span><b class="amt-out">${M(v)}</b><small class="muted">${intra ? "ไม่นับ" : ((v / ext) * 100).toFixed(1) + "%"} · ${fmt0(n)} ครั้ง</small></div>`; }).join("")}</div>`;
+      el.onclick = (e) => { const gb = e.target.closest("[data-yrgo]"); if (gb) yrGo(gb.dataset.yrgo, gb.dataset.yrg); }; }
+    const sub = $("#yrUseS"), ex = U ? Object.entries(U.g).filter(([g]) => +g !== ti).reduce((t, [, v]) => t + v[0], 0) : 0;
+    if (sub) sub.innerHTML = `${row ? yrLab(row) : "รวมทุกช่วง"} · ${M(ex)}${k !== "all" ? ` <button class="ibx sm" data-yrall="1" title="กลับค่าเริ่มต้น (รวมทุกช่วง)" aria-label="รวมทุกช่วง">${IC("reset", 14)}</button>` : ""}`;
+    const hb = $("#yrUseH"); if (hb) hb.onclick = (e) => { if (e.target.closest("[data-yrall]")) yrPick("all"); }; }
+  if (CH.year) { const yl = YRV === "p" ? Y.filter((r) => !r[0] && /ก่อน|หลัง/.test(r[1])) : Y.filter((r) => r[0]), on = (r) => yrIn(k, yrKey(r)), D = CH.year.data, re = YRCR.length !== yl.length || YRCR.some((r, i) => r !== yl[i]);
+    YRCR = yl; D.labels = yl.map(yrLab); D.datasets[0].data = yl.map((r) => r[2] / 1e6); D.datasets[1].data = yl.map((r) => r[4] / 1e6);
+    D.datasets[0].backgroundColor = yl.map((r) => (on(r) ? "#FFD403" : "rgba(255,212,3,.22)"));
+    D.datasets[1].backgroundColor = yl.map((r) => (on(r) ? "#00264D" : "rgba(0,38,77,.18)")); CH.year.update(re ? undefined : "none");
+    const ct = $("#yrChT"); if (ct) ct.textContent = YRV === "p" ? "ก่อน / หลังตั้งมูลนิธิ" : "รายปี"; }
+}
 function yrTable() {
   const el = $("#yrBox"); if (!el) return; const Y = DB.over.yearly || []; if (!Y.length) { el.innerHTML = ""; return; }
-  const key = (r) => (r[0] ? String(r[0]) + (r[1] ? (r[1].includes("ก่อน") ? "b" : "a") : "") : /ก่อน/.test(r[1]) ? "pb" : /หลัง/.test(r[1]) ? "pa" : "all");
-  const lab = (r) => (r[0] ? `${r[0]}${r[1] ? (r[1].includes("ก่อน") ? " ก่อนตั้ง" : " หลังตั้ง") : ""}` : /ก่อน/.test(r[1]) ? "ก่อนตั้งมูลนิธิ" : /หลัง/.test(r[1]) ? "หลังตั้งมูลนิธิ" : "รวมทุกช่วง");
-  const rows = YRV === "y" ? Y.filter((r) => r[0]).concat(Y.filter((r) => !r[0] && !/ก่อน|หลัง/.test(r[1]))) : Y.filter((r) => !r[0]);
-  const U = yrUse(), ti = DB.groups.findIndex((g) => g[0] === "t1");
-  const det = (k) => { const u = U[k]; if (!u) return `<p class="muted" style="margin:6px 0">ไม่มีรายการเงินออก</p>`;
-    const L = Object.entries(u.g).map(([g, v]) => [+g, v[0], v[1]]).sort((a, b) => (a[0] === ti) - (b[0] === ti) || b[1] - a[1]), ext = L.filter((x) => x[0] !== ti).reduce((t, x) => t + x[1], 0) || 1;
-    return `<div class="yrd">${L.map(([g, v, n]) => { const c = DB.groups[g][2], intra = g === ti; return `<div class="yrb click${intra ? " intra" : ""}" data-yrgo="${k}" data-yrg="${g}" title="ดูเส้นเงินไปกลุ่มนี้ในหน้าเส้นเงิน"><span class="yl">${gTag(c, intra ? "โอนระหว่าง 3 บัญชี" : DB.groups[g][1].split(" (")[0])}</span><span class="yt"><i style="width:${intra ? 0 : Math.max(0.6, (v / ext) * 100).toFixed(1)}%;background:${c}"></i></span><b class="amt-out">${M(v)}</b><small class="muted">${intra ? "ไม่นับ" : ((v / ext) * 100).toFixed(1) + "%"} · ${fmt0(n)} ครั้ง</small></div>`; }).join("")}</div>`; };
-  const tr = (r) => { const k = key(r), on = YRS === k, tot = !r[0];
-    return `<tr class="click${on ? " on" : ""}${tot ? " yrtot" : ""}" data-yr="${k}"><td><b>${lab(r)}</b></td><td class="n">${fmt0(r[3])}</td><td class="n amt-in">${M(r[2])}</td><td class="n">${fmt0(r[5])}</td><td class="n amt-out">${M(r[4])}</td><td class="n">${M(r[2] - r[4])}</td><td class="n"><b>${M(r[6])}</b></td><td class="yrgo"><button class="ibx sm" data-yrgo="${k}" title="ดูเส้นเงินของปี / ช่วงนี้ (หน้าเส้นเงิน)" aria-label="ดูเส้นเงิน">${IC("route", 15)}</button></td><td class="gchev">${IC("next", 16)}</td></tr>${on ? `<tr class="yrdet"><td colspan="9">${det(k)}</td></tr>` : ""}`; };
-  el.innerHTML = `<h2>${IC("chart")} สรุปรายปี 3 บัญชีรับบริจาค <small>เงินเข้า – ออก – คงเหลือ · เงินออกไปที่ใด</small> ${infoI("ตัวเลขเงินเข้า-ออก-คงเหลือ = ไฟล์สรุปรายปี 3 บัญชีรับบริจาค (รวมเงินโอนระหว่าง 3 บัญชี) · คงเหลือสิ้นงวด = ผลรวมยอดคงเหลือของบัญชีที่มีรายการแล้ว · ปี 2565 แยกที่ 25 มิ.ย. 2565 · กดแถว = เงินออกในปี / ช่วงนั้นไปที่ใด แยกตามกลุ่มผู้รับ (ตาม statement ยอดโอนตรง ; % คิดจากเงินออกที่ไม่นับโอนระหว่าง 3 บัญชี)")}</h2>
+  if (!YRS) YRS = "all";
+  const rows = YRV === "y" ? Y.filter((r) => !r[0] && !/ก่อน|หลัง/.test(r[1])).concat(Y.filter((r) => r[0])) : Y.filter((r) => !r[0]);
+  const tr = (r) => { const k = yrKey(r), on = YRS === k, tot = !r[0];
+    return `<tr class="click${on ? " on" : ""}${tot ? " yrtot" : ""}" data-yr="${k}"><td><b>${yrLab(r)}</b></td><td class="n">${fmt0(r[3])}</td><td class="n amt-in">${M(r[2])}</td><td class="n">${fmt0(r[5])}</td><td class="n amt-out">${M(r[4])}</td><td class="n">${M(r[2] - r[4])}</td><td class="n"><b>${M(r[6])}</b></td><td class="yrgo"><button class="ibx sm" data-yrgo="${k}" title="ดูเส้นเงินของปี / ช่วงนี้ (หน้าเส้นเงิน)" aria-label="ดูเส้นเงิน">${IC("route", 15)}</button></td></tr>`; };
+  el.innerHTML = `<h2>${IC("chart")} สรุปรายปี 3 บัญชีรับบริจาค <small>เงินเข้า – ออก – คงเหลือ</small> ${infoI("ตัวเลข = ไฟล์สรุปรายปี 3 บัญชีรับบริจาค (รวมเงินโอนระหว่าง 3 บัญชี) · คงเหลือสิ้นงวด = ผลรวมยอดคงเหลือของบัญชีที่มีรายการแล้ว · ปี 2565 แยกที่ 25 มิ.ย. 2565 · กดแถวหรือแท่งกราฟ = ด้านบนซ้ายแสดงเงินออกของปี / ช่วงนั้นไปกลุ่มใด และกราฟขวาไฮไลต์ตาม · กดแถวเดิมซ้ำ / แถวรวมทุกช่วง / ปุ่มกลับค่าเริ่มต้น = รวมทุกช่วง · ปุ่มเส้นทาง = เปิดหน้าเส้นเงินของปี / ช่วงนั้น")}</h2>
     <div class="seg" style="margin:-4px 0 8px">${[["y", "รายปี"], ["p", "ก่อน / หลังตั้งมูลนิธิ"]].map(([k, l]) => `<button data-yrv="${k}" class="${YRV === k ? "on" : ""}">${l}</button>`).join("")}</div>
-    <div class="tblwrap" data-noxbar="1"><table class="yrt"><tr><th>ปี / ช่วง</th><th class="n">ครั้งเข้า</th><th class="n">เงินเข้า</th><th class="n">ครั้งออก</th><th class="n">เงินออก</th><th class="n">สุทธิ</th><th class="n">คงเหลือสิ้นงวด</th><th></th><th></th></tr>${rows.map(tr).join("")}</table></div>`;
+    <div class="tblwrap" data-noxbar="1"><table class="yrt"><tr><th>ปี / ช่วง</th><th class="n">ครั้งเข้า</th><th class="n">เงินเข้า</th><th class="n">ครั้งออก</th><th class="n">เงินออก</th><th class="n">สุทธิ</th><th class="n">คงเหลือสิ้นงวด</th><th></th></tr>${rows.map(tr).join("")}</table></div>`;
   el.onclick = (e) => { const gb = e.target.closest("[data-yrgo]"); if (gb) { e.stopPropagation(); return yrGo(gb.dataset.yrgo, gb.dataset.yrg); }
-    const v = e.target.closest("[data-yrv]"); if (v) { e.stopPropagation(); YRV = v.dataset.yrv; YRS = ""; return yrTable(); }
-    const t = e.target.closest("tr[data-yr]"); if (t) { e.stopPropagation(); YRS = YRS === t.dataset.yr ? "" : t.dataset.yr; yrTable(); } };
+    const v = e.target.closest("[data-yrv]"); if (v) { e.stopPropagation(); YRV = v.dataset.yrv; if (YRV === "p" && !["all", "pb", "pa"].includes(YRS)) YRS = "all"; return yrTable(); }
+    const t = e.target.closest("tr[data-yr]"); if (t) { e.stopPropagation(); yrPick(t.dataset.yr);
+      const u = $("#yrUse"); if (u && u.getBoundingClientRect().top < 60) setTimeout(() => $("#yrUseH").scrollIntoView({ behavior: "smooth", block: "start" }), 30); } };
+  yrSync();
 }
 /* ---------- คดี / ข้อหา / ข้อต่อสู้ / งาน (กล่องไอคอน กดดูรายละเอียด) ---------- */
 const acts2 = (sec, id) => `<div class="acts in"><button onclick="editItem('${sec}','${id}')">แก้ไข</button></div>`;
