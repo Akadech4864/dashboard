@@ -740,3 +740,6 @@ svg.lk .lkt.w{fill:#fff}
 /* ปุ่มย้อนกลับตัวกรองในแถวเครื่องมือตาราง (หน้าวิเคราะห์) สีเหลืองให้เห็นชัด 20 พ.ย. 69 */
 .ibx.fbk{background:#FFD403;border-color:#FFD403;color:#00264D;width:auto;min-width:34px;padding:0 9px;gap:3px;font-weight:700}
 .ibx.fbk small{font-size:.78rem}
+
+/* ชาร์ตเส้นเงิน: ป้ายบอกยอดเงินออกที่ไม่แสดงเมื่อไล่เฉพาะกล่องที่คลี่ (20 พ.ย. 69) */
+.flnote{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:2px 4px 6px;padding:5px 10px;border-radius:10px;background:color-mix(in srgb,#FFD403 16%,var(--card));border:1px solid color-mix(in srgb,#FFD403 55%,var(--line));font-size:.8rem;color:var(--ink)}

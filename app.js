@@ -1160,6 +1160,7 @@ function pAna() {
   m.onclick = (e) => {
     if (!e.target.closest("#fCard")) ddClose();
     const b = e.target.closest("button"); if (!b) return;
+    if (b.dataset.p || b.dataset.g || b.dataset.gx != null || b.dataset.k || b.dataset.c) F.noAuto = false;   // เปลี่ยนตัวกรอง = กลับไปคลี่อัตโนมัติได้
     if (b.dataset.dd) { const p = $(`[data-ddp="${b.dataset.dd}"]`, m), was = p.hidden; ddClose(); p.hidden = !was; b.classList.toggle("open", was); return; }
     if (b.dataset.p) { const p = b.dataset.p; F.from = p === "after" ? DB.cut : /^\d+$/.test(p) ? p + "-01-01" : DB.lo; F.to = p === "before" ? "2022-06-24" : /^\d+$/.test(p) ? p + "-12-31" : DB.hi; $("#fFrom").value = F.from; $("#fTo").value = F.to; }
     else if (b.dataset.g) { const ids = gAcc[b.dataset.g]; const all = ids.every((i) => F.accs.has(i)); ids.forEach((i) => (all ? F.accs.delete(i) : F.accs.add(i))); }
@@ -1178,7 +1179,7 @@ function pAna() {
     else if (b.dataset.pq != null) { FHIST.push(fSnap()); const q = +b.dataset.pq; if (!q) F.pq.clear(); else { tog(F.pq, q); if (F.cpm === "raw") F.cpm = "all"; } }
     else if (b.dataset.fn) F.fln = +b.dataset.fn;
     else if (b.dataset.fc) F.flc = +b.dataset.fc;
-    else if (b.id === "flClr") { FHIST.push(fSnap()); F.chain = []; }
+    else if (b.id === "flClr" || b.dataset.flall) { FHIST.push(fSnap()); F.chain = []; F.noAuto = true; }
     else if (b.id === "flBack" || b.closest("#flBack") || b.dataset.fb) { if (!FHIST.length) return; F = FHIST.pop(); $("#fFrom").value = F.from; $("#fTo").value = F.to; $("#fQ").value = F.q; $("#fMin").value = F.min || ""; const y = F._y; delete F._y; if (y != null) { upd(); setTimeout(() => scrollTo({ top: y }), 30); return; } }
     else if (b.id === "dnGo") return donorSearch($("#dnQ").value);
     else if (b.dataset.dn != null) return donorDetail(+b.dataset.dn);
@@ -1310,6 +1311,7 @@ function pAna() {
       const C = (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])), S = C[at] || [];
       if (S.includes(id)) { const S2 = S.filter((x) => x !== id); F.chain = S2.length ? C.slice(0, at).concat([S2], C.slice(at + 1)) : C.slice(0, at); }
       else { C[at] = S.concat([id]); F.chain = C.slice(0, at + 1).concat(C.slice(at + 1)); }
+      F.noAuto = !(F.chain && F.chain.length);
       tip.hidden = true; return upd(); }
     if (col >= 3) { toast("บัญชีนี้ยังไม่มี statement จึงไล่ทอดต่อไม่ได้"); return; }
     if ("gcGa".includes(id[0])) FHIST.push(fSnap());
@@ -1859,11 +1861,13 @@ function drawFlow(box, pair) {
   if (F.dn && DN && DNQ && (!DNT || DNT.key !== dkey)) DNT = donorTrace();
   const dn = F.dn && DNT ? DNT : null;
   let fb = dn ? { cols: dn.cols, links: dn.links, chain: [] } : flowBuild(pair);
-  if (!dn && PREF.flAuto !== false) {                                   // ผู้ใช้เลือกแสดง N คอลัมน์ -> คลี่กล่องใหญ่สุดที่ไล่ต่อได้ของคอลัมน์สุดท้ายจนครบ (ผู้สั่งงาน 19 พ.ย. 69)
+  if (!dn && PREF.flAuto !== false && !F.noAuto) {                                   // ผู้ใช้เลือกแสดง N คอลัมน์ -> คลี่กล่องใหญ่สุดที่ไล่ต่อได้ของคอลัมน์สุดท้ายจนครบ (ผู้สั่งงาน 19 พ.ย. 69)
     for (let g = 0; g < 8 && 3 + fb.chain.length < F.flc; g++) {
       const last = fb.cols[2 + fb.chain.length]; if (!last) break;
       const usedIds = new Set(fb.chain.flat()), nx = [...last.values()].filter((n) => n.id.length > 1 && n.id !== "rem" && n.id !== "nst" && !usedIds.has(n.id) && srcAccs(n.id).length).sort((a, b) => Math.max(b.in, b.out) - Math.max(a.in, a.out))[0];
       if (!nx) break;
+      const big = Math.max(...[...last.values()].filter((n) => n.id.length > 1).map((n) => Math.max(n.in, n.out)));
+      if (Math.max(nx.in, nx.out) < big * 0.25) break;                    // กล่องที่ไล่ต่อได้เล็กกว่ากล่องใหญ่สุดเกิน 4 เท่า = ไม่คลี่เอง (ให้เห็นทุกกล่องก่อน)
       F.chain = fb.chain.map((a) => [...a]).concat([[nx.id]]); const nb = flowBuild(pair); if (nb.chain.length <= fb.chain.length) break; fb = nb;
     }
   }
@@ -1906,7 +1910,10 @@ function drawFlow(box, pair) {
   const ban = dn ? `<div class="dnban" style="background:#FFF8E1;border:1px solid #F9A825;border-radius:8px;padding:8px 10px;margin:0 0 6px;font-size:.86rem"><b>ไล่เงินผู้บริจาค:</b> ${esc(dn.name)} — บริจาครวม ${fmt(dn.total)} บาท (${fmt0(dn.n)} ครั้งที่มีวันเวลา) · ไล่ตามรายการโอนออกถัดไปตามเวลาจนครบยอด${dn.rem > 0.5 ? ` · ยังไม่พบรายการโอนออกต่อ ${fmt(dn.rem)} บาท` : ""}${dn.undated > 0.5 ? ` · ยอดรวมรายย่อยไม่มีวันที่ ${fmt(dn.undated)} บาท` : ""}
       <button class="chip" data-dnoff="1" style="margin-left:6px">✕ กลับชาร์ตตามตัวกรอง</button><br><span class="muted">เป็นการไล่ตามลำดับเวลา (สันนิษฐาน) ไม่ใช่การระบุตัวเงิน · ไม่ใช้ตัวกรองช่วงเวลา/บัญชี · เปลี่ยน กลุ่ม/รายบัญชี และจำนวนกล่องได้</span></div>` : "";
   const sk0 = C0[0] && C0[0].size ? 0 : 1;
-  box.innerHTML = ban + (first > sk0 ? `<div class="muted" style="font-size:.78rem;padding:2px 8px">◀ ${first - sk0}</div>` : "") +
+  let hid = "";
+  if (!dn && F.flt !== false && chain.length && C0[2]) { let all = 0; for (const [, v] of pair) all += v[1]; const shown = [...C0[2].values()].reduce((t, n) => t + n.in, 0), h = all - shown;
+    if (h >= 1) hid = `<div class="flnote">${IC("info", 14)} แสดงเฉพาะเส้นที่ไล่จากกล่องที่คลี่ ▼ · เงินออกอื่นตามตัวกรอง <b>${M(h)}</b> ไม่แสดง <button class="ibx sm" data-flall="1" title="แสดงทุกกล่อง (ยุบที่คลี่)" aria-label="แสดงทุกกล่อง">${IC("shrink", 14)}</button></div>`; }
+  box.innerHTML = ban + hid + (first > sk0 ? `<div class="muted" style="font-size:.78rem;padding:2px 8px">◀ ${first - sk0}</div>` : "") +
     `<svg width="${W}" height="${Math.ceil(H + 8)}" viewBox="0 0 ${W} ${Math.ceil(H + 8)}">${hd}${svg}</svg>`;
 }
 
