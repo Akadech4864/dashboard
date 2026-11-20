@@ -1037,7 +1037,14 @@ function ccPayView(C) {
   const ms = [...new Set(rows.map((r) => String(r[0]).slice(0, 7)))].sort(), ser = sel ? R.map((x) => [x.id, x.lab, x.col, (r) => r[1]]) : L.map((x) => [x.id, x.lab, x.col, key]);
   CH.ccP = new Chart($("#cCcP"), { type: "bar", data: { labels: ms.map((m) => `${MTH[+m.slice(5)]} ${String(+m.slice(0, 4) + 543).slice(2)}`),
       datasets: ser.map(([id, l, c, kf]) => ({ label: l.length > 40 ? l.slice(0, 39) + "…" : l, backgroundColor: c, stack: "s", data: ms.map((m) => rows.filter((r) => String(r[0]).slice(0, 7) === m && kf(r) === id).reduce((t, r) => t + r[2], 0) / 1e6) })) },
-    options: { maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } } } });
+    options: { maintainAspectRatio: false, onClick: (ev, els) => { const p = CH.ccP.getElementsAtEventForMode(ev, "nearest", { intersect: true }, true)[0] || els[0]; if (!p) return;
+        const m = ms[p.index], [id, l, , kf] = ser[p.datasetIndex], R = rows.filter((r) => String(r[0]).slice(0, 7) === m && kf(r) === id), host = detHost($("#cCcP").closest(".card"), "ccP"); host._go = null;
+        xtMount(host, { id: "chd-ccP", title: `รายการชำระ · ${MTH[+m.slice(5)]} ${+m.slice(0, 4) + 543} · ${l}`, rows: R, noBar: true, sort0: [[0, 1]], note: "กดแถว = หน้าวิเคราะห์เส้นเงินของบัญชีที่จ่าย (วันเดียวกัน ค้นหาเลขบัญชีบัตร)",
+          cols: [["วันเวลาโอน (ธนาคาร)", (r) => String(r[0]), "t", (r) => ccTm(r[0])], ["บัญชีที่จ่าย", (r) => lab(key(r)), "t"], ["บัตร", (r) => "x" + r[1], "t"], ["ยอด (บาท)", (r) => r[2], "a", (r) => `<b>${fmt(r[2])}</b>`], ["วิธีจับคู่", (r) => HOWL[r[4]] || "", "t"], ["", () => "", "x", () => `<span class="gchev">${IC("route", 15)}</span>`]],
+          sum: (Q) => `รวม ${M(Q.reduce((t, r) => t + r[2], 0))}`, post: detPost(false), rowAttr: () => 'class="click"',
+          onRow: (r) => { const ai = DB.accounts.findIndex((a) => dg(a.acc) === dg(r[3])), d = String(r[0]).slice(0, 10), ci_ = (C.card_info || []).find((c) => c.card === r[1]); if (ai >= 0) anaGo({ from: d, to: d, accs: [ai] }, ci_ ? ci_.acc : ""); else toast("บัญชีที่จ่ายยังไม่มี statement ในระบบ"); } });
+        detScroll(host); },
+      scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } } } });
 }
 const NATC = { per: "#B3261E", chr: "#1B7A4A", fin: "#9E9E9E" };
 const ccTm = (t) => (String(t).length > 10 ? `${dTh(String(t).slice(0, 10))} ${String(t).slice(11)}` : dTh(t));
@@ -1085,11 +1092,16 @@ function ccCharts(C) {
   if (!C) return;
   const T = C.types.filter((t) => t.amt > 0).slice(0, 14);
   if ($("#cCcT")) CH.ccT = new Chart($("#cCcT"), { type: "bar", data: { labels: T.map((t) => t.label.length > 30 ? t.label.slice(0, 29) + "…" : t.label), datasets: [{ label: "ล้านบาท", data: T.map((t) => t.amt / 1e6), backgroundColor: T.map((t) => NATC[t.nat]) }] },
-    options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.raw * 1e6)} บาท (${fmt0(T[c.dataIndex].n)} ครั้ง)` } } }, scales: { y: { ticks: { font: { size: 11 } } } } } });
+    options: { indexAxis: "y", maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const t = T[els[0].index]; ccDet($("#cCcT").closest(".card"), "ccT", `รายการย่อย · ${t.label}`, (r) => r[4] === t.label && r[5] === t.nat, { types: [t.label] }); },
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${fmt(c.raw * 1e6)} บาท (${fmt0(T[c.dataIndex].n)} ครั้ง)` } } }, scales: { y: { ticks: { font: { size: 11 } } } } } });
   const keys = C.types.slice(0, 6).map((t) => t.k + ":" + t.nat), cols = ["#00264D", "#B3261E", "#1565C0", "#8E44AD", "#16A085", "#D35400"];
   if ($("#cCcY")) CH.ccY = new Chart($("#cCcY"), { type: "bar", data: { labels: C.years.map((y) => String(y.y + 543)), datasets: [...keys.map((k, i) => ({ label: C.types[i].label.split(" / ")[0], data: C.years.map((y) => (y.types[k] || 0) / 1e6), backgroundColor: cols[i], stack: "s" })),
     { label: "อื่น ๆ", data: C.years.map((y) => (y.amt - keys.reduce((t, k) => t + (y.types[k] || 0), 0)) / 1e6), backgroundColor: "#BDC3C7", stack: "s" }] },
-    options: { maintainAspectRatio: false, plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } }, scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } } } });
+    options: { maintainAspectRatio: false, onClick: (ev, els) => { const p = CH.ccY.getElementsAtEventForMode(ev, "nearest", { intersect: true }, true)[0] || els[0]; if (!p) return;
+        const y = C.years[p.index].y, di = p.datasetIndex, top = keys.map((k) => C.types.find((t) => t.k + ":" + t.nat === k)).filter(Boolean), t = di < keys.length ? top[di] : null;
+        const pred = t ? (r) => r[0].startsWith(String(y)) && r[4] === t.label && r[5] === t.nat : (r) => r[0].startsWith(String(y)) && !top.some((x) => x.label === r[4] && x.nat === r[5]);
+        ccDet($("#cCcY").closest(".card"), "ccY", `รายการย่อย · ปี ${y + 543} · ${t ? t.label : "อื่น ๆ"}`, pred, { types: t ? [t.label] : [], from: `${y}-01-01`, to: `${y}-12-31` }); },
+      plugins: { legend: { labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } }, scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } } } });
 }
 
 /* ---------- งานและความคืบหน้า (รวม 2 เมนู ; ผู้สั่งงาน 18 พ.ย. 69) : ตารางงานเดียว กรองได้ การ์ดมีตัวเลข ---------- */
@@ -1414,7 +1426,10 @@ function pAna() {
     $("#granLab").textContent = gy ? "รายปี" : "รายเดือน";
     CH.time = new Chart($("#cTime"), { type: "bar", data: { labels: tks.map((t) => gy ? String(t + 543) : `${MTH[t % 12 + 1]} ${String(Math.floor(t / 12) + 543).slice(2)}`),
         datasets: DB.kinds.map((l, k) => ({ label: l.split(" (")[0], data: tks.map((t) => (IN_K.includes(k) ? 1 : -1) * byT.get(t)[k] / 1e6), backgroundColor: KCOL[k], stack: "s" })).filter((d) => d.data.some((v) => v)) },
-      options: { maintainAspectRatio: false, scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true, title: { display: true, text: "ล้านบาท (เข้า + / ออก −)" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(Math.abs(c.raw) * 1e6)}` } } } } });
+      options: { maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const t = tks[els[0].index]; FHIST.push(fSnap());
+          if (gy) { F.from = `${t}-01-01`; F.to = `${t}-12-31`; } else { const m = `${Math.floor(t / 12)}-${String(t % 12 + 1).padStart(2, "0")}`; [F.from, F.to] = monRange(m); }
+          if (F.from < DB.lo) F.from = DB.lo; if (F.to > DB.hi) F.to = DB.hi; const a = $("#fFrom"), b = $("#fTo"); if (a) a.value = F.from; if (b) b.value = F.to; F.noAuto = false; upd(); toast(`กรองช่วง ${dTh(F.from)} – ${dTh(F.to)} · ดูรายการในตารางด้านล่าง`); },
+        scales: { x: { stacked: true, ticks: { maxRotation: 90, autoSkip: true } }, y: { stacked: true, title: { display: true, text: "ล้านบาท (เข้า + / ออก −)" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(Math.abs(c.raw) * 1e6)}` } } } } });
     const hb = (id, keys, lab, col, onPick) => new Chart($(id), { type: "bar", data: { labels: keys.map(lab), datasets: [{ label: "เงินเข้า", data: keys.map((k) => k[1][0] / 1e6), backgroundColor: "#1565C0" }, { label: "เงินออก", data: keys.map((k) => k[1][1] / 1e6), backgroundColor: "#B3261E" }] },
       options: { indexAxis: "y", maintainAspectRatio: false, onClick: (e, el) => { if (el.length) onPick(keys[el[0].index][0]); }, scales: { x: { title: { display: true, text: "ล้านบาท" } }, y: { ticks: { font: { size: 11 } } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw * 1e6)}` } } } } });
     const gs = Object.entries(byG).sort((x, y) => (y[1][0] + y[1][1]) - (x[1][0] + x[1][1])).slice(0, 14);
@@ -1511,7 +1526,11 @@ async function donorDetail(i) {
   if (ks.length) { box.insertAdjacentHTML("beforeend", `<div class="card" style="margin-top:8px"><div class="lab" style="margin:0 0 4px">ยอดบริจาครายเดือน — ${esc(d[2] || d[0])}</div><div class="chartbox"><canvas id="cDn"></canvas></div></div>`);
     CH.dn && CH.dn.destroy(); CH.dn = new Chart($("#cDn"), { type: "bar", data: { labels: ks.map((k) => `${MTH[k % 12 + 1]} ${String(Math.floor(k / 12) + 543).slice(2)}`),
       datasets: D.t1.map((t, j) => ({ label: D.t1s[j], data: ks.map((k) => mon.get(k)[j]), backgroundColor: ["#1A237E", "#1565C0", "#26C6DA"][j], stack: "s" })).filter((ds) => ds.data.some((v) => v)) },
-      options: { maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: "บาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw)}` } } } } }); }
+      options: { maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const k = ks[els[0].index], R = rows.filter((x) => { if (x[2] < 0) return false; const t = new Date(Date.UTC(2015, 0, 1) + x[2] * 864e5); return t.getUTCFullYear() * 12 + t.getUTCMonth() === k; });
+          const host = detHost($("#cDn").closest(".card"), "dn"); host._go = null;
+          xtMount(host, { id: "chd-dn", title: `รายการบริจาค · ${MTH[k % 12 + 1]} ${Math.floor(k / 12) + 543}`, rows: R, noBar: true, sort0: [[0, 1]], cols: [["วันที่", (x) => x[2], "a", (x) => dnDay(x[2])], ["บัญชีรับบริจาค", (x) => D.t1s[x[1]], "t"], ["ยอด (บาท)", (x) => x[4], "a", (x) => `<b class="amt-in">${fmt(x[4])}</b>`], ["ครั้ง", (x) => x[5], "a", (x) => fmt0(x[5])]],
+            sum: (Q) => `รวม ${M(Q.reduce((t, x) => t + x[4], 0))}`, post: detPost(false) }); detScroll(host); },
+        scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: "บาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label} ${fmt(c.raw)}` } } } } }); }
 }
 
 /* ---------- บัญชี (กล่องรายกลุ่ม กดดูรายบัญชี) ---------- */
@@ -1535,6 +1554,67 @@ function pAcc() {
   m.onclick = (e) => { const b = e.target.closest("button"); if (!b) return;
     if (b.dataset.i != null) { resetF(); F.accs.add(+b.dataset.i); F.flm = "d"; go("ana"); }
     else if (b.dataset.v != null) { ACV = b.dataset.v; render(); if (!wide) scrollTo(0, 0); } };
+}
+/* ---------- ตารางรายการย่อยใต้กราฟ ทุกหน้า (ผู้ใช้สั่ง 20 พ.ย. 69 "ทำตารางรายการย่อยแบบนี้กับกราฟอื่น ๆ ทุกหน้า") ----------
+   กดแท่ง / ชิ้นในกราฟ = ตารางรายการย่อยต่อท้ายกราฟในหน้าเดิม (xtMount) ; ปุ่มเส้นทางบนหัวตาราง = ทั้งชุดในหน้าวิเคราะห์ ; กดแถว = คู่นั้น (มีปุ่มลอยกลับ)
+   txSub ใช้ filterTx ชุดเดียวกับหน้าวิเคราะห์ (ยอดโอนตรง ; ตัดแถวซ้ำของคู่ที่มี statement 2 ฝั่ง) + กรองทิศทาง send / recv ตามกลุ่ม */
+const gIdx = (code) => DB.groups.findIndex((g) => g[0] === (/^rel/.test(String(code)) ? "rel" : code));
+const t1Accs = () => DB.accounts.map((a, i) => (DB.groups[a.g] && DB.groups[a.g][0] === "t1" ? i : -1)).filter((i) => i >= 0);
+const monRange = (m) => [m + "-01", new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7), 0)).toISOString().slice(0, 10)];
+const yrAD = (y) => [`${y}-01-01`, `${y}-12-31`];
+function txSub(f) {
+  const keep = F; let out = [];
+  F = Object.assign({}, keep, { from: f.from || DB.lo, to: f.to || DB.hi, accs: new Set(f.accs || []), gx: new Set(f.gx || []), cpg: new Set(f.cpg || []), kinds: new Set(f.kinds || []), min: 0, q: f.q || "", cpm: "raw", pq: new Set() });
+  try { const P = new Map();
+    for (const i of filterTx()) { const r = DB.tx[i], ci = cpOf(i), c = DB.cps[ci], inn = IN_K.includes(r[2]), ag = DB.accounts[r[0]].g, sg = inn ? c[3] : ag, rg = inn ? ag : c[3];
+      if ((f.send && !f.send.has(sg)) || (f.recv && !f.recv.has(rg))) continue;
+      const iso = min2iso(r[1]).slice(0, 10), k = r[0] + ":" + ci + ":" + (inn ? 1 : 0); let e = P.get(k);
+      if (!e) P.set(k, (e = { ai: r[0], ci, inn, v: 0, n: 0, a: iso, b: iso })); e.v += r[3]; e.n += r[5] || 1; if (iso < e.a) e.a = iso; if (iso > e.b) e.b = iso; }
+    out = [...P.values()]; } finally { F = keep; }
+  return out;
+}
+function anaGo(f, q) { resetF(); F.from = f.from || DB.lo; F.to = f.to || DB.hi; (f.accs || []).forEach((i) => F.accs.add(i)); (f.gx || []).forEach((g) => F.gx.add(g)); (f.cpg || []).forEach((g) => F.cpg.add(g)); (f.kinds || []).forEach((k) => F.kinds.add(k)); if (q != null) F.q = q; go("ana"); }
+function detHost(anchor, id) {
+  if (!anchor) return null; let h = document.getElementById("chd-" + id);
+  if (!h) { h = document.createElement("div"); h.id = "chd-" + id; h.className = "chdet"; anchor.insertAdjacentElement("afterend", h);
+    h.addEventListener("click", (e) => { if (e.target.closest("[data-chx]")) { e.stopPropagation(); h.remove(); return; } const g = e.target.closest("[data-chgo]"); if (g && h._go) { e.stopPropagation(); h._go(); } }); }
+  return h;
+}
+function detScroll(h) { if (!h) return; const t = h.getBoundingClientRect().top; if (t > innerHeight - 140 || t < 56) setTimeout(() => scrollTo({ top: h.getBoundingClientRect().top + scrollY - 76, behavior: "smooth" }), 30); }
+const detPost = (go_, tip) => (go_ ? ibx("route", tip || "เปิดทั้งชุดในหน้าวิเคราะห์เส้นเงิน", 'data-chgo="1"') : "") + ibx("x", "ปิดรายการย่อย", 'data-chx="1"');
+function chDet(anchor, id, title, f, note) {                            // ตารางคู่ ผู้โอน → ผู้รับ ของชุดกรอง f
+  const h = detHost(anchor, id); if (!h) return; const rows = txSub(f); h._go = () => anaGo(f);
+  const aL = (ai) => { const a = DB.accounts[ai]; return `${a.bank} ${a.acc} ${a.name}`; }, cL = (ci) => { const c = DB.cps[ci]; return c[0] ? `${c[2] || ""} ${c[0]} ${c[1] || ""}`.trim() : c[1] || DB.groups[c[3]][1].split(" (")[0]; };
+  const sL = (r) => (r.inn ? cL(r.ci) : aL(r.ai)), rL = (r) => (r.inn ? aL(r.ai) : cL(r.ci)), gOf = (r) => DB.groups[DB.cps[r.ci][3]], gN = (r) => gOf(r)[1].split(" (")[0];
+  xtMount(h, { id: "chd-" + id, title, rows, noBar: true, lims: [50, 0], xl: title.replace(/[\\/:*?"<>|]/g, " "), sort0: [[4, -1]],
+    note: (note ? note + " · " : "") + "ตาม statement (ยอดโอนตรง) ชุดเดียวกับหน้าวิเคราะห์เส้นเงิน — อาจต่างจากตัวเลขในกราฟเล็กน้อยเมื่อกราฟใช้ยอดฝั่งที่มากกว่าของคู่บัญชี · 1 แถว = 1 คู่ ผู้โอน → ผู้รับ · กดแถว = หน้าวิเคราะห์ของคู่นั้น · ปุ่มเส้นทางบนหัวตาราง = ทั้งชุด",
+    cols: [["#", () => 0, "n"], ["ผู้โอน", sL, "t", (r) => labAcc(sL(r))], ["ผู้รับ", rL, "t", (r) => labAcc(rL(r))], ["กลุ่มคู่โอน", gN, "t", (r) => gTag(gOf(r)[2], gN(r))],
+      ["ยอดเงิน (บาท)", (r) => r.v, "a", (r) => `<b>${fmt(r.v)}</b>`], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["ช่วงวันที่", (r) => r.a, "d", (r) => (r.a === r.b ? dTh(r.a) : `${dTh(r.a)} – ${dTh(r.b)}`)], ["", () => "", "x", () => `<span class="gchev">${IC("route", 15)}</span>`]],
+    sum: (R) => `รวม ${M(R.reduce((t, r) => t + r.v, 0))}`, post: detPost(true),
+    rowAttr: () => 'class="click" title="วิเคราะห์เส้นเงินคู่นี้"', onRow: (r) => { const c = DB.cps[r.ci]; anaGo({ from: f.from, to: f.to, accs: [r.ai] }, c[0] && String(c[0]).trim() ? String(c[0]).trim() : c[1] || ""); } });
+  detScroll(h);
+}
+async function dnDet(anchor, id, title, o) {                            // ตารางผู้บริจาค (donors.enc) : o.lo-o.hi = ยอดสะสมต่อราย / o.year = ยอดในปีนั้น
+  const h = detHost(anchor, id); if (!h) return; h._go = null; h.innerHTML = `<p class="muted" style="padding:10px">กำลังถอดรหัสข้อมูลผู้บริจาค…</p>`; detScroll(h);
+  let D; try { D = await loadDonors(); } catch (e) { h.innerHTML = `<p class="muted">โหลดข้อมูลผู้บริจาคไม่ได้: ${esc(e.message)}</p>`; return; }
+  const d0 = Date.UTC(2015, 0, 1) / 864e5, yA = o.year != null ? Date.UTC(o.year, 0, 1) / 864e5 - d0 : 0, yB = o.year != null ? Date.UTC(o.year + 1, 0, 1) / 864e5 - d0 : 0, A = new Map();
+  for (const x of D.x) { if (o.year != null && !(x[2] >= yA && x[2] < yB)) continue; let a = A.get(x[0]); if (!a) A.set(x[0], (a = { i: x[0], v: 0, n: 0, f: 1e9, l: -1 })); a.v += x[4]; a.n += x[5]; if (x[2] >= 0) { a.f = Math.min(a.f, x[2]); a.l = Math.max(a.l, x[2]); } }
+  const rows = [...A.values()].filter((a) => D.d[a.i][3] === "ผู้บริจาค" && (o.year != null || (a.v >= o.lo && a.v < o.hi))), nm = (a) => D.d[a.i][2] || D.d[a.i][0] || "", ac = (a) => `${(D.d[a.i][1] || "").replace(/^KBNK$/, "KBANK")} ${D.d[a.i][0] || ""}`.trim();   // เฉพาะประเภท "ผู้บริจาค" (ชุดเดียวกับกราฟ ; ไม่รวมฝากเงินสด / บัญชีเป้าหมาย / บัญชีต้องสงสัย)
+  xtMount(h, { id: "chd-" + id, title, rows, noBar: true, lims: [50, 0], xl: title.replace(/[\\/:*?"<>|]/g, " "), sort0: [[3, -1]],
+    note: "จากข้อมูลผู้บริจาครายผู้โอนของ 3 บัญชีรับบริจาค (เฉพาะเงินเข้าที่ statement แสดงผู้โอน) · กดแถว = ไล่เงินผู้บริจาครายนั้นในหน้าวิเคราะห์เส้นเงิน",
+    cols: [["#", () => 0, "n"], ["ผู้บริจาค", nm, "t"], ["บัญชี", ac, "t"], [o.year != null ? `ยอดปี ${o.year + 543} (บาท)` : "ยอดสะสม (บาท)", (a) => a.v, "a", (a) => `<b class="amt-in">${fmt(a.v)}</b>`], ["ครั้ง", (a) => a.n, "a", (a) => fmt0(a.n)],
+      ["ช่วงวันที่", (a) => a.f, "a", (a) => (a.l < 0 ? "–" : a.f === a.l ? dnDay(a.f) : `${dnDay(a.f)} – ${dnDay(a.l)}`)], ["", () => "", "x", () => `<span class="gchev">${IC("route", 15)}</span>`]],
+    sum: (R) => `รวม ${M(R.reduce((t, a) => t + a.v, 0))}`, post: detPost(false),
+    rowAttr: () => 'class="click" title="ไล่เงินผู้บริจาครายนี้"', onRow: (a) => { const n = nm(a); go("ana"); if (typeof donorShow === "function") donorShow([a.i], n); } });
+}
+function ccDet(anchor, id, title, pred, flt) {                          // ตารางรายการใช้บัตรเครดิต ; ปุ่มเส้นทาง = หน้ารายการใช้จ่ายพร้อมตัวกรองเดียวกัน
+  const h = detHost(anchor, id); if (!h) return; const rows = DB.cc.tx.filter(pred);
+  h._go = () => { Object.assign(CCF, { cards: new Set(), types: new Set(flt.types || []), nats: new Set(), ctry: new Set(), from: flt.from || "", to: flt.to || "", q: "", cf: {} }); CCV = "tx"; go("cc"); };
+  xtMount(h, { id: "chd-" + id, title, rows, noBar: true, lims: [50, 0], xl: title.replace(/[\\/:*?"<>|]/g, " "), sort0: [[7, -1]],
+    note: "รายการใช้บัตรตาม statement บัตร · ปุ่มเส้นทางบนหัวตาราง = หน้ารายการใช้จ่ายพร้อมตัวกรองเดียวกัน",
+    cols: [["วันที่", (r) => r[0], "d"], ["บัตร", (r) => "x" + r[1], "t"], ["ร้านค้า / รายการ", (r) => r[2], "t"], ["เมือง / รายละเอียด", (r) => r[3], "t"], ["ประเภท", (r) => r[4], "t"], ["ลักษณะ", (r) => (typeof NATL !== "undefined" && NATL[r[5]]) || r[5], "t"], ["ประเทศ", (r) => r[6], "t"], ["ยอด (บาท)", (r) => r[7], "a", (r) => `<b>${fmt(r[7])}</b>`]],
+    sum: (R) => `รวม ${M(R.reduce((t, r) => t + r[7], 0))}`, post: detPost(true, "เปิดในหน้ารายการใช้จ่ายบัตรเครดิต") });
+  detScroll(h);
 }
 /* ---------- ไล่เส้นเงิน (กล่องรายชุด กดดูรายละเอียด) ---------- */
 function pTrace() {
@@ -2187,9 +2267,9 @@ function pAccTable() {                                                 // ตา
   const tot = (f, k) => rows.filter(f).reduce((t, r) => t + k(r), 0);
   const PH = {}; imgBy((i) => i.cat === "บุคคล").forEach((i) => (PH[nk(i.key)] = i));
   const cover = (g, rs) => { if (gcode(g) === "t1") return imgBy((i) => i.cat === "นิติบุคคล" && /มูลนิธิ/.test(i.key || i.title)).slice(0, 1);
-    const seen = new Set(), out = []; for (const r of [...rs].sort(ord)) { const i = PH[nk(r.name)]; if (i && !seen.has(i.id)) { seen.add(i.id); out.push(i); } } return out.slice(0, 3); };
+    const seen = new Set(), out = []; for (const r of [...rs].sort(ord)) { const i = PH[nk(r.name)]; if (i && !seen.has(i.id)) { seen.add(i.id); out.push(Object.assign({}, i, { pn: r.name, pa: r.acc })); } } return out.slice(0, 3); };
   const coverH = (g, rs, sz) => { const im = cover(g, rs);
-    return im.length ? `<span class="gcov" style="--c:${gcol(g)};--n:${im.length}">${im.map((i) => `<img alt="" loading="lazy" style="width:${sz}px;height:${sz}px" src="data:image/jpeg;base64,${i.th}">`).join("")}</span>`
+    return im.length ? `<span class="gcov" style="--c:${gcol(g)};--n:${im.length}">${im.map((i) => `<img alt="" loading="lazy" style="width:${sz}px;height:${sz}px" src="data:image/jpeg;base64,${i.th}"${i.pn ? ` data-pt="${esc(i.pn)}" data-pa="${esc(dg(i.pa || ""))}"` : ""}>`).join("")}</span>`
       : `<span class="gcov ico" style="--c:${gcol(g)};width:${sz}px;height:${sz}px;background:${gcol(g)}">${IC(gcode(g) === "t1" ? "build" : /pco|con|bld|ctr/.test(gcode(g)) ? "build" : /cash/.test(gcode(g)) ? "coin" : "user", Math.round(sz * 0.5))}</span>`; };
   const kt = (key, val, ic, v, l, s, cls) => `<button class="tile ${AXF[key] === val && val !== "" ? "on" : ""}" data-axk="${key}" data-axv="${esc(val)}"><span class="ico ${cls || ""}">${IC(ic)}</span><span class="v">${v}</span><span class="l">${l}</span>${s ? `<span class="s">${s}</span>` : ""}</button>`;
   const gsum = (rs) => ({ n: rs.length, stm: rs.filter((r) => r.ai >= 0).length, inn: rs.reduce((t, r) => t + (r.s ? r.s.inn : 0), 0), out: rs.reduce((t, r) => t + (r.s ? r.s.out : 0), 0),
@@ -2197,12 +2277,12 @@ function pAccTable() {                                                 // ตา
   const card = (g) => { const rs = rows.filter((r) => r.g === g && pass(r, "g")), u = gsum(rs), isT1 = gcode(g) === "t1";
     return !rs.length ? "" : `<button class="gcard ${AXF.g === String(g) ? "on" : ""}" data-axk="g" data-axv="${g}" style="--c:${gcol(g)}">${coverH(g, rs, 64)}
       <span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · มี STM ${u.stm}</small><small>${isT1 ? `เงินเข้า ${M(u.inn)} · ออก ${M(u.out)}` : `รับจากบัญชีมูลนิธิ ${M(u.t1)}`}</small>${u.fzn ? `<small class="fz">${IC("lock", 11)} อายัด ${u.fzn} บัญชี ${M(u.fz)}</small>` : ""}</span></button>`; };
-  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}${r.card ? `<br>${r.cc ? `<button class="clnk" data-axc="${r.k.slice(-4)}" title="รายการใช้จ่ายบัตรนี้">${IC("card", 12)} บัตรเครดิต ${esc(r.card)} ${IC("next", 12)}</button>` : `<small class="muted">บัตรเครดิต ${esc(r.card)}</small>`}` : ""}</td><td>${esc(r.name)}</td>
+  const rowH = (r) => `<tr class="click" data-axr="${r.k}"><td>${esc(r.bank)} ${esc(r.acc)}${r.card ? `<br>${r.cc ? `<button class="clnk" data-axc="${r.k.slice(-4)}" title="รายการใช้จ่ายบัตรนี้">${IC("card", 12)} บัตรเครดิต ${esc(r.card)} ${IC("next", 12)}</button>` : `<small class="muted">บัตรเครดิต ${esc(r.card)}</small>`}` : ""}</td><td data-pt="${esc(r.name)}" data-pa="${esc(dg(r.acc))}">${esc(r.name)}</td>
       <td><span class="badge ${r.ai >= 0 ? "g" : /รอนำเข้า/.test(r.st) ? "r" : /ขอแล้ว/.test(r.st) ? "y" : ""}">${esc(r.st)}</span></td><td>${r.fz ? `<span class="badge r">${IC("lock", 11)} ${fmt(r.fz.amt)}</span>` : r.cc && r.cc.bal < -0.005 ? `<span class="badge y" title="ยอดชำระเกินค้างในบัตร ณ รอบบิล ${dTh(r.cc.bal_date)} — ยังไม่อายัด">เสนออายัด ${fmt(-r.cc.bal)}</span>` : ""}</td>
       <td class="n">${r.s ? fmt(r.s.inn) : ""}</td><td class="n">${r.s ? fmt(r.s.out) : ""}</td><td class="n">${r.bal != null ? fmt(r.bal) : ""}</td><td class="n">${r.x.t1 ? fmt(r.x.t1) : ""}</td><td class="n">${r.x.all ? fmt(r.x.all) : ""}</td>
       <td>${r.cc ? `<button class="chip" data-axc="${r.k.slice(-4)}">${IC("card", 13)} รายการใช้จ่าย</button> ` : ""}${r.ai >= 0 ? `<button class="chip" data-axa="${r.ai}">${IC("flow", 13)} วิเคราะห์</button>` : r.x.all ? `<button class="chip" data-axq="${esc(r.acc)}">${IC("flow", 13)} เงินเข้าบัญชีนี้</button>` : ""}</td></tr>`;
   const sect = (g) => { const rs = rows.filter((r) => r.g === g && pass(r)).sort(ord); if (!rs.length) return ""; const u = gsum(rs), ais = rs.filter((r) => r.ai >= 0).map((r) => r.ai);
-    return `<div class="gsec${AXF.g === String(g) ? " on" : ""}" style="--c:${gcol(g)}"><div class="ghd">${coverH(g, rs, 46)}<span class="gt"><b>${esc(gname(g))}</b><small>${u.n} บัญชี · เข้า ${M(u.inn)} · ออก ${M(u.out)}${gcode(g) === "t1" ? "" : ` · รับจากบัญชีมูลนิธิ ${M(u.t1)}`}${u.fzn ? ` · อายัด ${u.fzn} บัญชี ${M(u.fz)}` : ""}</small></span>
+    return `<div class="gsec${AXF.g === String(g) ? " on" : ""}" style="--c:${gcol(g)}"><div class="ghd">${coverH(g, rs, 46)}<span class="gt"><b data-ptg="${g}">${esc(gname(g))}</b><small>${u.n} บัญชี · เข้า ${M(u.inn)} · ออก ${M(u.out)}${gcode(g) === "t1" ? "" : ` · รับจากบัญชีมูลนิธิ ${M(u.t1)}`}${u.fzn ? ` · อายัด ${u.fzn} บัญชี ${M(u.fz)}` : ""}</small></span>
         <span class="ga">${AXF.g === String(g) ? ibx("back", "ทุกกลุ่ม", 'data-axk="g" data-axv=""') : `<button class="chip" data-axk="g" data-axv="${g}">ดูเฉพาะกลุ่มนี้</button>`}${ais.length ? `<button class="chip" data-axg="${ais.join(",")}">${IC("flow", 13)} วิเคราะห์ทั้งกลุ่ม</button>` : ""}</span></div>
       <div class="tblwrap"><table><tr><th>บัญชี</th><th>ชื่อบัญชี</th><th>STM</th><th>อายัด (บาท)</th><th class="n">เงินเข้า</th><th class="n">เงินออก</th><th class="n">คงเหลือล่าสุด</th><th class="n">รับจากบัญชีมูลนิธิ</th><th class="n">รับจากบัญชีที่มี STM</th><th></th></tr>${rs.map(rowH).join("")}</table></div></div>`; };
   const shown = rows.filter((r) => pass(r)).length;

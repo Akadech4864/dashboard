@@ -331,11 +331,13 @@ function pHome() {
   const GR = [["ผู้ต้องหา", ["pan", "ath", "tre", "prp", "srk", "prc", "con", "bld"], "#B3261E"], ["ถอนเงินสด", ["cash"], "#616161"], ["ใช้ส่วนตัว / ประกัน / กองทุน", ["per", "inv"], "#263238"],
     ["ญาติ / บริษัท / คนใกล้ชิด", ["rel_pan", "rel_ath", "rel", "pco", "nom", "kpk"], "#558B2F"], ["ผู้รับเหมา / ผู้ขายที่ดิน", ["ctr", "lnd"], "#00897B"], ["บุคคลที่ชุดสืบระบุตัว", ["sst"], "#795548"],
     ["ไม่ระบุผู้รับ / อื่น ๆ", ["noacc", "oth"], "#B0BEC5"], ["สาธารณประโยชน์", ["pub"], "#F9A825"]];
-  const v = GR.map(([l, ks, c]) => [l, ks.reduce((a, k) => a + N_.g(k), 0), c]).filter((x) => x[1] > 0);
+  const v = GR.map(([l, ks, c]) => [l, ks.reduce((a, k) => a + N_.g(k), 0), c, ks]).filter((x) => x[1] > 0);
+  const hdPick = (i) => { const x = v[i], t1g = gIdx("t1"), gs = [...new Set(x[3].map(gIdx).filter((g) => g >= 0))]; chDet($("#hDon").closest(".card"), "hDon", `เงินออกจากบัญชีรับบริจาค → ${x[0]}`, { gx: [t1g], cpg: gs, send: new Set([t1g]) }); };
   const tot = v.reduce((a, x) => a + x[1], 0);
   CH.hDon = new Chart($("#hDon"), { type: "doughnut", data: { labels: v.map((x) => x[0]), datasets: [{ data: v.map((x) => x[1] / 1e6), backgroundColor: v.map((x) => x[2]), borderWidth: 0 }] },
-    options: { maintainAspectRatio: false, cutout: "62%", plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${M(c.raw * 1e6)} (${pc(c.raw * 1e6, tot)})` } } } } });
-  $("#hDonL").innerHTML = v.map((x) => `<span><i style="background:${x[2]}"></i>${x[0]} <b>${pc(x[1], tot)}</b></span>`).join("");
+    options: { maintainAspectRatio: false, cutout: "62%", onClick: (ev, els) => { if (els.length) hdPick(els[0].index); }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${c.label}: ${M(c.raw * 1e6)} (${pc(c.raw * 1e6, tot)})` } } } } });
+  $("#hDonL").innerHTML = v.map((x, i) => `<span class="click" data-hdi="${i}" title="รายการย่อย"><i style="background:${x[2]}"></i>${x[0]} <b>${pc(x[1], tot)}</b></span>`).join("");
+  $("#hDonL").onclick = (e) => { const b = e.target.closest("[data-hdi]"); if (b) { e.stopPropagation(); hdPick(+b.dataset.hdi); } };
   // เส้นทางเงินหลัก
   const R = [...["pan", "ath", "con", "tre", "bld"].map((k) => ({ id: k, lab: entLab(k), sub: "", v: N_.g(k), col: SCOL[k] })),
     { id: "cash", lab: "ถอนเงินสด", sub: "", v: N_.g("cash"), col: "#616161" }, { id: "per", lab: "ใช้ส่วนตัว / ประกัน / กองทุน", sub: "", v: N_.g("per") + N_.g("inv"), col: "#263238" },
@@ -496,25 +498,37 @@ const BRP = {
     const x = X.pending[+b.dataset.tadd], m = String(x.acc).match(/^(\S+) (\S+) (.+)$/); if (m) teamAdd({ bank: m[1], acc: m[2], name: m[3] }); }); },
   sum: ({ X, K }) => { const L = Object.entries(X.t1_out).filter(([, v]) => v[0] > 0).sort((a, b) => b[1][0] - a[1][0]).slice(0, 16);
     CH.bOut = new Chart($("#bOut"), { type: "bar", data: { labels: L.map(([k]) => entLab(k)), datasets: [{ data: L.map(([, v]) => v[0] / 1e6), backgroundColor: L.map(([k]) => ENTC[k] || "#90A4AE") }] },
-      options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${M(c.raw * 1e6)} (${pc(c.raw * 1e6, K.t1_out)})` } } } } }); },
+      options: { indexAxis: "y", maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const k = L[els[0].index][0], g = gIdx(k), t1g = gIdx("t1"); if (g < 0) return toast("กลุ่มนี้ยังเปิดรายการย่อยไม่ได้");
+        chDet($("#bOut").closest(".card"), "bOut", `บัญชีรับบริจาค → ${entLab(k)}`, { gx: [t1g], cpg: [g], send: new Set([t1g]) }); }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${M(c.raw * 1e6)} (${pc(c.raw * 1e6, K.t1_out)})` } } } } }); },
   t1: ({ X }) => { const MO = X.monthly || {}, ks = Object.keys(MO).filter((k) => k >= "2019-01").sort();
     const P = [["don", "เงินบริจาคเข้า", "#E0A800", "line"], ["pan", "ผู้ต้องหาที่ 1", SCOL.pan], ["ath", "ผู้ต้องหาที่ 2", SCOL.ath], ["con", "ผู้ต้องหาที่ 7", SCOL.con], ["tre", "ผู้ต้องหาที่ 3", SCOL.tre], ["bld", "ผู้ต้องหาที่ 8", SCOL.bld], ["cash", "ถอนเงินสด", "#616161"], ["pub", "สาธารณประโยชน์", "#F9A825"]];
     CH.bMon = new Chart($("#bMon"), { data: { labels: ks.map((k) => `${MTH[+k.slice(5, 7)]} ${(+k.slice(0, 4) + 543) % 100}`), datasets: P.map(([k, l, c, t]) => ({ type: t || "bar", label: l, data: ks.map((m) => (MO[m][k] || 0) / 1e6), backgroundColor: c, borderColor: c, stack: t ? undefined : "o", pointRadius: 0, borderWidth: t ? 2 : 0, order: t ? 0 : 1 })) },
-      options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, scales: { x: { stacked: true, ticks: { maxTicksLimit: 14 } }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${M(c.raw * 1e6)}` } } } } });
+      options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, onClick: (ev, els) => { if (!els.length) return; const p = CH.bMon.getElementsAtEventForMode(ev, "nearest", { intersect: true }, true)[0], m = ks[els[0].index], [a, b] = monRange(m), t1g = gIdx("t1"), ml = `${MTH[+m.slice(5, 7)]} ${+m.slice(0, 4) + 543}`, an = $("#bMon").closest(".card");
+          const pk = p ? P[p.datasetIndex] : null; if (pk && pk[0] === "don") return chDet(an, "bMon", `เงินบริจาคเข้า · ${ml}`, { from: a, to: b, accs: t1Accs(), kinds: [4] });
+          const g = pk ? gIdx(pk[0]) : -1; chDet(an, "bMon", `เงินออกจากบัญชีรับบริจาค · ${ml}${g >= 0 ? " → " + pk[1] : ""}`, { from: a, to: b, gx: [t1g], cpg: g >= 0 ? [g] : [], send: new Set([t1g]) }); },
+        scales: { x: { stacked: true, ticks: { maxTicksLimit: 14 } }, y: { stacked: true, title: { display: true, text: "ล้านบาท" } } }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${M(c.raw * 1e6)}` } } } } });
     const yl = (DB.over.yearly || []).filter((r) => r[0]);   // ตัดแถวผลรวมช่วงเวลา (ทุกช่วง / ก่อน / หลังตั้งมูลนิธิ) ออกจากกราฟรายปี
-    CH.bYear = new Chart($("#bYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อน" : " หลัง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] }, options: { maintainAspectRatio: false } }); },
+    CH.bYear = new Chart($("#bYear"), { type: "bar", data: { labels: yl.map((r) => r[0] + (r[1] ? (r[1].includes("ก่อน") ? " ก่อน" : " หลัง") : "")), datasets: [{ label: "เงินเข้า", data: yl.map((r) => r[2] / 1e6), backgroundColor: "#FFD403" }, { label: "เงินออก", data: yl.map((r) => r[4] / 1e6), backgroundColor: "#00264D" }] },
+      options: { maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const r = yl[els[0].index], [a, b] = yrRange(yrKey(r)), t1g = gIdx("t1"), an = $("#bYear").closest(".card"), lb = yrLab(r);
+        if (els[0].datasetIndex === 0) chDet(an, "bYear", `เงินเข้าบัญชีรับบริจาค · ${lb}`, { from: a, to: b, accs: t1Accs(), kinds: [0, 1, 4] }); else chDet(an, "bYear", `เงินออกจากบัญชีรับบริจาค · ${lb}`, { from: a, to: b, gx: [t1g], send: new Set([t1g]) }); } } }); },
   don: ({ X }) => { const D = X.donors; if (!D) return; const B = D.bands.filter((b) => b[2] > 0), labs = ["< 1,000", "1,000–9,999", "10,000–99,999", "100,000–999,999", "≥ 1 ล้าน"];
-    CH.bBand = new Chart($("#bBand"), { type: "bar", data: { labels: B.map((b) => labs[D.bands.indexOf(b)]), datasets: [{ label: "ผู้บริจาค (ราย)", data: B.map((b) => b[2]), backgroundColor: "#E0A800" }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาค แยกตามยอดสะสมต่อราย" } } } });
+    CH.bBand = new Chart($("#bBand"), { type: "bar", data: { labels: B.map((b) => labs[D.bands.indexOf(b)]), datasets: [{ label: "ผู้บริจาค (ราย)", data: B.map((b) => b[2]), backgroundColor: "#E0A800" }] }, options: { maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const bi = D.bands.indexOf(B[els[0].index]), R = [[0, 1e3], [1e3, 1e4], [1e4, 1e5], [1e5, 1e6], [1e6, Infinity]][bi];
+      dnDet($("#bBand").closest(".card"), "bBand", `ผู้บริจาคยอดสะสม ${labs[bi]} บาท`, { lo: R[0], hi: R[1] }); }, plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาค แยกตามยอดสะสมต่อราย" } } } });
     const Y = Object.entries(D.yr).filter(([, v]) => v[0] > 0);
-    CH.bDy = new Chart($("#bDy"), { type: "bar", data: { labels: Y.map(([y]) => +y + 543), datasets: [{ label: "ผู้บริจาค (ราย)", data: Y.map(([, v]) => v[0]), backgroundColor: "#00897B" }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาครายปี" } } } }); },
+    CH.bDy = new Chart($("#bDy"), { type: "bar", data: { labels: Y.map(([y]) => +y + 543), datasets: [{ label: "ผู้บริจาค (ราย)", data: Y.map(([, v]) => v[0]), backgroundColor: "#00897B" }] }, options: { maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const y = +Y[els[0].index][0]; dnDet($("#bDy").closest(".card"), "bDy", `ผู้บริจาคปี ${y + 543}`, { year: y }); },
+      plugins: { legend: { display: false }, title: { display: true, text: "จำนวนผู้บริจาครายปี" } } } }); },
   sus: ({ S }) => { const cb = $("#chgBox"); if (cb) pCharges(cb); if (!S[BRS]) { SUSC = 0; return; }
     if (SUSC) { SUSC = 0; setTimeout(() => { const d = $("#susD"); if (d) d.scrollIntoView({ behavior: "smooth", block: "start" }); }, 60); }
     const k = BRS, s = S[k];
     const yrs = Object.keys(s.yr || {}).filter((y) => Object.values(s.yr[y]).some((v) => v >= 1000));
     if ($("#bSy")) { const P = [["in_t1", "รับจากบัญชีรับบริจาค", "#1565C0"], ["in_sus", "รับจากผู้ต้องหาอื่น", "#7CB342"], ["out_sus", "โอนให้ผู้ต้องหาอื่น", "#B3261E"], ["out_cash", "ถอนเงินสด", "#616161"], ["out_per", "ใช้ส่วนตัว / ทรัพย์สิน", "#263238"]];
-      CH.bSy = new Chart($("#bSy"), { type: "bar", data: { labels: yrs.map((y) => +y + 543), datasets: P.map(([f, l, c]) => ({ label: l, data: yrs.map((y) => (s.yr[y][f] || 0) / 1e6), backgroundColor: c })) }, options: { maintainAspectRatio: false, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${M(c.raw * 1e6)}` } } } } }); }
+      CH.bSy = new Chart($("#bSy"), { type: "bar", data: { labels: yrs.map((y) => +y + 543), datasets: P.map(([f, l, c]) => ({ label: l, data: yrs.map((y) => (s.yr[y][f] || 0) / 1e6), backgroundColor: c })) }, options: { maintainAspectRatio: false, onClick: (ev, els) => { const p = CH.bSy.getElementsAtEventForMode(ev, "nearest", { intersect: true }, true)[0] || els[0]; if (!p) return;
+        const gk = gIdx(k); if (gk < 0) return toast("ผู้ต้องหารายนี้ยังไม่มีกลุ่มบัญชีในระบบ"); const y = +yrs[p.index], [a, b] = yrAD(y), [f0, l0] = P[p.datasetIndex], oth = susKeys().map(gIdx).filter((g) => g >= 0 && g !== gk);
+        const F0 = { in_t1: { cpg: [gIdx("t1")], recv: new Set([gk]) }, in_sus: { cpg: oth, recv: new Set([gk]) }, out_sus: { cpg: oth, send: new Set([gk]) }, out_cash: { cpg: [gIdx("cash")], send: new Set([gk]) }, out_per: { cpg: [gIdx("per"), gIdx("inv")], send: new Set([gk]) } }[f0];
+        chDet($("#bSy").closest(".card"), "bSy", `${eLab(k)} · ปี ${y + 543} · ${l0}`, Object.assign({ from: a, to: b, gx: [gk] }, F0)); }, plugins: { tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${M(c.raw * 1e6)}` } } } } }); }
     if ($("#bSc")) { const L = Object.entries(s.cats).filter(([e, v]) => v[0] >= 1000 && e !== k).slice(0, 12);
-      CH.bSc = new Chart($("#bSc"), { type: "bar", data: { labels: L.map(([e]) => entLab(e)), datasets: [{ data: L.map(([, v]) => v[0] / 1e6), backgroundColor: L.map(([e]) => ENTC[e] || "#90A4AE") }] }, options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${M(c.raw * 1e6)}` } } } } }); } },
+      CH.bSc = new Chart($("#bSc"), { type: "bar", data: { labels: L.map(([e]) => entLab(e)), datasets: [{ data: L.map(([, v]) => v[0] / 1e6), backgroundColor: L.map(([e]) => ENTC[e] || "#90A4AE") }] }, options: { indexAxis: "y", maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const e = L[els[0].index][0], gk = gIdx(k), g = gIdx(e); if (gk < 0 || g < 0) return toast("ยังเปิดรายการย่อยของคู่นี้ไม่ได้");
+        chDet($("#bSc").closest(".card"), "bSc", `${eLab(k)} → ${entLab(e)}`, { gx: [gk], cpg: [g], send: new Set([gk]) }); }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => ` ${M(c.raw * 1e6)}` } } } } }); } },
 };
 
 /* ---------- ข้อเสนอแนะ ---------- */
@@ -935,7 +949,7 @@ function drawGrp(scroll) {
     const nm = accNm(x.lab).replace(/\s+/g, " ").trim(); let kk = nm.replace(/^(นางสาว|น\.ส\.|นาย|นาง)\s*/, "").replace(/\s+/g, "");
     const k0 = [...PM.keys()].find((k) => k === kk || (Math.min(k.length, kk.length) >= 8 && (k.startsWith(kk) || kk.startsWith(k))));
     if (k0 && kk.length > k0.length) { const o = PM.get(k0); PM.delete(k0); o.nm = nm; PM.set(kk, o); } else if (k0) kk = k0;
-    const e = PM.get(kk) || { nm, n: 0, in: {}, out: {}, tin: 0, tout: 0 }; e.n++; e.tin += x.tin; e.tout += x.tout;
+    const e = PM.get(kk) || { nm, n: 0, in: {}, out: {}, tin: 0, tout: 0, accs: [] }; e.n++; e.tin += x.tin; e.tout += x.tout; e.accs.push(x);
     Object.entries(x.in).forEach(([k, v]) => (e.in[k] = (e.in[k] || 0) + v)); Object.entries(x.out).forEach(([k, v]) => (e.out[k] = (e.out[k] || 0) + v)); PM.set(kk, e); });
   const top = [...PM.values()].sort((a, b) => b.tin + b.tout - (a.tin + a.tout)), NP = 7, A = top.slice(0, NP), R = top.slice(NP);
   const oth = { nm: `อื่น ๆ (${R.reduce((q, a) => q + a.n, 0)} บัญชี)`, other: 1, n: 0, in: {}, out: {}, tin: 0, tout: 0 };
@@ -953,7 +967,13 @@ function drawGrp(scroll) {
   flow3($("#grpF"), cols, links, ["ต้นทาง", "", DST.length ? "โอนกลับเข้า" : ""]);
   const lab = MID.map((a) => (a.other ? "อื่น ๆ" : fitT(a.nm, 150, "600 12px Sarabun, sans-serif")));
   CH.bGrp = new Chart($("#bGrp"), { type: "bar", data: { labels: lab, datasets: SRC.map((e) => ({ label: eLab(e), data: MID.map((a) => (a.in[e] || 0) / 1e6), backgroundColor: eCol(e), stack: "in" })).concat([{ label: "โอนกลับ", data: MID.map((a) => a.tout / 1e6), backgroundColor: "#B3261E", stack: "back" }]) },
-    options: { indexAxis: "y", maintainAspectRatio: false, plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: (q) => ` ${q.dataset.label}: ${M(q.raw * 1e6)}` } } }, scales: { x: { stacked: true, ticks: { callback: (v) => v + " ล." } }, y: { stacked: true, ticks: { font: { size: 11 } } } } } });
+    options: { indexAxis: "y", maintainAspectRatio: false, onClick: (ev, els) => { if (!els.length) return; const a = MID[els[0].index], L = a.other ? R.flatMap((p) => p.accs || []) : a.accs || [], host = detHost($("#bGrp").closest(".chartbox"), "bGrp"); host._go = null;
+        xtMount(host, { id: "chd-bGrp", title: `บัญชีของ ${a.other ? "อื่น ๆ" : a.nm}`, rows: L, noBar: true, sort0: [[2, -1]], note: "กดแถว = หน้าวิเคราะห์เส้นเงินของบัญชีนั้น (มี statement = บัญชีนั้น ; ไม่มี = ค้นหาเลขบัญชีเป็นคู่โอน)",
+          cols: [["บัญชี", (x) => x.lab, "t", (x) => labAcc(x.lab)], ["STM", (x) => (x.stm ? "มี" : ""), "t", (x) => (x.stm ? `<span class="badge g">${IC("check", 12)}</span>` : "–")], ["จากบัญชีรับบริจาค", (x) => x.in.t1 || 0, "a", (x) => `<span class="amt-in">${M(x.in.t1 || 0)}</span>`],
+            ["จากผู้ต้องหา", (x) => D.sum(x.in, (q) => q !== "t1"), "a", (x) => M(D.sum(x.in, (q) => q !== "t1"))], ["โอนกลับ", (x) => x.tout, "a", (x) => `<b class="amt-out">${M(x.tout)}</b>`], ["", () => "", "x", () => `<span class="gchev">${IC("route", 15)}</span>`]],
+          sum: (Q) => `รับ ${M(Q.reduce((t, x) => t + x.tin, 0))} · โอนกลับ ${M(Q.reduce((t, x) => t + x.tout, 0))}`, post: detPost(false), rowAttr: () => 'class="click"',
+          onRow: (x) => { const m = String(x.key).match(/^a(\d+)$/), ai = m ? DB.accounts.findIndex((q) => dg(q.acc) === m[1]) : -1; if (ai >= 0) return anaGo({ accs: [ai] }); const c = String(x.key).startsWith("c") ? DB.cps[+String(x.key).slice(1)] : null; anaGo({}, c ? c[0] || c[1] : (x.lab.match(/^\S+ (\S+)/) || [0, ""])[1]); } });
+        detScroll(host); }, plugins: { legend: { position: "bottom", labels: { boxWidth: 12, font: { size: 11 } } }, tooltip: { callbacks: { label: (q) => ` ${q.dataset.label}: ${M(q.raw * 1e6)}` } } }, scales: { x: { stacked: true, ticks: { callback: (v) => v + " ล." } }, y: { stacked: true, ticks: { font: { size: 11 } } } } } });
   if (window.enhance) enhance(el);
   if (scroll) setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
 }
@@ -978,3 +998,32 @@ function flow3(el, C3, links, hd) {
     svg += `<g><rect x="${n.x}" y="${n.y.toFixed(1)}" width="${bw}" height="${n.h.toFixed(1)}" rx="3" fill="${n.col}"><title>${esc(n.tip || n.lab)}</title></rect><text x="${lx}" y="${(cy - 2).toFixed(1)}" text-anchor="${anc}" class="fl1${halo}">${esc(fitT(n.lab, avail, F1))}</text><text x="${lx}" y="${(cy + 12).toFixed(1)}" text-anchor="${anc}" class="fl2${halo}">${esc(M(n.vin != null ? n.vin : n.v))}</text></g>`; }));
   el.innerHTML = `<svg width="${W}" height="${Math.ceil(H)}" viewBox="0 0 ${W} ${Math.ceil(H)}">${svg}</svg>`;
 }
+
+/* ---------- ชี้ชื่อ / รูปบุคคล = การ์ดบทบาท (ผู้ใช้สั่ง 20 พ.ย. 69 "เอาเม้าจี้ให้แสดงรายละเอียด เช่น บทบาทในคดี") ----------
+   ข้อมูลบทบาทจากหน้าบุคคล (people() ← แท็บข้อมูลทำผังของชีตชุดทำคดี) จับด้วยเลขบัญชีก่อน แล้วชื่อ (ตัดคำนำหน้า ; ชื่อบัญชีที่ต่อท้าย เช่น "เค พาร์ค" ใช้ชื่อบุคคลที่ขึ้นต้นตรงกัน)
+   data-pt = ชื่อ / data-pa = เลขบัญชี / data-ptg = ดัชนีกลุ่ม (รายชื่อบุคคลในกลุ่มที่มีบทบาท) ; มือถือแตะรูปบนหัวกล่องกลุ่มได้ */
+let PTI = null;
+function ptIdx() {
+  if (PTI && PTI.src === PPL) return PTI; const P = typeof people === "function" ? people() : [], byA = new Map(), byN = [];
+  P.forEach((p) => { (p.accs || []).forEach((a) => { const k = dg(a.acc); if (k && !byA.has(k)) byA.set(k, p); }); const k = nk(p.name); if (k) byN.push([k, p]); });
+  byN.sort((a, b) => b[0].length - a[0].length); return (PTI = { src: PPL, byA, byN });
+}
+function ptFind(name, acc) { const I = ptIdx(), a = dg(acc || ""); if (a && I.byA.has(a)) { const p = I.byA.get(a); if (p.note || p.img) return p; } const k = nk(name || ""); if (!k) return null;
+  const h = I.byN.find(([n]) => n === k) || I.byN.find(([n]) => n.length >= 6 && (k.startsWith(n) || n.startsWith(k))); return h ? h[1] : null; }
+function ptCard(p, nm) { const cat = (DB.pcats || []).find((c) => c[0] === p.cat);
+  return `<div class="pth">${p.img ? `<img alt="" src="data:image/jpeg;base64,${p.img.th}">` : `<span class="ph">${IC(p.org ? "build" : "user", 22)}</span>`}<div><b>${esc(p.name || nm)}</b>${cat ? `<small><i style="background:${cat[2]}"></i>${esc(cat[1])}</small>` : ""}</div></div>${p.note ? `<div class="ptn">${esc(p.note)}</div>` : '<div class="ptn muted">ไม่มีบันทึกบทบาทในชีตชุดทำคดี</div>'}${(p.accs || []).length ? `<div class="pta">${IC("bank", 12)} ${p.accs.length} บัญชี</div>` : ""}`; }
+function ptShow(el) {
+  let html = "";
+  if (el.dataset.ptg != null) { const g = +el.dataset.ptg, seen = new Set(), L = [];
+    (ACC_ROWS ? ACC_ROWS.rows : []).filter((r) => r.g === g).forEach((r) => { const p = ptFind(r.name, r.acc); if (p && p.note && !seen.has(p.name)) { seen.add(p.name); L.push(p); } });
+    if (!L.length) return ptHide(); html = `<div class="ptl">${L.slice(0, 12).map((p) => `<div><b>${esc(p.name)}</b><span>${esc(p.note.split("\n")[0])}</span></div>`).join("")}${L.length > 12 ? `<div class="muted">+ อีก ${L.length - 12} คน</div>` : ""}</div>`; }
+  else { const p = ptFind(el.dataset.pt, el.dataset.pa); if (!p) return ptHide(); html = ptCard(p, el.dataset.pt); }
+  let d = document.getElementById("ptip"); if (!d) { d = document.createElement("div"); d.id = "ptip"; document.body.appendChild(d); }
+  d.innerHTML = html; d.hidden = false; const r = el.getBoundingClientRect(), w = Math.min(320, innerWidth - 24); d.style.width = w + "px";
+  d.style.left = Math.max(12, Math.min(innerWidth - w - 12, r.left)) + "px"; const below = r.bottom + 8 + d.offsetHeight < innerHeight; d.style.top = (below ? r.bottom + 8 : r.top - d.offsetHeight - 8) + scrollY + "px"; d._el = el;
+}
+function ptHide() { const d = document.getElementById("ptip"); if (d) d.hidden = true; }
+document.addEventListener("pointerover", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg]"); if (el) ptShow(el); });
+document.addEventListener("pointerout", (e) => { if (e.pointerType !== "mouse") return; const el = e.target.closest("[data-pt],[data-ptg]"); if (el && !el.contains(e.relatedTarget)) ptHide(); });
+document.addEventListener("click", (e) => { const el = e.target.closest(".ghd [data-pt], .ghd [data-ptg]"); if (el && matchMedia("(hover:none)").matches) { e.stopPropagation(); const d = document.getElementById("ptip"); if (d && !d.hidden && d._el === el) return ptHide(); return ptShow(el); } if (!e.target.closest("#ptip")) ptHide(); }, true);
+addEventListener("scroll", () => ptHide(), { passive: true });

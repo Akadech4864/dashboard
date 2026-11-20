@@ -829,3 +829,20 @@ svg.lk2 .flh{font:700 12px Sarabun,sans-serif;fill:var(--mut)}
 .yrb .ibx.sm{width:26px;height:26px;border-radius:8px}
 @media (max-width:640px){.yrb{grid-template-columns:1fr 84px 28px}.yrb .ibx.sm{grid-row:1;grid-column:3}}
 #yrDet:not(:empty){margin-top:10px}
+/* ตารางรายการย่อยใต้กราฟ (20 พ.ย. 69) */
+.chdet{margin:10px 0 4px}
+.chdet>h2:first-child{margin-top:.4em}
+/* การ์ดบทบาทบุคคลเมื่อชี้ชื่อ / รูป (20 พ.ย. 69) */
+#ptip{position:absolute;z-index:120;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 28px rgba(0,20,45,.22);padding:10px 12px;font-size:.84rem;pointer-events:none}
+#ptip[hidden]{display:none}
+#ptip .pth{display:flex;gap:10px;align-items:center}
+#ptip .pth img,#ptip .pth .ph{width:42px;height:42px;border-radius:50%;object-fit:cover;flex:none;display:grid;place-items:center;background:color-mix(in srgb,var(--line) 60%,transparent)}
+#ptip .pth b{display:block;font-size:.92rem}
+#ptip .pth small{display:inline-flex;align-items:center;gap:5px;color:var(--mut)}
+#ptip .pth small i{width:8px;height:8px;border-radius:50%;display:inline-block}
+#ptip .ptn{margin-top:7px;white-space:pre-line;line-height:1.45}
+#ptip .pta{margin-top:5px;color:var(--mut);font-size:.78rem;display:flex;align-items:center;gap:4px}
+#ptip .ptl{display:flex;flex-direction:column;gap:5px}
+#ptip .ptl div{display:flex;flex-direction:column}
+#ptip .ptl span{color:var(--mut);font-size:.8rem}
+[data-pt],[data-ptg]{cursor:help}
