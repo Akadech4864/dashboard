@@ -691,3 +691,16 @@ details.acc.gf>summary .ico.s,details.acc.gf>summary .ico.s svg{color:var(--c)}
 
 /* ตารางผู้ต้องหา: คอลัมน์รูปไม่มีตัวเรียง/ตัวกรอง และหัวตารางเป็นแถบเดียวเต็มแถว (เดิมใช้คลาส .pt ชนกับการ์ดรูปแบบฟอกเงิน จึงเป็นกล่องขาว ; ผู้ใช้สั่ง 20 พ.ย. 69) */
 .cmx th.ptc,.cmx td.ptc{width:64px;padding:4px 6px}
+
+/* ---------- บทบุคคลที่เกี่ยวข้อง: กดแถวกลุ่ม = รายละเอียด (ชาร์ตความเชื่อมโยง + กราฟ + ตาราง) 20 พ.ย. 69 ---------- */
+.grpt tr.click td{transition:background .12s}
+.grpt tr.on td{background:color-mix(in srgb,var(--c) 14%,var(--card))!important}
+.grpt tr.on td:first-child{box-shadow:inset 4px 0 0 var(--c)}
+.grpt .gchev{width:28px;color:var(--mut);text-align:center}
+.grpt tr.on .gchev{color:var(--c);transform:rotate(90deg)}
+.grpd{margin-top:12px;padding:14px}
+.grpd-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.grpd-h .gtag{font-size:1rem;font-weight:700;padding:4px 12px}
+.grpd-f{margin:6px 0 10px;overflow:hidden}
+/* แถบสีหน้าชื่อบัญชีซ้อน 2 ขีด (ผู้ใช้แจ้ง 20 พ.ย. 69): ในกล่อง .gacc ไม่ใส่แถบของ labAcc ซ้ำ */
+.gacc .gbar{border-left:0;padding-left:0}
