@@ -1042,6 +1042,7 @@ function pWork() {
 /* ---------- วิเคราะห์เส้นเงิน ---------- */
 const T0 = Date.UTC(2015, 0, 1) / 60000;
 const KCOL = ["#1565C0", "#00897B", "#B3261E", "#9E9E9E", "#FFD403"];
+const kTag = (k) => gTag(KCOL[k], DB.kinds[k].split(" (")[0]);   // ป้ายประเภทรายการสีตามการ์ด (รับโอน น้ำเงิน / ฝากสด เขียว / โอนออก แดง / ถอนสด เทา / รับบริจาค เหลือง)
 const IN_K = [0, 1, 4];
 let F = null, TXM = null, SHOWN = 200;
 const txSec = (i) => (DB.txs && DB.txs[i] >= 0 ? DB.txs[i] : -1);
@@ -1064,6 +1065,7 @@ function txSort(idx) {
 const day2min = (iso) => Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 60000 - T0;
 const min2iso = (m) => new Date((m + T0) * 60000).toISOString();
 function prep() {
+  DB.kinds = DB.kinds.map((k) => (/^โอนเข้า/.test(k) ? "รับโอน" : k));   // ป้ายประเภท "โอนเข้า / รับเงิน" -> "รับโอน" ทุกการ์ด/ตาราง (ผู้ใช้สั่ง 20 พ.ย. 69)
   const n = DB.tx.length; TXM = new Int32Array(n);
   let lo = Infinity, hi = -Infinity;
   for (let i = 0; i < n; i++) { const t = DB.tx[i][1]; const d = new Date((t + T0) * 60000); TXM[i] = d.getUTCFullYear() * 12 + d.getUTCMonth(); if (t < lo) lo = t; if (t > hi) hi = t; }
@@ -1213,7 +1215,7 @@ function pAna() {
       const tk = gy ? Math.floor(TXM[i] / 12) : TXM[i]; let t = byT.get(tk); if (!t) byT.set(tk, (t = [0, 0, 0, 0, 0])); t[k] += amt;
     }
     const tin = K[0][0] + K[1][0] + K[4][0], tout = K[2][0] + K[3][0];
-    $("#aKpi").innerHTML = [["เงินเข้ารวม", tin, K[0][1] + K[1][1] + K[4][1], ""], ["เงินออกรวม", tout, K[2][1] + K[3][1], "r"], ["ถอนเงินสด", K[3][0], K[3][1], "x"], ["ฝากเงินสด", K[1][0], K[1][1], "g"], ["โอนออก / จ่าย", K[2][0], K[2][1], "r"], ["โอนเข้า / รับเงิน", K[0][0], K[0][1], ""], ["รับบริจาค", K[4][0], K[4][1], "y"], ["สุทธิ (เข้า − ออก)", tin - tout, IDX.length, ""]]
+    $("#aKpi").innerHTML = [["เงินเข้ารวม", tin, K[0][1] + K[1][1] + K[4][1], ""], ["เงินออกรวม", tout, K[2][1] + K[3][1], "r"], ["ถอนเงินสด", K[3][0], K[3][1], "x"], ["ฝากเงินสด", K[1][0], K[1][1], "g"], ["โอนออก / จ่าย", K[2][0], K[2][1], "r"], ["รับโอน", K[0][0], K[0][1], ""], ["รับบริจาค", K[4][0], K[4][1], "y"], ["สุทธิ (เข้า − ออก)", tin - tout, IDX.length, ""]]
       .map(([l, v, n, c]) => `<div class="card kpi ${c}"><div class="l">${l}</div><div class="v">${M(v)}</div><div class="s">${fmt(v)} บาท</div><div class="s">${fmt0(n)} ${l.startsWith("สุทธิ") ? "แถวข้อมูล" : "ครั้ง"}</div></div>`).join("");
     $("#fSum").textContent = `${fmt0(IDX.length)} แถว`;
     { const yr = F.from.slice(5) === "01-01" && F.to === F.from.slice(0, 4) + "-12-31" ? F.from.slice(0, 4) : "";
@@ -1251,9 +1253,9 @@ function pAna() {
     const cpRows = [...byC.entries()].filter((x) => x[1][0] + x[1][1] > 0).map(([ci, v]) => { const c = DB.cps[ci]; return { ci, nm: c[1] || "", acc: c[0] || "", bank: c[2] || "", g: c[3], gl: DB.groups[c[3]][1].split(" (")[0], i: v[0], o: v[1], n: v[2], t: v[0] + v[1] }; });
     xtMount($("#tCp"), { id: "anaCp", title: "คู่โอนรายใหญ่ (ตามตัวกรองของหน้า)", noBar: true, note: "ค้นหา / กรองกลุ่มคู่โอน ใช้ช่องค้นหาและตัวกรองด้านบนของหน้า (มีผลทั้งชาร์ตและตาราง) · กรวยที่หัวคอลัมน์ = กรองเฉพาะในตารางนี้", rows: cpRows, lims: [50, 100, 200, 0], xl: "คู่โอนรายใหญ่ (ตามตัวกรอง)",
       search: (r) => `${r.nm} ${r.acc} ${r.bank} ${r.gl}`, sort0: [[7, -1]], sum: (R) => `เข้า ${M(R.reduce((t, r) => t + r.i, 0))} · ออก ${M(R.reduce((t, r) => t + r.o, 0))}`,
-      cols: [["#", () => 0, "n"], ["คู่โอน", (r) => r.nm, "t", (r) => (r.nm ? `<b style="font-weight:600">${esc(r.nm)}</b>` : `<span class="muted">ไม่ระบุชื่อ</span>`)], ["บัญชี", (r) => `${r.bank} ${r.acc}`.trim(), "t"],
+      cols: [["#", () => 0, "n"], ["คู่โอน", (r) => r.nm, "t", (r) => `<span class="gbar" style="--c:${DB.groups[r.g][2]}">${r.nm ? `<b style="font-weight:600">${esc(r.nm)}</b>` : `<span class="muted">ไม่ระบุชื่อ</span>`}</span>`], ["บัญชี", (r) => `${r.bank} ${r.acc}`.trim(), "t"],
         ["กลุ่ม", (r) => r.gl, "t", (r) => gTag(DB.groups[r.g][2], r.gl)],
-        ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? fmt(r.i) : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? fmt(r.o) : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
+        ["เงินเข้า (บาท)", (r) => r.i, "a", (r) => (r.i ? `<span class="amt-in">${fmt(r.i)}</span>` : "")], ["เงินออก (บาท)", (r) => r.o, "a", (r) => (r.o ? `<span class="amt-out">${fmt(r.o)}</span>` : "")], ["ครั้ง", (r) => r.n, "a", (r) => fmt0(r.n)], ["รวมเข้า + ออก", (r) => r.t, "a", (r) => fmt(r.t)]],
       facets: [["g", "ทุกกลุ่มคู่โอน", (r) => r.gl, [...new Map(cpRows.map((r) => [r.gl, DB.groups[r.g][2]])).entries()].map(([l, c]) => [l, l, c])], ["bank", "ทุกธนาคาร", (r) => r.bank || "(ไม่ระบุ)"]],
       rowAttr: () => 'class="click" title="ดูรายการของคู่โอนนี้"', onRow: (r) => { const s = fSnap(); s._y = scrollY; FHIST.push(s); F.q = r.acc || r.nm; $("#fQ").value = F.q; upd(); setTimeout(() => { const t = $("#txH"); if (t) t.scrollIntoView({ behavior: "smooth", block: "start" }); }, 30); } });
     SORTED = txSort(IDX);
@@ -1262,7 +1264,7 @@ function pAna() {
     $("#more").hidden = big.length >= IDX.length;
     const th = (k, l, cls) => { const n = TXS.findIndex((x) => x[0] === k); return `<th class="srt ${cls || ""} ${n >= 0 ? "on" : ""}" data-ts="${k}">${l}${n >= 0 ? ` <small>${TXS[n][1] > 0 ? "▲" : "▼"}${TXS.length > 1 ? n + 1 : ""}</small>` : ""}</th>`; };
     $("#tTx").innerHTML = `<table><tr>${th("t", "วันเวลา")}${th("a", "บัญชี")}${th("k", "ประเภท")}${th("v", "ยอด (บาท)", "n")}${th("c", "คู่โอน")}${th("g", "กลุ่มคู่โอน")}</tr>` +
-      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i); return `<tr class="click" data-ti="${i}" title="กดเพื่อไล่เงินเป็นทอดจากรายการนี้ (Timeline ด้านบน)"><td>${dTh(iso)} ${txT(i)}</td><td>${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td><span class="dot" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${KCOL[r[2]]}"></span> ${DB.kinds[r[2]].split(" (")[0]}</td><td class="n">${fmt(r[3])}</td><td>${esc(c[1])} ${c[2]} ${c[0]}${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}</td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
+      big.map((i) => { const r = DB.tx[i], a = DB.accounts[r[0]], c = DB.cps[cpOf(i)], iso = min2iso(r[1]), q = txQ(i); return `<tr class="click" data-ti="${i}" title="กดเพื่อไล่เงินเป็นทอดจากรายการนี้ (Timeline ด้านบน)"><td>${dTh(iso)} ${txT(i)}</td><td>${gTag(DB.groups[a.g][2], a.name)} <small class="muted">${a.bank} ${a.acc}</small></td><td>${kTag(r[2])}</td><td class="n ${IN_K.includes(r[2]) ? "amt-in" : "amt-out"}">${fmt(r[3])}</td><td><span class="gbar" style="--c:${DB.groups[c[3]][2]}">${esc(c[1])} <small class="muted">${c[2]} ${c[0]}</small></span>${q && F.cpm !== "raw" && pqOn(q) ? `<br><small style="color:${PKC[q]}">● คู่ถอน-ฝาก: ${esc(DB.pk[q])}${DB.txp && DB.txp[i] ? ` — ถอน ${fmt(DB.txp[i][0])} บาท ฝาก ${fmt(DB.txp[i][1])} บาท` : ""}</small>` : ""}</td><td>${gTag(DB.groups[c[3]][2], DB.groups[c[3]][1].split(" (")[0])}</td></tr>`; }).join("") + "</table>";
     $("#tTx").onclick = (e) => { const h = e.target.closest("th[data-ts]");
       if (!h) { const tr = e.target.closest("tr[data-ti]"); if (tr) { TLS.hist.push(TLS.seed); TLS.keep = true; TLS.seed = tlSeedTx(+tr.dataset.ti); TLS.v = "lst"; TLS.open = true; tlRender(); $("#tlBox").scrollIntoView({ behavior: "smooth", block: "start" }); } return; } const k = h.dataset.ts, n = TXS.findIndex((x) => x[0] === k);
       if (n < 0) TXS.push([k, k === "v" ? -1 : 1]); else if (TXS[n][1] === (k === "v" ? -1 : 1)) TXS[n][1] *= -1; else TXS.splice(n, 1);

@@ -221,7 +221,11 @@ const chgOf = (name) => (C.charges || []).find((c) => nk(String(c.title).split("
 const kpiC = (v, l, s, col, go_) => `<button class="kc"${go_ ? ` data-go="${go_}"` : ""} style="--c:${col || "var(--navy)"}"><span class="v">${v}</span><span class="l">${l}</span>${s ? `<span class="s">${s}</span>` : ""}</button>`;
 const secH = (ic, t, sub, extra) => `<h2 class="sh">${IC(ic, 20)} ${t}${sub ? ` <small>${sub}</small>` : ""}${extra || ""}</h2>`;
 const tbl = (head, rows, num) => `<div class="tblwrap"><table><thead><tr>${head.map((h, i) => `<th${num && num.includes(i) ? ' class="n"' : ""}>${h}</th>`).join("")}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c, i) => `<td${num && num.includes(i) ? ' class="n"' : ""}>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
-const labAcc = (lab) => { const m = String(lab || "").match(/^(\S+) (\S+) (.+)$/); return m && /\d/.test(m[2]) ? `${esc(m[3])} <small class="muted">${esc(m[1])} ${esc(fa(m[2]))}</small>` : esc(lab); };
+/* สีกลุ่มของบัญชีจากเลขบัญชี (บัญชีที่มี statement ก่อน แล้วคู่โอน) — ใช้แถบสีหน้าชื่อบัญชีในตารางสรุปทางการ (ผู้ใช้สั่ง 20 พ.ย. 69 "ทุกส่วนในตารางใส่สีแยกประเภท") */
+let ACCG = null;
+const accGcol = (acc) => { if (!ACCG) { ACCG = new Map(); (DB.cps || []).forEach((c) => { const k = dg(c[0]); if (k && !ACCG.has(k)) ACCG.set(k, c[3]); }); (DB.accounts || []).forEach((a) => { const k = dg(a.acc); if (k) ACCG.set(k, a.g); }); }
+  const g = ACCG.get(dg(acc)); return g != null && DB.groups[g] ? DB.groups[g][2] : ""; };
+const labAcc = (lab) => { const m = String(lab || "").match(/^(\S+) (\S+) (.+)$/); if (!(m && /\d/.test(m[2]))) return esc(lab); const c = accGcol(m[2]), t = `${esc(m[3])} <small class="muted">${esc(m[1])} ${esc(fa(m[2]))}</small>`; return c ? `<span class="gbar" style="--c:${c}">${t}</span>` : t; };
 const dtt = (s) => (String(s).length > 10 ? `${dTh(String(s).slice(0, 10))} ${String(s).slice(11, 16)}` : dTh(s));
 const ctaRow = (L) => `<div class="cta">${L.map(([go_, ic, l, pri]) => `<button class="btn${pri ? "" : " o"}" ${go_.startsWith("!") ? `data-act="${go_.slice(1)}"` : `data-go="${go_}"`}>${IC(ic, 16)} ${l}</button>`).join("")}</div>`;
 function wireGo() {

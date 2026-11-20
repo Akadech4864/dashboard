@@ -166,7 +166,7 @@
         date_from: { type: "string", description: "วันที่เริ่ม ค.ศ. รูปแบบ YYYY-MM-DD" }, date_to: { type: "string", description: "วันที่สิ้นสุด ค.ศ. รูปแบบ YYYY-MM-DD (รวมวันนั้น)" },
         accounts: { type: "array", items: { type: "string" }, description: "เลขบัญชี (อย่างน้อย 4 หลัก) หรือบางส่วนของชื่อบัญชีที่มี statement" },
         account_group: { type: "string", description: "รหัสหรือชื่อกลุ่มของบัญชีที่มี statement เช่น t1 = บัญชีรับบริจาค" },
-        kinds: { type: "array", items: { type: "string", enum: KNAME }, description: "ประเภทรายการ: transfer_in โอนเข้า / cash_deposit ฝากเงินสด / transfer_out โอนออก-จ่าย / cash_withdraw ถอนเงินสด / donation เงินบริจาคเข้า (ยอดรวมรายเดือน)" },
+        kinds: { type: "array", items: { type: "string", enum: KNAME }, description: "ประเภทรายการ: transfer_in รับโอน / cash_deposit ฝากเงินสด / transfer_out โอนออก-จ่าย / cash_withdraw ถอนเงินสด / donation เงินบริจาคเข้า (ยอดรวมรายเดือน)" },
         counterparty: { type: "string", description: "บางส่วนของชื่อคู่โอน หรือเลขบัญชีคู่โอน" }, counterparty_group: { type: "string", description: "รหัสหรือชื่อกลุ่มของคู่โอน" },
         min_amount: { type: "number", description: "ยอดขั้นต่ำต่อรายการ (บาท)" }, max_amount: { type: "number", description: "ยอดสูงสุดต่อรายการ (บาท)" },
         group_by: { type: "string", enum: ["counterparty", "counterparty_group", "account", "month", "year", "kind", "none"], description: "วิธีจัดกลุ่มผลลัพธ์ ; none = คืนรายการเดี่ยวยอดสูงสุด" },

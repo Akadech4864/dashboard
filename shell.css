@@ -683,3 +683,8 @@ details.acc.gf>summary .ico.s,details.acc.gf>summary .ico.s svg{color:var(--c)}
 .gacc .pst{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin-top:4px}
 .gacc .pst br{display:none}
 @media (min-width:1100px){.gacc .pst{display:none!important}}
+
+/* ---------- สีแยกประเภทในตาราง (ผู้ใช้สั่ง 20 พ.ย. 69) : แถบสีกลุ่มหน้าชื่อ / ยอดเข้า น้ำเงิน ยอดออก แดง / ป้ายประเภทรายการสีตามการ์ด ---------- */
+.gbar{display:inline-block;padding-left:7px;border-left:3px solid var(--c);line-height:1.35}
+.amt-in{color:#1565C0}.amt-out{color:#B3261E}
+:root[data-theme=dark] .amt-in{color:#7FB3F0}:root[data-theme=dark] .amt-out{color:#F28B82}
