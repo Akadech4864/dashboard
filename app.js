@@ -464,7 +464,7 @@ const tile = (k, ic, v, l, s) => `<button class="tile" data-v="${k}"><span class
 const backBtn = () => `<button class="back" data-v="">${IC("back", 18)} กลับ</button>`;
 const stBadge = (s) => (!s ? "" : `<span class="badge ${/มาพบแล้ว|ได้แล้ว|เรียบร้อย/.test(s) ? "g" : /ยังไม่/.test(s) ? "r" : /ออกแล้ว|ขอแล้ว|รอ|อยู่ระหว่าง/.test(s) ? "y" : ""}">${esc(s)}</span>`);
 const li = (t, sub, a) => `<div class="li"><div class="t"><b>${t}</b>${sub ? `<small>${sub}</small>` : ""}</div>${a ? `<div class="a">${a}</div>` : ""}</div>`;
-const accd = (t, a, body, open, cls) => `<details class="acc ${cls || ""}"${open ? " open" : ""}><summary><span class="t">${t}</span><span class="a">${a || ""}</span></summary><div class="body">${body}</div></details>`;
+const accd = (t, a, body, open, cls, c) => `<details class="acc ${cls || ""}${c ? " gf" : ""}"${c ? ` style="--c:${c};--ci:${inkOn(c)}"` : ""}${open ? " open" : ""}><summary><span class="t">${t}</span><span class="a">${a || ""}</span></summary><div class="body">${body}</div></details>`;
 const dShow = (s) => { const d = pDate(s); return d ? dTh(d) : esc(s); };
 const dRange = (ds) => { const v = ds.filter(Boolean).sort(); return !v.length ? "" : v[0] === v[v.length - 1] ? dTh(v[0]) : `${dTh(v[0])} – ${dTh(v[v.length - 1])}`; };
 
@@ -1655,6 +1655,11 @@ const tlTo = (p) => (p.i < 0 ? "(คงอยู่ในบัญชี)" : p.t
 const accCol = (ai) => DB.groups[DB.accounts[ai].g][2], cpCol = (ci) => DB.groups[DB.cps[ci][3]][2];
 const gTag = (c, t) => `<span class="gtag" style="--c:${c}"><i></i>${esc(t)}</span>`;
 const tlToC = (p) => (p.i < 0 ? flowInfo0("rem").col : p.to >= 0 ? accCol(p.to) : cpCol(p.ci));
+// แถบ Timeline = สีกลุ่มของต้นสาย ; ยังไม่มีต้นสาย = สีบัญชีรับบริจาค (ผู้ใช้สั่ง 20 พ.ย. 69)
+const t1Col = () => (DB.groups.find((g) => g[0] === "t1") || [0, 0, "#1565C0"])[2];
+const tlColOf = (sd) => { const s0 = sd && sd.items && sd.items[0]; return (sd && sd.col) || (s0 && s0.i != null ? accCol(DB.tx[s0.i][0]) : s0 && s0.ai != null ? accCol(s0.ai) : "") || t1Col(); };
+const tlCol0 = () => { if (TLS.seed) return tlColOf(TLS.seed); const id = F.dn ? null : ((F.chain || [])[0] || []).find((x) => /^[cg]\d/.test(x)); return id ? flowInfo0(id).col : t1Col(); };
+const gfA = (c) => ` style="--c:${c};--ci:${inkOn(c)}"`;
 const endCol = (e, c) => (/ถอนเงินสด/.test(e || "") ? (DB.groups.find((g) => g[0] === "cash") || [0, 0, "#9E9E9E"])[2] : /ไม่มี statement/.test(e || "") ? flowInfo0("nst").col : /คงอยู่|หยุดไล่|บัญชีเดียวกัน/.test(e || "") ? flowInfo0("rem").col : c);
 function tlRender() {
   const box = $("#tlBox"); if (!box) return;
@@ -1663,18 +1668,17 @@ function tlRender() {
     const b = e.target.closest("[data-tl]"); if (!b) return; if (b.dataset.tl === "open" || b.dataset.tl === "close") { TLS.open = b.dataset.tl === "open"; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "back") { TLS.seed = TLS.hist.pop() || null; TLS.keep = true; return tlRender(); } if (b.dataset.tl === "rep") tlReport(); };
   box.onchange = (e) => { if (e.target.id === "tlFrom" || e.target.id === "tlTo") { TLS[e.target.id === "tlFrom" ? "from" : "to"] = e.target.value; TLS.keep = true; tlRender(); } };
   const ck = JSON.stringify(F.chain) + trMode(); if (TLC.ck !== null && TLC.ck !== ck && TLS.seed && !TLS.keep) { TLS.seed = null; TLS.hist = []; } TLC.ck = ck; TLS.keep = false;
-  if (!TLS.open) { box.innerHTML = `<button class="tlbar0" data-tl="open" title="เปิดวิเคราะห์">${IC("route", 16)} <b>Timeline เส้นเงินเป็นทอด</b><span class="tlgo">${IC("more", 16)}</span></button>`; return; }
-  const sd = tlSeeds();
+  if (!TLS.open) { box.innerHTML = `<button class="tlbar0 gf"${gfA(tlCol0())} data-tl="open" title="เปิดวิเคราะห์">${IC("route", 16)} <b>Timeline เส้นเงินเป็นทอด</b><span class="tlgo">${IC("more", 16)}</span></button>`; return; }
+  const sd = tlSeeds(), sc = tlColOf(sd), cA = gfA(sc);   // สีต้นสาย = สีกลุ่มของกล่อง/บัญชีต้นสาย
   const hd = `<div class="tlh"><h2>${IC("route")} Timeline เส้นเงินเป็นทอด ${infoI("ต้นสาย = รายการทอด 1 ของกล่องที่คลี่ในชาร์ต หรือแถวที่กด (ตารางรายการ / ตารางนี้) · ไล่ตามวิธีที่เลือกในชาร์ต ไม่เกิน " + TL_MAX + " ทอด · ตามทอด = สรุปรายทอดว่าเงินแยกไปทางใด · ปลายสาย = เงินไปจบที่ใด รวมเท่ายอดต้นสาย · เป็นการไล่ตามลำดับเวลา (ข้อสันนิษฐาน) ไม่ใช่การระบุตัวเงิน")}</h2>${TLS.seed ? ibx("back", TLS.hist.length ? "ย้อนกลับ" : "กลับไปตามชาร์ต", 'data-tl="back"') : ""}${ibx("less", "ซ่อน", 'data-tl="close"')}</div>`;
-  if (!sd || !sd.items.length) { box.innerHTML = `<div class="card tlc">${hd}<p class="muted" style="margin:4px 0 0">เลือกกล่อง ▶ ในชาร์ต หรือแถวในตารางรายการ</p></div>`; return; }
+  if (!sd || !sd.items.length) { box.innerHTML = `<div class="card tlc gf"${cA}>${hd}<p class="muted" style="margin:4px 0 0">เลือกกล่อง ▶ ในชาร์ต หรือแถวในตารางรายการ</p></div>`; return; }
   const key = [sd.label, sd.items.length, sd.items.reduce((t, x) => t + x.amt, 0).toFixed(2), TLS.from, TLS.to, trMode()].join("|");
   if (TLC.key !== key) { TLC.res = tlTrace(sd); TLC.key = key; }
   const T = TLC.res, P = T.P, L = P.filter((p) => p.end), sumE = (rx) => L.filter((p) => rx.test(p.end)).reduce((t, p) => t + p.amt, 0);
   const last = P.reduce((m, p) => Math.max(m, p.t), T.t1 || 0), hopMax = P.reduce((m, p) => Math.max(m, p.hop), 0);
-  const s0 = sd.items[0], sc = sd.col || (s0.i != null ? accCol(DB.tx[s0.i][0]) : s0.ai != null ? accCol(s0.ai) : "#FFD403");   // สีต้นสาย = สีกลุ่มของกล่อง/บัญชีต้นสาย
   const kp = [["ยอดต้นสาย", M(T.total), `${fmt0(T.n)} รายการ`, sc], ["ไล่ได้ลึกสุด", `${hopMax} ทอด`, `${fmt0(P.length)} รายการย่อย`], ["ระยะเวลาต้นสาย → สุดสาย", tlGap(last - (T.t1 || last)), T.t1 != null ? `${tlTh(tlIso(T.t1))} – ${tlTh(tlIso(last))}` : ""],
     ["ถอนเป็นเงินสด", M(sumE(/ถอนเงินสด/)), "", endCol("ถอนเงินสด")], ["ไปบัญชีที่ไม่มี statement", M(sumE(/ไม่มี statement/)), "", endCol("ไม่มี statement")], ["คงอยู่ในบัญชี / หยุดไล่", M(sumE(/คงอยู่|หยุดไล่|บัญชีเดียวกัน/)), "", endCol("คงอยู่")]];
-  box.innerHTML = `<div class="card tlc">${hd}
+  box.innerHTML = `<div class="card tlc gf"${cA}>${hd}
     <div class="tlsrc" style="--c:${sc}">${IC("flow", 15)} <b>ต้นสาย:</b> ${esc(T.label)} · <b>วิธีไล่:</b> ${trName(T.mode)}${T.cut ? ` <span class="badge r">ตัดที่ ${fmt0(TL_CAP)} รายการ — ใช้ช่วงเวลาให้แคบลง</span>` : ""}</div>
     <div class="tlbar"><div class="seg">${TLV.map(([k, l]) => `<button data-tlv="${k}" class="${TLS.v === k ? "on" : ""}">${l}</button>`).join("")}</div>
       <label class="tlt">เริ่ม <input type="datetime-local" id="tlFrom" value="${TLS.from}"></label><label class="tlt">ถึง <input type="datetime-local" id="tlTo" value="${TLS.to}"></label>

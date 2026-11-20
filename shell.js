@@ -417,12 +417,12 @@ const BRF = {
     return `<div class="ptn">${R.map(([ic, t, v, w], i) => `<div class="pt"><span class="pt-n">${i + 1}</span>${IC(ic, 22)}<div><b>${t}</b><span class="pt-v">${v}</span><small>ผู้ต้องหาที่ ${w}</small></div></div>`).join("")}</div>
       <div class="note">ยอดแต่ละรูปแบบซ้อนกันได้ (เงินก้อนเดียวผ่านหลายรูปแบบ) ไม่ควรนำมารวมกัน ; รูปแบบที่ 4 และ 9 วิเคราะห์จากยอดและเวลา ต้องยืนยันด้วยเอกสารธนาคาร</div>`; },
   grp: ({ X }) => { const T = { pco: "บริษัทของผู้ต้องหาที่ 1", rel_pan: "ญาติของผู้ต้องหาที่ 1", rel_ath: "ญาติของผู้ต้องหาที่ 2", lnd: "ผู้ขายที่ดิน", ctr: "ผู้รับเหมา / ช่างอื่น", nom: "แม่ครัวมูลนิธิ", kpk: "ผู้ทำบัญชีมูลนิธิ / เค พาร์ค", sst: "บุคคลที่ชุดสืบระบุตัวแล้ว" };
-    const G = X.groups || {}, ks = Object.keys(T).filter((k) => G[k] && G[k].n_acc);
+    const G = X.groups || {}, ks = Object.keys(T).filter((k) => G[k] && G[k].n_acc), gc = (k) => ENTC[k] || "#90A4AE";   // สีกลุ่มชุดเดียวกับชาร์ต (ผู้ใช้สั่ง 20 พ.ย. 69)
     return `<p class="muted">ข้อเท็จจริงทางการเงินเพื่อประกอบการสอบปากคำพยาน / ขยายผล — ไม่ใช่การสรุปความรับผิด</p>` +
-      tbl(["กลุ่ม", "บัญชี (มี STM)", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับเข้าผู้ต้องหา / บัญชีรับบริจาค"], ks.map((k) => { const t = G[k].tot; return [`<b>${T[k]}</b>`, `${G[k].n_acc} (${G[k].n_stm})`, M(t.t1), M(t.pan), M(t.ath), `<b style="color:${t.back > 0 ? "var(--red)" : "inherit"}">${M(t.back)}</b>`]; }), [2, 3, 4, 5]) +
-      ks.map((k) => accd(`${T[k]}`, `${G[k].top.length} บัญชี`, tbl(["บัญชี", "STM", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับ"], G[k].top.map((x) => [labAcc(x.acc), x.stm ? "มี" : "–", M(x.t1), M(x.pan), M(x.ath), M(x.back)]), [2, 3, 4, 5]), false)).join(""); },
+      tbl(["กลุ่ม", "บัญชี (มี STM)", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับเข้าผู้ต้องหา / บัญชีรับบริจาค"], ks.map((k) => { const t = G[k].tot; return [gTag(gc(k), T[k]), `${G[k].n_acc} (${G[k].n_stm})`, M(t.t1), M(t.pan), M(t.ath), `<b style="color:${t.back > 0 ? "var(--red)" : "inherit"}">${M(t.back)}</b>`]; }), [2, 3, 4, 5]) +
+      ks.map((k) => accd(`${T[k]}`, `${G[k].top.length} บัญชี`, tbl(["บัญชี", "STM", "จากบัญชีรับบริจาค", "จากผู้ต้องหาที่ 1", "จากผู้ต้องหาที่ 2", "โอนกลับ"], G[k].top.map((x) => [labAcc(x.acc), x.stm ? "มี" : "–", M(x.t1), M(x.pan), M(x.ath), M(x.back)]), [2, 3, 4, 5]), false, "", gc(k))).join(""); },
   pend: ({ X }) => `<p class="muted">บัญชีที่ยังไม่มี statement ซึ่งรับเงินจากบัญชีรับบริจาคหรือบัญชีผู้ต้องหาตั้งแต่ 500,000 บาท</p>` +
-    tbl(["ที่", "บัญชี", "กลุ่ม", "จากบัญชีรับบริจาค", "จากบัญชีผู้ต้องหา", "รวม", "ล่าสุด"], X.pending.map((x, i) => [i + 1, labAcc(x.acc), esc(X.suspects[x.ent] ? `ผู้ต้องหาที่ ${X.suspects[x.ent].no}` : (X.ent[x.ent] || x.ent)), M(x.t1), M(x.sus), `<b>${M(x.t1 + x.sus)}</b>`, dTh(x.last)]), [3, 4, 5]),
+    tbl(["ที่", "บัญชี", "กลุ่ม", "จากบัญชีรับบริจาค", "จากบัญชีผู้ต้องหา", "รวม", "ล่าสุด"], X.pending.map((x, i) => [i + 1, labAcc(x.acc), gTag(ENTC[x.ent] || "#90A4AE", X.suspects[x.ent] ? `ผู้ต้องหาที่ ${X.suspects[x.ent].no}` : (X.ent[x.ent] || x.ent)),M(x.t1), M(x.sus), `<b>${M(x.t1 + x.sus)}</b>`, dTh(x.last)]), [3, 4, 5]),
 };
 const BRP = {
   chg: () => { const el = $("#chgBox"); if (el) pCharges(el); },

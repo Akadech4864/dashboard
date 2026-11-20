@@ -607,3 +607,13 @@ button.clnk:hover{border-color:var(--acc)}
 /* หน้าต่างรายละเอียดบัญชี: หัวไล่เฉดสีกลุ่ม */
 .mhd{border-radius:14px;padding:10px 12px;margin:0 0 10px}
 .mhd h3{margin:0 0 4px}
+
+/* ---------- กล่องยุบ-ขยายที่เป็นกลุ่ม + แถบ Timeline = สีกลุ่ม (ผู้ใช้สั่ง 20 พ.ย. 69) ----------
+   class gf + style --c (สีกลุ่ม) --ci (สีตัวอักษร inkOn) ; Timeline = สีกลุ่มต้นสาย ค่าเริ่มต้นสีบัญชีรับบริจาค ; กล่องยุบ-ขยายทั่วไปยังเหลือง */
+.gf{--fold:var(--c);--fold2:color-mix(in srgb,var(--c) 84%,#fff);--fold-ink:var(--ci,#fff)}
+.tlbar0.gf,details.acc.gf>summary,.card.tlc.gf>.tlh{background:linear-gradient(180deg,rgba(255,255,255,.24),rgba(255,255,255,0) 58%),linear-gradient(135deg,color-mix(in srgb,var(--c) 80%,#fff),var(--c) 58%,color-mix(in srgb,var(--c) 80%,#000))!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 2px 8px color-mix(in srgb,var(--c) 30%,transparent)}
+.tlbar0.gf:hover,details.acc.gf>summary:hover,.card.tlc.gf>.tlh:hover{filter:brightness(1.07)}
+.card.tlc.gf>.tlh .ibx{border-color:color-mix(in srgb,var(--fold-ink) 38%,transparent)}
+.card.tlc.gf>.tlh .ibx:hover{background:color-mix(in srgb,var(--fold-ink) 16%,transparent);border-color:var(--fold-ink)}
+.card.tlc.gf>.tlh .ibx.sm{border-color:transparent}
+details.acc.gf>summary .ico.s,details.acc.gf>summary .ico.s svg{color:var(--c)}
