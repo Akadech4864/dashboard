@@ -1311,7 +1311,7 @@ function pAna() {
       const C = (F.chain || []).map((a) => (Array.isArray(a) ? [...a] : [a])), S = C[at] || [];
       if (S.includes(id)) { const S2 = S.filter((x) => x !== id); F.chain = S2.length ? C.slice(0, at).concat([S2], C.slice(at + 1)) : C.slice(0, at); }
       else { C[at] = S.concat([id]); F.chain = C.slice(0, at + 1).concat(C.slice(at + 1)); }
-      F.noAuto = !(F.chain && F.chain.length);
+      F.noAuto = !(F.chain && F.chain.length); if (at === 0) F.chAuto = false;   // เลือกกล่องทอด 1 เอง = แสดงเฉพาะเส้นที่ไล่
       tip.hidden = true; return upd(); }
     if (col >= 3) { toast("บัญชีนี้ยังไม่มี statement จึงไล่ทอดต่อไม่ได้"); return; }
     if ("gcGa".includes(id[0])) FHIST.push(fSnap());
@@ -1732,14 +1732,18 @@ function flowBuild(pair) {
   const lk = (a, b, v, n) => { const k = a + ">" + b; let o = links.get(k); if (!o) links.set(k, (o = { a, b, v: 0, n: 0 })); o.v += v; o.n += n; };
   const CH = (F.chain || []).filter((a) => a && a.length), time = F.flt !== false, chain = [];
   if (time && CH.length) {
-    const s0 = new Set(CH[0]), seeds = [], srcA = new Map(), col2 = new Map();
-    for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i), d = lid(ci); if (!s0.has(d)) continue;
+    const s0 = new Set(CH[0]), seeds = [], srcA = new Map(), col2 = new Map(), showAll = !!F.chAuto, rest = new Map(), srcR = new Map();
+    for (const i of filterTx()) { const r = DB.tx[i]; if (IN_K.includes(r[2])) continue; const ci = cpOf(i), d = lid(ci);
+      if (!s0.has(d)) { if (showAll) { const e = rest.get(r[0] + "|" + d) || [0, 0]; e[0] += r[3]; e[1]++; rest.set(r[0] + "|" + d, e); add(srcR, r[0], r[3]); } continue; }
       seeds.push({ i, amt: r[3] }); add(srcA, r[0], r[3]); const e = col2.get(r[0] + "|" + d) || [0, 0]; e[0] += r[3]; e[1]++; col2.set(r[0] + "|" + d, e); }
     if (seeds.length) {
       // คอลัมน์ 0–2 เฉพาะเส้นที่ไล่
       //   (ไม่แสดงคอลัมน์เงินเข้าจาก เพราะเงินเข้าทั้งหมดของบัญชีต้นทางไม่ใช่เส้นที่ไล่ — ชาร์ตเริ่มที่บัญชีผู้โอนทอด 1)
       for (const [ai, v] of srcA) add(Mi, mid(ai), v);
+      for (const [ai, v] of srcR) add(Mi, mid(ai), v);
       const kM = top(Mi);
+      if (rest.size) { const Rm = new Map(); for (const [k2, e] of rest) add(Rm, k2.split("|")[1], e[0]); const kR = top(Rm);   // กล่องทอด 1 ที่ไม่ได้คลี่ = ปลายทาง (ไม่ไล่ต่อ)
+        for (const [k2, e] of rest) { const [ai, d0] = k2.split("|"), m0 = mid(+ai), m = kM.has(m0) ? m0 : "O", d = kR.has(d0) ? d0 : "o"; nd(1, m).out += e[0]; nd(2, d).in += e[0]; lk("1:" + m, "2:" + d, e[0], e[1]); } }
       for (const [k2, e] of col2) { const [ai, d] = k2.split("|"), m0 = mid(+ai), m = kM.has(m0) ? m0 : "O"; nd(1, m).out += e[0]; nd(2, d).in += e[0]; lk("1:" + m, "2:" + d, e[0], e[1]); }
       // ทอดถัดไป
       const maxHop = CH.length + 1;
@@ -1866,6 +1870,7 @@ function drawFlow(box, pair) {
       const last = fb.cols[2 + fb.chain.length]; if (!last) break;
       const usedIds = new Set(fb.chain.flat()), nx = [...last.values()].filter((n) => n.id.length > 1 && n.id !== "rem" && n.id !== "nst" && !usedIds.has(n.id) && srcAccs(n.id).length).sort((a, b) => Math.max(b.in, b.out) - Math.max(a.in, a.out))[0];
       if (!nx) break;
+      if (!fb.chain.length) F.chAuto = true;                                // กล่องทอด 1 ถูกเลือกโดยระบบ = ยังแสดงกล่องทอด 1 อื่นด้วย
       const big = Math.max(...[...last.values()].filter((n) => n.id.length > 1).map((n) => Math.max(n.in, n.out)));
       if (Math.max(nx.in, nx.out) < big * 0.25) break;                    // กล่องที่ไล่ต่อได้เล็กกว่ากล่องใหญ่สุดเกิน 4 เท่า = ไม่คลี่เอง (ให้เห็นทุกกล่องก่อน)
       F.chain = fb.chain.map((a) => [...a]).concat([[nx.id]]); const nb = flowBuild(pair); if (nb.chain.length <= fb.chain.length) break; fb = nb;
